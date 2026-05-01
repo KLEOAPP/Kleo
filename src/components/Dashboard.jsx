@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
+import AiInsights from './AiInsights.jsx';
 import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/storage.js';
 
 export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab, onConnectBank }) {
@@ -217,6 +218,16 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
               <span style={{ fontWeight: 700, fontSize: 16 }}>{fmtMoneyShort(patrimony.savings)}</span>
             </div>
           </div>
+        </div>
+
+        {/* Kleo IA */}
+        <div style={{ marginTop: 16 }}>
+          <AiInsights
+            transactions={transactions}
+            accounts={accounts}
+            goals={goals}
+            fixedExpenses={fixedExpenses}
+          />
         </div>
 
         {/* Conectar banco */}

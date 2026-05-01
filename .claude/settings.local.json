@@ -16,7 +16,8 @@
       "Bash(git add *)",
       "Bash(npm list *)",
       "Bash(npx sharp-cli *)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "WebSearch"
     ]
   }
 }
