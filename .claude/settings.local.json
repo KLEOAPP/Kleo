@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(ping -n 4 127.0.0.1)",
+      "PowerShell(Stop-Process -Force -Confirm:$false)",
+      "Bash(npx vite *)"
+    ]
+  }
+}
