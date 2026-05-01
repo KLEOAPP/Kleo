@@ -21,7 +21,10 @@ export default async function handler(req, res) {
     const { userId } = req.body;
 
     const response = await plaid.linkTokenCreate({
-      user: { client_user_id: userId || 'demo-user' },
+      user: {
+        client_user_id: userId || 'demo-user',
+        phone_number_verified_time: '2024-01-01T00:00:00Z',
+      },
       client_name: 'Kleo',
       products: ['transactions'],
       country_codes: ['US'],
