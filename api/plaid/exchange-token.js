@@ -1,5 +1,5 @@
-const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
-const { createClient } = require('@supabase/supabase-js');
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import { createClient } from '@supabase/supabase-js';
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -18,7 +18,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 );
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -95,7 +95,7 @@ module.exports = async function handler(req, res) {
     console.error('Plaid exchange error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Error connecting bank account' });
   }
-};
+}
 
 function mapPlaidCategory(plaidCat) {
   const map = {
