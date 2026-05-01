@@ -1,5 +1,5 @@
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import { createClient } from '@supabase/supabase-js';
+const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
+const { createClient } = require('@supabase/supabase-js');
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -18,7 +18,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 );
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -26,7 +26,6 @@ export default async function handler(req, res) {
   try {
     const { userId } = req.body;
 
-    // Buscar todas las cuentas con plaid_access_token
     const { data: accounts } = await supabase
       .from('accounts')
       .select('id, plaid_account_id, plaid_access_token')
@@ -43,12 +42,9 @@ export default async function handler(req, res) {
     const endDate = now.toISOString().split('T')[0];
 
     let totalSynced = 0;
-
-    // Agrupar por access_token (un token puede tener varias cuentas)
     const tokens = [...new Set(accounts.map(a => a.plaid_access_token))];
 
     for (const accessToken of tokens) {
-      // Actualizar balances
       const balResponse = await plaid.accountsGet({ access_token: accessToken });
       for (const bal of balResponse.data.accounts) {
         const matched = accounts.find(a => a.plaid_account_id === bal.account_id);
@@ -60,7 +56,6 @@ export default async function handler(req, res) {
         }
       }
 
-      // Obtener transacciones nuevas
       const txResponse = await plaid.transactionsGet({
         access_token: accessToken,
         start_date: startDate,
@@ -91,7 +86,7 @@ export default async function handler(req, res) {
     console.error('Sync error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Error syncing transactions' });
   }
-}
+};
 
 function mapCategory(plaidCat) {
   const map = {

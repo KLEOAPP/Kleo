@@ -1,5 +1,5 @@
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
-import { createClient } from '@supabase/supabase-js';
+const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
+const { createClient } = require('@supabase/supabase-js');
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -18,7 +18,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 );
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -26,15 +26,12 @@ export default async function handler(req, res) {
   try {
     const { public_token, userId } = req.body;
 
-    // Intercambiar public token por access token
     const exchange = await plaid.itemPublicTokenExchange({ public_token });
     const accessToken = exchange.data.access_token;
 
-    // Obtener cuentas del banco
     const accountsResponse = await plaid.accountsGet({ access_token: accessToken });
     const accounts = accountsResponse.data.accounts;
 
-    // Guardar cada cuenta en Supabase
     for (const acct of accounts) {
       const type = acct.type === 'depository'
         ? (acct.subtype === 'savings' ? 'savings' : 'checking')
@@ -60,7 +57,6 @@ export default async function handler(req, res) {
       }, { onConflict: 'plaid_account_id' });
     }
 
-    // Obtener transacciones recientes (últimos 30 días)
     const now = new Date();
     const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
     const startDate = thirtyDaysAgo.toISOString().split('T')[0];
@@ -74,7 +70,6 @@ export default async function handler(req, res) {
     });
 
     for (const tx of txResponse.data.transactions) {
-      // Buscar la cuenta correspondiente
       const { data: matchedAccounts } = await supabase
         .from('accounts')
         .select('id')
@@ -86,7 +81,7 @@ export default async function handler(req, res) {
       await supabase.from('transactions').upsert({
         user_id: userId,
         account_id: accountId,
-        amount: -tx.amount, // Plaid usa positivo para gastos
+        amount: -tx.amount,
         merchant: tx.merchant_name || tx.name,
         category: mapPlaidCategory(tx.personal_finance_category?.primary || tx.category?.[0]),
         date: tx.date,
@@ -100,7 +95,7 @@ export default async function handler(req, res) {
     console.error('Plaid exchange error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Error connecting bank account' });
   }
-}
+};
 
 function mapPlaidCategory(plaidCat) {
   const map = {
