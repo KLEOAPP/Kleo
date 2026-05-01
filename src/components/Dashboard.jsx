@@ -3,7 +3,7 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/storage.js';
 
-export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab }) {
+export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab, onConnectBank }) {
   const [hideBalance, setHideBalance] = useState(false);
 
   // Patrimonio neto = corriente + ahorros − deuda crédito
@@ -218,6 +218,31 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
             </div>
           </div>
         </div>
+
+        {/* Conectar banco */}
+        {onConnectBank && (
+          <button
+            onClick={onConnectBank}
+            className="card pressable mt-16"
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              background: 'var(--bg-elev)',
+              border: '1px dashed var(--border)',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12
+            }}
+          >
+            <span style={{ fontSize: 24 }}>🏦</span>
+            <div className="col gap-2" style={{ flex: 1 }}>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>Conectar banco</span>
+              <span className="tiny">Sincroniza tus cuentas y transacciones</span>
+            </div>
+            <Icon name="back" size={14} color="var(--text-mute)" stroke={2} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+        )}
 
         {/* GRID DE SECCIONES BONITAS */}
         <div className="section-header">

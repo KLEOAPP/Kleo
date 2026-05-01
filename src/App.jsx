@@ -16,6 +16,7 @@ import Transactions from './components/Transactions.jsx';
 import Feedback from './components/Feedback.jsx';
 import MoreMenu from './components/MoreMenu.jsx';
 import BottomNav from './components/BottomNav.jsx';
+import ConnectBank from './components/ConnectBank.jsx';
 import { storage } from './utils/storage.js';
 import {
   defaultAccounts,
@@ -67,6 +68,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [useSupabase, setUseSupabase] = useState(USE_SUPABASE);
+  const [showConnectBank, setShowConnectBank] = useState(false);
 
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -332,6 +334,14 @@ export default function App() {
     showToast('Meta creada');
   };
 
+  const handleBankConnected = async () => {
+    if (useSupabase && user?.id) {
+      try { await loadSupabaseData(user.id); } catch {}
+    }
+    setShowConnectBank(false);
+    showToast('¡Banco conectado!');
+  };
+
   const handleConfirmShared = (pendingId, isShared) => {
     setHousehold(prev => ({
       ...prev,
@@ -467,7 +477,13 @@ export default function App() {
     <div className="app-shell">
       <StatusBar />
 
-      {showAdd ? (
+      {showConnectBank ? (
+        <ConnectBank
+          userId={user?.id}
+          onConnected={handleBankConnected}
+          onClose={() => setShowConnectBank(false)}
+        />
+      ) : showAdd ? (
         <AddExpense
           accounts={accounts}
           onAdd={handleAddTransaction}
@@ -486,6 +502,7 @@ export default function App() {
               onOpenMenu={() => setShowMenu(true)}
               onOpenSection={setSection}
               onSwitchTab={setTab}
+              onConnectBank={() => setShowConnectBank(true)}
             />
           )}
           {tab === 'accounts' && (
