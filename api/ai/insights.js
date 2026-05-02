@@ -59,12 +59,17 @@ Responde SOLO con JSON: {"advice": "consejo directo", "savedPerMonth": numero_es
 
     const text = data.content?.[0]?.text || '';
 
-    // Intentar parsear como JSON
+    // Limpiar markdown code blocks y parsear JSON
+    let clean = text.trim();
+    // Remover ```json ... ``` o ``` ... ```
+    clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+    clean = clean.trim();
+
     try {
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(clean);
       res.json({ result: parsed });
     } catch {
-      res.json({ result: text });
+      res.json({ result: clean });
     }
   } catch (err) {
     console.error('AI insights error:', err.message);
