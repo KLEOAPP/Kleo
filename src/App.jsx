@@ -48,6 +48,7 @@ import {
   fetchProfile
 } from './lib/db.js';
 import { setPin, hasPin, verifyPin } from './lib/pin.js';
+import { registerBiometric, isBiometricEnabled, checkBiometricSupport } from './lib/biometric.js';
 
 // Si Supabase no está configurado o OAuth no está listo, usar modo prototipo
 const USE_SUPABASE = isConfigured;
@@ -287,16 +288,15 @@ export default function App() {
   };
 
   const handleLogin = async (provider) => {
-    if (provider === 'google') {
-      try {
+    try {
+      if (provider === 'google') {
         await signInWithGoogle();
-        // OAuth redirect happens — onAuthChange picks up the session
-      } catch (err) {
-        console.error('OAuth error:', err);
-        doPrototypeLogin(provider);
+      } else if (provider === 'apple') {
+        await signInWithApple();
       }
-    } else {
-      // Apple no está configurado aún — usar demo
+      // OAuth redirect happens — onAuthChange picks up the session
+    } catch (err) {
+      console.error('OAuth error:', err);
       doPrototypeLogin(provider);
     }
   };
@@ -321,6 +321,12 @@ export default function App() {
       const key = `user_${user.email}`;
       const data = storage.get(key) || {};
       storage.set(key, { ...data, pin });
+    }
+    // Intentar registrar biometría
+    const bioId = user?.id || user?.email || 'default';
+    const bioSupported = await checkBiometricSupport();
+    if (bioSupported) {
+      await registerBiometric(bioId);
     }
     setStage(STAGE.AUTHENTICATED);
   };
@@ -458,6 +464,7 @@ export default function App() {
 
         <FaceIdScreen
           userName={user?.name}
+          userId={user?.id || user?.email || 'default'}
           onSuccess={() => setStage(STAGE.AUTHENTICATED)}
           onUsePin={() => setStage(STAGE.PIN_VERIFY)}
         />
