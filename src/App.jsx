@@ -88,6 +88,17 @@ export default function App() {
         saveNotification(event.data.payload);
         setUnreadCount(prev => prev + 1);
       }
+      if (event.data?.type === 'NAVIGATE_SECTION') {
+        const s = event.data.section;
+        if (s === 'ai-insights') {
+          setTab('dashboard');
+          setSection(null);
+          setShowNotifications(false);
+        } else if (s) {
+          setSection(s);
+          setShowNotifications(false);
+        }
+      }
     };
     navigator.serviceWorker?.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);

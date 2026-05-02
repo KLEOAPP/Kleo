@@ -7,6 +7,14 @@
     {
       "path": "/api/push/check-payments",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/push/ai-tips",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/push/ai-tips",
+      "schedule": "0 22 * * *"
     }
   ]
 }

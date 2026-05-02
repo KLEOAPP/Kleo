@@ -141,7 +141,8 @@ export default async function handler(req, res) {
         body: notif.body,
         icon: '/apple-touch-icon.png',
         badge: '/apple-touch-icon.png',
-        url: '/'
+        url: '/',
+        section: 'credit'
       });
 
       const targetSubs = notif.userId

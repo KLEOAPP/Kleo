@@ -48,7 +48,7 @@ self.addEventListener('push', (e) => {
     icon: data.icon || '/apple-touch-icon.png',
     badge: data.badge || '/apple-touch-icon.png',
     vibrate: [100, 50, 100],
-    data: { url: data.url || '/' },
+    data: { url: data.url || '/', section: data.section || '' },
     actions: [
       { action: 'open', title: 'Abrir Kleo' }
     ]
@@ -66,22 +66,24 @@ self.addEventListener('push', (e) => {
   );
 });
 
-// Al tocar la notificación, abrir la app
+// Al tocar la notificación, abrir la sección correcta
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
 
-  const url = e.notification.data?.url || '/';
+  const data = e.notification.data || {};
+  const section = data.section || '';
+  const url = data.url || '/';
 
   e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Si ya hay una ventana abierta, enfocarla
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
         if (client.url.includes('kleopr.com') && 'focus' in client) {
+          // Enviar mensaje para navegar a la sección
+          client.postMessage({ type: 'NAVIGATE_SECTION', section });
           return client.focus();
         }
       }
-      // Si no, abrir nueva
-      return clients.openWindow(url);
+      return self.clients.openWindow(section ? `/?section=${section}` : url);
     })
   );
 });
