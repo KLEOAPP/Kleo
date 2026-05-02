@@ -59,47 +59,37 @@ export default function Notifications({ onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.4)',
+        background: 'var(--bg)',
         zIndex: 100,
         display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-        backdropFilter: 'blur(4px)'
+        alignItems: 'stretch',
+        justifyContent: 'center'
       }}
       onClick={onClose}
     >
       <div
-        className="app-shell"
         style={{
           background: 'var(--bg)',
-          height: '85vh',
+          width: '100%',
+          maxWidth: 430,
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          borderRadius: '20px 20px 0 0',
           animation: 'fadeUp .3s ease',
-          border: '1px solid var(--border)',
           overflow: 'hidden'
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Handle */}
-        <div style={{ paddingTop: 8, paddingBottom: 4, flexShrink: 0 }}>
-          <div style={{
-            width: 36, height: 5,
-            background: 'var(--border)',
-            borderRadius: 3,
-            margin: '0 auto'
-          }}></div>
-        </div>
-
         {/* Header */}
         <div style={{
-          padding: '12px 16px 16px',
+          paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
+          padding: 'max(16px, env(safe-area-inset-top, 16px)) 16px 16px',
           flexShrink: 0,
           borderBottom: '1px solid var(--border-soft)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          gap: 12
         }}>
           <button
             onClick={onClose}
