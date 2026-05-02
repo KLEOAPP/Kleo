@@ -79,9 +79,20 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [household, setHousehold] = useState(defaultHousehold);
 
-  // Contar notificaciones no leídas
+  // Contar notificaciones no leídas + detectar apertura desde notificación
   useEffect(() => {
     setUnreadCount(getUnreadCount());
+    // Si se abrió desde notificación con ?section=
+    const params = new URLSearchParams(window.location.search);
+    const openSection = params.get('section');
+    if (openSection) {
+      window.history.replaceState({}, '', '/');
+      if (openSection === 'ai-insights') {
+        setTab('dashboard');
+      } else {
+        setSection(openSection);
+      }
+    }
     // Escuchar mensajes del service worker (push recibido)
     const handleMessage = (event) => {
       if (event.data?.type === 'PUSH_RECEIVED') {
@@ -90,14 +101,17 @@ export default function App() {
       }
       if (event.data?.type === 'NAVIGATE_SECTION') {
         const s = event.data.section;
-        if (s === 'ai-insights') {
-          setTab('dashboard');
-          setSection(null);
+        // Primero muestra las notificaciones, luego navega
+        setShowNotifications(true);
+        setTimeout(() => {
           setShowNotifications(false);
-        } else if (s) {
-          setSection(s);
-          setShowNotifications(false);
-        }
+          if (s === 'ai-insights') {
+            setTab('dashboard');
+            setSection(null);
+          } else if (s) {
+            setSection(s);
+          }
+        }, 2000);
       }
     };
     navigator.serviceWorker?.addEventListener('message', handleMessage);

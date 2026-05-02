@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId, title, body, icon, url } = req.body;
+    const { userId, title, body, icon, url, section } = req.body;
 
     // Buscar suscripciones del usuario
     let query = supabase.from('push_subscriptions').select('*');
@@ -37,7 +37,8 @@ export default async function handler(req, res) {
       body: body || 'Tienes una notificación',
       icon: icon || '/apple-touch-icon.png',
       url: url || '/',
-      badge: '/apple-touch-icon.png'
+      badge: '/apple-touch-icon.png',
+      section: section || ''
     });
 
     let sent = 0;
