@@ -260,21 +260,32 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
             </button>
           </div>
 
-          {/* Feedback discreto */}
+          {/* Feedback */}
           <button
             onClick={() => { onClose(); onFeedback(); }}
+            className="pressable"
             style={{
               width: '100%',
-              padding: '10px',
-              fontSize: 12,
-              color: 'var(--text-mute)',
-              textDecoration: 'underline',
-              textDecorationColor: 'var(--border)',
-              textUnderlineOffset: 4,
+              padding: '16px 20px',
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, rgba(0,181,137,0.1) 0%, rgba(0,122,255,0.1) 100%)',
+              border: '1px solid rgba(0,181,137,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
               marginBottom: 8
             }}
           >
-            💡 ¿Qué te gustaría mejorar en Kleo?
+            <span style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: 'var(--gradient)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 20
+            }}>💡</span>
+            <div className="col gap-2" style={{ flex: 1, textAlign: 'left' }}>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>¿Qué te gustaría mejorar?</span>
+              <span className="tiny">Tu opinión hace a Kleo mejor</span>
+            </div>
           </button>
 
           <p className="tiny" style={{ textAlign: 'center', padding: '8px 0 24px' }}>
