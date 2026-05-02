@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kleo-v2';
+const CACHE_NAME = 'kleo-v3';
 const ASSETS = [
   '/',
   '/index.html'
@@ -58,7 +58,7 @@ self.addEventListener('push', (e) => {
   e.waitUntil(
     self.clients.matchAll({ type: 'window' }).then(clients => {
       clients.forEach(client => {
-        client.postMessage({ type: 'PUSH_RECEIVED', payload: { title: data.title, body: data.body } });
+        client.postMessage({ type: 'PUSH_RECEIVED', payload: { title: data.title, body: data.body, section: data.section || '' } });
       });
     }).then(() => {
       return self.registration.showNotification(data.title, options);

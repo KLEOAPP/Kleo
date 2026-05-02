@@ -6,15 +6,28 @@ const STORAGE_KEY = 'kleo_notifications';
 
 export function saveNotification(notif) {
   const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  stored.unshift({
+  const entry = {
     id: Date.now(),
     title: notif.title,
     body: notif.body,
+    section: notif.section || '',
     time: new Date().toISOString(),
     read: false
-  });
+  };
+  stored.unshift(entry);
   // Máximo 50 notificaciones
   localStorage.setItem(STORAGE_KEY, JSON.stringify(stored.slice(0, 50)));
+  // Guardar como pendiente para mostrar overlay cuando abra la app
+  localStorage.setItem('kleo_pending_notif', JSON.stringify(entry));
+}
+
+export function getPendingNotification() {
+  const pending = localStorage.getItem('kleo_pending_notif');
+  if (pending) {
+    localStorage.removeItem('kleo_pending_notif');
+    try { return JSON.parse(pending); } catch { return null; }
+  }
+  return null;
 }
 
 export function getUnreadCount() {

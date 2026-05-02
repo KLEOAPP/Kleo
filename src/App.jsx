@@ -17,7 +17,7 @@ import Feedback from './components/Feedback.jsx';
 import MoreMenu from './components/MoreMenu.jsx';
 import BottomNav from './components/BottomNav.jsx';
 import ConnectBank from './components/ConnectBank.jsx';
-import Notifications, { getUnreadCount, saveNotification } from './components/Notifications.jsx';
+import Notifications, { getUnreadCount, saveNotification, getPendingNotification } from './components/Notifications.jsx';
 import NotificationOverlay from './components/NotificationOverlay.jsx';
 import { storage } from './utils/storage.js';
 import {
@@ -113,7 +113,37 @@ export default function App() {
       }
     };
     navigator.serviceWorker?.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);
+
+    // Fallback para iOS: cuando la app vuelve al foco, checar si hay notificación pendiente
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const pending = getPendingNotification();
+        if (pending) {
+          setPendingNotification({
+            title: pending.title,
+            body: pending.body,
+            section: pending.section
+          });
+        }
+        setUnreadCount(getUnreadCount());
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Checar al inicio también
+    const initialPending = getPendingNotification();
+    if (initialPending) {
+      setPendingNotification({
+        title: initialPending.title,
+        body: initialPending.body,
+        section: initialPending.section
+      });
+    }
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   // ===== MODO PROTOTIPO (localStorage) =====
