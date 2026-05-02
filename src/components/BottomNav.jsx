@@ -1,12 +1,12 @@
 import { Icon } from './icons.jsx';
 
-export default function BottomNav({ active, onChange, onAdd, onMenu, onSection, currentSection }) {
+export default function BottomNav({ active, onChange, onAdd, onMenu }) {
   const items = [
-    { id: 'dashboard', label: 'Inicio', icon: 'home', type: 'tab' },
-    { id: 'credit', label: 'Crédito', icon: 'cards', type: 'section' },
-    { id: 'add', label: '', icon: 'plus', type: 'action' },
-    { id: 'accounts', label: 'Cuentas', icon: 'chart', type: 'tab' },
-    { id: 'menu', label: 'Más', icon: 'menu', type: 'action' }
+    { id: 'dashboard', label: 'Inicio', icon: 'home' },
+    { id: 'accounts', label: 'Cuentas', icon: 'cards' },
+    { id: 'add', label: '', icon: 'plus' },
+    { id: 'goals', label: 'Metas', icon: 'target' },
+    { id: 'menu', label: 'Más', icon: 'menu' }
   ];
 
   return (
@@ -29,25 +29,14 @@ export default function BottomNav({ active, onChange, onAdd, onMenu, onSection, 
             </button>
           );
         }
-
-        const isActive = item.type === 'section'
-          ? currentSection === item.id
-          : (!currentSection && active === item.id);
-
         return (
           <button
             key={item.id}
-            className={`nav-item ${isActive ? 'active' : ''}`}
-            onClick={() => {
-              if (item.type === 'section') {
-                onSection(item.id);
-              } else {
-                onChange(item.id);
-              }
-            }}
+            className={`nav-item ${active === item.id ? 'active' : ''}`}
+            onClick={() => onChange(item.id)}
           >
-            <Icon name={item.icon} size={20} color={isActive ? 'var(--green)' : 'var(--text-dim)'} />
-            <span style={{ color: isActive ? 'var(--green)' : undefined }}>{item.label}</span>
+            <Icon name={item.icon} size={20} color={active === item.id ? 'var(--blue)' : 'var(--text-dim)'} />
+            <span>{item.label}</span>
           </button>
         );
       })}

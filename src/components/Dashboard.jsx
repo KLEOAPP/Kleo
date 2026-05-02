@@ -255,62 +255,80 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
           </button>
         )}
 
-        {/* Resumen rápido */}
+        {/* GRID DE SECCIONES BONITAS */}
         <div className="section-header">
-          <span>Tu resumen</span>
+          <span>Secciones</span>
         </div>
-        <div className="col gap-10">
-          {/* Crédito */}
-          <button onClick={() => onOpenSection('credit')} className="card pressable" style={{
-            background: 'var(--bg-elev)', border: 'none', padding: '14px 16px',
-            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left'
-          }}>
-            <span style={{ fontSize: 24 }}>💳</span>
-            <div className="col gap-2" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Crédito</span>
-              <span className="tiny">{creditUtilization.toFixed(0)}% utilización · Score {score}</span>
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 16, color: utilColor }}>{creditUtilization.toFixed(0)}%</span>
-          </button>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 12
+        }}>
+          {sections.map(s => (
+            <button
+              key={s.id}
+              onClick={s.action}
+              className="pressable"
+              style={{
+                position: 'relative',
+                padding: 16,
+                borderRadius: 18,
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-soft)',
+                textAlign: 'left',
+                aspectRatio: '1.05',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                overflow: 'hidden',
+                boxShadow: 'var(--shadow-sm)'
+              }}
+            >
+              {/* Decoración: círculo de gradiente atrás */}
+              <div style={{
+                position: 'absolute',
+                top: -25,
+                right: -25,
+                width: 90,
+                height: 90,
+                borderRadius: '50%',
+                background: s.gradient,
+                opacity: 0.12,
+                pointerEvents: 'none'
+              }}></div>
 
-          {/* Próximos pagos */}
-          <button onClick={() => onOpenSection('calendar')} className="card pressable" style={{
-            background: 'var(--bg-elev)', border: 'none', padding: '14px 16px',
-            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left'
-          }}>
-            <span style={{ fontSize: 24 }}>📅</span>
-            <div className="col gap-2" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Próximos pagos</span>
-              <span className="tiny">{upcomingCount} esta semana</span>
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 16 }}>{upcomingCount}</span>
-          </button>
+              {/* Icon top */}
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: s.gradient,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                color: '#fff',
+                boxShadow: `0 4px 12px ${s.color}55`
+              }}>
+                {s.icon}
+              </div>
 
-          {/* Metas */}
-          <button onClick={() => onSwitchTab('goals')} className="card pressable" style={{
-            background: 'var(--bg-elev)', border: 'none', padding: '14px 16px',
-            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left'
-          }}>
-            <span style={{ fontSize: 24 }}>🎯</span>
-            <div className="col gap-2" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Metas</span>
-              <span className="tiny">{fmtMoneyShort(totalGoals)} ahorrado</span>
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 16 }}>{fmtMoneyShort(totalGoals)}</span>
-          </button>
-
-          {/* Transacciones */}
-          <button onClick={() => onOpenSection('transactions')} className="card pressable" style={{
-            background: 'var(--bg-elev)', border: 'none', padding: '14px 16px',
-            display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left'
-          }}>
-            <span style={{ fontSize: 24 }}>🧾</span>
-            <div className="col gap-2" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Movimientos</span>
-              <span className="tiny">{txThisMonth} este mes</span>
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 16 }}>{txThisMonth}</span>
-          </button>
+              {/* Bottom: title + metric */}
+              <div className="col gap-2">
+                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-mute)' }}>{s.title}</span>
+                <div className="row gap-6" style={{ alignItems: 'baseline' }}>
+                  <span style={{
+                    fontWeight: 700,
+                    fontSize: typeof s.metric === 'string' && s.metric.length > 5 ? 18 : 22,
+                    letterSpacing: '-0.02em'
+                  }}>
+                    {s.metric}
+                  </span>
+                </div>
+                <span className="tiny" style={{ marginTop: -2 }}>{s.sub}</span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

@@ -612,11 +612,9 @@ export default function App() {
 
           <BottomNav
             active={tab}
-            currentSection={section}
             onChange={(t) => { setTab(t); setSection(null); }}
             onAdd={() => setShowAdd(true)}
             onMenu={() => setShowMenu(true)}
-            onSection={(s) => { setSection(s); setTab('dashboard'); }}
           />
         </>
       )}
