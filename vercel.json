@@ -2,5 +2,11 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api/).*)", "destination": "/" }
+  ],
+  "crons": [
+    {
+      "path": "/api/push/check-payments",
+      "schedule": "0 12 * * *"
+    }
   ]
 }

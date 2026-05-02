@@ -4,7 +4,7 @@ import { LogoMark, Icon } from './icons.jsx';
  * Header pequeño con logo Kleo interactivo (vuelve al inicio).
  * Opcional: botón de back izquierda en lugar del logo, y menú a la derecha.
  */
-export default function TopBar({ onHome, onBack, onMenu, title, accent }) {
+export default function TopBar({ onHome, onBack, onMenu, onNotifications, unreadCount, title, accent }) {
   return (
     <div style={{
       position: 'sticky',
@@ -64,19 +64,50 @@ export default function TopBar({ onHome, onBack, onMenu, title, accent }) {
         )}
       </div>
 
-      {onMenu && (
-        <button
-          onClick={onMenu}
-          style={{
-            width: 32, height: 32,
-            borderRadius: '50%',
-            background: 'var(--bg-elev)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}
-        >
-          <Icon name="menu" size={16} />
-        </button>
-      )}
+      <div className="row gap-8">
+        {onNotifications && (
+          <button
+            onClick={onNotifications}
+            style={{
+              width: 32, height: 32,
+              borderRadius: '50%',
+              background: 'var(--bg-elev)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative'
+            }}
+          >
+            <Icon name="bell" size={16} />
+            {unreadCount > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: -2, right: -2,
+                width: 16, height: 16,
+                borderRadius: '50%',
+                background: 'var(--danger)',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+        )}
+        {onMenu && (
+          <button
+            onClick={onMenu}
+            style={{
+              width: 32, height: 32,
+              borderRadius: '50%',
+              background: 'var(--bg-elev)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            <Icon name="menu" size={16} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

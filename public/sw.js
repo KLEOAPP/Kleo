@@ -54,8 +54,15 @@ self.addEventListener('push', (e) => {
     ]
   };
 
+  // Guardar la notificación en la app
   e.waitUntil(
-    self.registration.showNotification(data.title, options)
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+      clients.forEach(client => {
+        client.postMessage({ type: 'PUSH_RECEIVED', payload: { title: data.title, body: data.body } });
+      });
+    }).then(() => {
+      return self.registration.showNotification(data.title, options);
+    })
   );
 });
 

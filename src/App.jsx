@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import StatusBar from './components/StatusBar.jsx';
+// StatusBar eliminado — el dispositivo real muestra su propia barra
 import Welcome from './components/Welcome.jsx';
 import PinScreen from './components/PinScreen.jsx';
 import FaceIdScreen from './components/FaceIdScreen.jsx';
@@ -17,6 +17,7 @@ import Feedback from './components/Feedback.jsx';
 import MoreMenu from './components/MoreMenu.jsx';
 import BottomNav from './components/BottomNav.jsx';
 import ConnectBank from './components/ConnectBank.jsx';
+import Notifications, { getUnreadCount, saveNotification } from './components/Notifications.jsx';
 import { storage } from './utils/storage.js';
 import {
   defaultAccounts,
@@ -69,12 +70,28 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [useSupabase, setUseSupabase] = useState(USE_SUPABASE);
   const [showConnectBank, setShowConnectBank] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [goals, setGoals] = useState([]);
   const [household, setHousehold] = useState(defaultHousehold);
+
+  // Contar notificaciones no leídas
+  useEffect(() => {
+    setUnreadCount(getUnreadCount());
+    // Escuchar mensajes del service worker (push recibido)
+    const handleMessage = (event) => {
+      if (event.data?.type === 'PUSH_RECEIVED') {
+        saveNotification(event.data.payload);
+        setUnreadCount(prev => prev + 1);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);
+  }, []);
 
   // ===== MODO PROTOTIPO (localStorage) =====
   const loadLocalData = (email) => {
@@ -357,13 +374,13 @@ export default function App() {
   };
 
   if (loading || stage === null) {
-    return <div className="app-shell"><StatusBar /></div>;
+    return <div className="app-shell"></div>;
   }
 
   if (stage === STAGE.WELCOME) {
     return (
       <div className="app-shell">
-        <StatusBar />
+
         <Welcome onLogin={handleLogin} />
       </div>
     );
@@ -372,7 +389,7 @@ export default function App() {
   if (stage === STAGE.PIN_SETUP) {
     return (
       <div className="app-shell">
-        <StatusBar />
+
         <PinScreen mode="create" onComplete={handlePinCreated} />
       </div>
     );
@@ -381,7 +398,7 @@ export default function App() {
   if (stage === STAGE.FACE_ID) {
     return (
       <div className="app-shell">
-        <StatusBar />
+
         <FaceIdScreen
           userName={user?.name}
           onSuccess={() => setStage(STAGE.AUTHENTICATED)}
@@ -394,7 +411,7 @@ export default function App() {
   if (stage === STAGE.PIN_VERIFY) {
     return (
       <div className="app-shell">
-        <StatusBar />
+
         <PinScreen
           mode="verify"
           verifyAsync={handleVerifyPin}
@@ -408,7 +425,7 @@ export default function App() {
   if (section) {
     return (
       <div className="app-shell">
-        <StatusBar />
+
         {section === 'budget' && (
           <Budget
             household={household}
@@ -475,7 +492,6 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <StatusBar />
 
       {showConnectBank ? (
         <ConnectBank
@@ -503,6 +519,8 @@ export default function App() {
               onOpenSection={setSection}
               onSwitchTab={setTab}
               onConnectBank={() => setShowConnectBank(true)}
+              onNotifications={() => { setShowNotifications(true); setUnreadCount(0); }}
+              unreadCount={unreadCount}
             />
           )}
           {tab === 'accounts' && (
@@ -542,6 +560,10 @@ export default function App() {
           onHome={goHome}
           onFeedback={() => setSection('feedback')}
         />
+      )}
+
+      {showNotifications && (
+        <Notifications onClose={() => setShowNotifications(false)} />
       )}
 
       {toast && <div className="toast">{toast}</div>}

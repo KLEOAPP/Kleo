@@ -19,7 +19,19 @@
       "mcp__Claude_Preview__preview_start",
       "WebSearch",
       "mcp__Claude_in_Chrome__tabs_context_mcp",
-      "Bash(npx web-push *)"
+      "Bash(npx web-push *)",
+      "Bash(curl -X POST https://kleopr.com/api/push/check-payments -H \"Content-Type: application/json\" -d \"{}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"💳 Chase Visa cierra en 2 días\\\\\",\\\\\"body\\\\\":\\\\\"Balance: \\\\$1,245. Paga \\\\$845 para dejar solo \\\\$400 \\(5%% de \\\\$8,000\\). NO uses la tarjeta hasta que cierre el día 15. Tu score te lo agradece.\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"💳 Chase Visa cierra en 2 dias\\\\\",\\\\\"body\\\\\":\\\\\"Tu balance es \\\\$1,245. Paga \\\\$845 ahora para dejar solo \\\\$400 \\(5%% de tu limite de \\\\$8,000\\). Despues de pagar NO la uses hasta que cierre el ciclo el dia 15. Asi tu score sube.\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"💳 Pago de Chase Visa en 2 dias\\\\\",\\\\\"body\\\\\":\\\\\"Paga \\\\$845 para dejar tu tarjeta en 5%% de uso. Tu balance es \\\\$1,245 de \\\\$8,000.\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🚨 Hoy vence Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"Ultimo dia para pagar. Paga minimo \\\\$845 para mantener tu 5%% de uso.\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🛑 No uses Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"El ciclo cierra el dia 15. No la uses para que cierre con 5%% de uso y tu score suba.\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"💳 Pago de Chase Visa en 2 dias\\\\\",\\\\\"body\\\\\":\\\\\"Paga \\\\$845 para dejar tu tarjeta en 5%% de uso. Tu balance es \\\\$1,245 de \\\\$8,000. Vas por buen camino!\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🚨 Hoy vence Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"Ultimo dia para pagar. Paga minimo \\\\$845 para mantener tu 5%% de uso. Tu futuro financiero depende de hoy!\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🛑 No uses Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"El ciclo cierra el dia 15. No la uses para que cierre en 5%%. Ya hiciste lo dificil, no lo pierdas!\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"💳 Pago de Chase Visa en 2 dias\\\\\",\\\\\"body\\\\\":\\\\\"Paga \\\\$845 para dejar tu tarjeta en 5%% de uso. Balance: \\\\$1,245 de \\\\$8,000. Vamos que tu puedes!\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🚨 Hoy vence Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"Paga \\\\$845 para mantener tu 5%% de uso. No te quites, ya casi lo logras!\\\\\"}\")",
+      "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🛑 No uses Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"El ciclo cierra el dia 15. Ya hiciste lo dificil, no la uses y dale! Tu bolsillo te lo agradece.\\\\\"}\")"
     ]
   }
 }

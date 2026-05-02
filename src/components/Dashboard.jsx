@@ -4,7 +4,7 @@ import TopBar from './TopBar.jsx';
 import AiInsights from './AiInsights.jsx';
 import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/storage.js';
 
-export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab, onConnectBank }) {
+export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab, onConnectBank, onNotifications, unreadCount }) {
   const [hideBalance, setHideBalance] = useState(false);
 
   // Patrimonio neto = corriente + ahorros − deuda crédito
@@ -176,7 +176,7 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onMenu={onOpenMenu} onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
+      <TopBar onMenu={onOpenMenu} onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onNotifications={onNotifications} unreadCount={unreadCount} />
 
       <div style={{ padding: '8px 0 16px' }}>
         {/* Saludo */}

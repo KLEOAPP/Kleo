@@ -274,7 +274,7 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
               marginBottom: 8
             }}
           >
-            ¿Tienes una sugerencia?
+            💡 ¿Qué te gustaría mejorar en Kleo?
           </button>
 
           <p className="tiny" style={{ textAlign: 'center', padding: '8px 0 24px' }}>

@@ -12,9 +12,45 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
+// Frases motivacionales aleatorias
+const MOTIVATION = {
+  paymentSoon: [
+    '¡Vamos que tú puedes!',
+    '¡Tú puedes, no te quites!',
+    '¡Vas por buen camino!',
+    '¡Dale con todo!',
+    '¡Cada pago cuenta, sigue así!'
+  ],
+  paymentToday: [
+    '¡No te quites, ya casi lo logras!',
+    '¡Tu futuro financiero depende de hoy, vamos!',
+    '¡Hoy es el día, dale!',
+    '¡Un paso más cerca de tu meta!',
+    '¡Tú puedes con esto y más!'
+  ],
+  cycleSoon: [
+    '¡Ya hiciste lo difícil, no lo pierdas!',
+    '¡Aguanta que ya casi cierra!',
+    '¡Falta poco, no la uses!',
+    '¡Disciplina que vale la pena!',
+    '¡Tu bolsillo te lo agradece!'
+  ],
+  perfect: [
+    '¡Eso es, así se hace!',
+    '¡Brutal, sigue así!',
+    '¡Vas volando, no pares!',
+    '¡Excelente trabajo!',
+    '¡Eres un crack con tus finanzas!'
+  ]
+};
+
+function randomMotivation(type) {
+  const phrases = MOTIVATION[type];
+  return phrases[Math.floor(Math.random() * phrases.length)];
+}
+
 export default async function handler(req, res) {
   try {
-    // Buscar todas las cuentas de crédito
     const { data: accounts, error: accErr } = await supabase
       .from('accounts')
       .select('*')
@@ -28,51 +64,70 @@ export default async function handler(req, res) {
 
     for (const card of accounts || []) {
       const cycleClose = card.cycle_close_day;
+      const paymentDue = card.payment_due_day;
       const limit = card.credit_limit || 0;
       const balance = Math.abs(card.balance || 0);
 
-      if (!cycleClose || !limit) continue;
+      if (!limit) continue;
 
-      // Calcular días hasta cierre de ciclo
-      let daysUntilClose;
-      if (cycleClose >= todayDay) {
-        daysUntilClose = cycleClose - todayDay;
-      } else {
-        // El cierre es el próximo mes
+      // Calcular 5% target
+      const targetBalance = limit * 0.05;
+      const amountToPay = Math.max(0, balance - targetBalance);
+      const currentUtil = ((balance / limit) * 100).toFixed(0);
+
+      // Función para calcular días hasta un día del mes
+      const daysUntil = (targetDay) => {
+        if (!targetDay) return -1;
+        if (targetDay >= todayDay) return targetDay - todayDay;
         const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-        daysUntilClose = (daysInMonth - todayDay) + cycleClose;
+        return (daysInMonth - todayDay) + targetDay;
+      };
+
+      const daysToPayment = daysUntil(paymentDue);
+      const daysToClose = daysUntil(cycleClose);
+
+      // === 2 DÍAS ANTES DEL PAGO ===
+      if (daysToPayment === 2 && amountToPay > 0) {
+        notifications.push({
+          userId: card.user_id,
+          title: `💳 Pago de ${card.name} en 2 días`,
+          body: `Paga $${Math.ceil(amountToPay).toLocaleString()} para dejar tu tarjeta en 5% de uso. Balance: $${balance.toLocaleString()} de $${limit.toLocaleString()}. ${randomMotivation('paymentSoon')}`
+        });
       }
 
-      // Solo notificar si faltan 2 días para el cierre
-      if (daysUntilClose !== 2) continue;
-
-      // Calcular cuánto pagar para dejar 5% de utilización
-      const targetBalance = limit * 0.05;
-      const amountToPay = balance - targetBalance;
-
-      if (amountToPay <= 0) {
-        // Ya está en 5% o menos, felicitar
+      // === DÍA DEL PAGO ===
+      if (daysToPayment === 0 && amountToPay > 0) {
         notifications.push({
           userId: card.user_id,
-          title: `✅ ${card.name} está perfecta`,
-          body: `Tu balance es $${balance.toFixed(0)} (${((balance / limit) * 100).toFixed(0)}% de utilización). No la uses hasta que cierre el ciclo el día ${cycleClose}. ¡Tu score te lo agradece!`
+          title: `🚨 Hoy vence ${card.name}`,
+          body: `Último día para pagar. Paga mínimo $${Math.ceil(amountToPay).toLocaleString()} para mantener tu 5% de uso. ${randomMotivation('paymentToday')}`
         });
-      } else {
-        // Necesita pagar
-        const currentUtil = ((balance / limit) * 100).toFixed(0);
-        notifications.push({
-          userId: card.user_id,
-          title: `💳 ${card.name} cierra en 2 días`,
-          body: `Balance: $${balance.toLocaleString()}. Paga $${Math.ceil(amountToPay).toLocaleString()} para dejar solo $${Math.round(targetBalance).toLocaleString()} (5% de $${limit.toLocaleString()}). Estás en ${currentUtil}% — bájalo a 5% y NO uses la tarjeta hasta que cierre el día ${cycleClose}.`
-        });
+      }
+
+      // === 2 DÍAS ANTES DEL CIERRE DE CICLO ===
+      if (daysToClose === 2 && cycleClose) {
+        if (amountToPay <= 0) {
+          // Ya está en 5% o menos
+          notifications.push({
+            userId: card.user_id,
+            title: `✅ ${card.name} está perfecta`,
+            body: `Tu uso es ${currentUtil}%. No la uses hasta que cierre el día ${cycleClose}. ${randomMotivation('perfect')}`
+          });
+        } else {
+          notifications.push({
+            userId: card.user_id,
+            title: `🛑 No uses ${card.name}`,
+            body: `El ciclo cierra el día ${cycleClose}. No la uses para que cierre en 5%. ${randomMotivation('cycleSoon')}`
+          });
+        }
       }
     }
 
     if (notifications.length === 0) {
-      return res.json({ sent: 0, message: 'No hay tarjetas con cierre en 2 días' });
+      return res.json({ sent: 0, message: 'No hay alertas de tarjetas hoy' });
     }
 
-    // Buscar todas las suscripciones push
+    // Enviar notificaciones
     const { data: subs } = await supabase
       .from('push_subscriptions')
       .select('*');
@@ -89,15 +144,12 @@ export default async function handler(req, res) {
         url: '/'
       });
 
-      // Filtrar suscripciones del usuario (o enviar a todas si no hay user_id match)
       const targetSubs = notif.userId
-        ? subs.filter(s => s.user_id === notif.userId)
+        ? subs?.filter(s => s.user_id === notif.userId)
         : subs;
+      const finalSubs = (targetSubs?.length > 0 ? targetSubs : subs) || [];
 
-      // Si no hay subs para ese user, enviar a todas
-      const finalSubs = targetSubs.length > 0 ? targetSubs : subs;
-
-      for (const sub of finalSubs || []) {
+      for (const sub of finalSubs) {
         try {
           await webpush.sendNotification({
             endpoint: sub.endpoint,
@@ -113,7 +165,7 @@ export default async function handler(req, res) {
       }
     }
 
-    res.json({ sent, failed, notifications: notifications.map(n => n.title) });
+    res.json({ sent, failed, notifications: notifications.map(n => ({ title: n.title, body: n.body })) });
   } catch (err) {
     console.error('Check payments error:', err.message);
     res.status(500).json({ error: err.message });
