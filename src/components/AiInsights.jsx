@@ -89,29 +89,42 @@ export default function AiInsights({ transactions, accounts, goals, fixedExpense
           Actualizar
         </button>
       </div>
-      {Array.isArray(insights) ? insights.map((tip, i) => (
-        <div
-          key={i}
-          className="card"
-          style={{
-            background: 'var(--bg-elev)',
-            border: 'none',
-            padding: '12px 14px'
-          }}
-        >
-          <div className="row gap-10">
-            <span style={{ fontSize: 20 }}>{tip.emoji || '💡'}</span>
-            <div className="col gap-2" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 13 }}>{tip.title}</span>
-              <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.4 }}>{tip.text}</span>
+      {(() => {
+        // Asegurar que siempre tengamos un array de tips
+        let tips = insights;
+        if (typeof tips === 'string') {
+          try {
+            let clean = tips.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+            tips = JSON.parse(clean);
+          } catch { tips = null; }
+        }
+        if (!Array.isArray(tips)) {
+          return (
+            <div className="card" style={{ background: 'var(--bg-elev)', border: 'none', padding: 14 }}>
+              <p style={{ fontSize: 14, lineHeight: 1.5 }}>{String(insights).replace(/```json|```/g, '').trim()}</p>
+            </div>
+          );
+        }
+        return tips.map((tip, i) => (
+          <div
+            key={i}
+            className="card"
+            style={{
+              background: 'var(--bg-elev)',
+              border: 'none',
+              padding: '12px 14px'
+            }}
+          >
+            <div className="row gap-10">
+              <span style={{ fontSize: 20 }}>{tip.emoji || '💡'}</span>
+              <div className="col gap-2" style={{ flex: 1 }}>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{tip.title}</span>
+                <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.4 }}>{tip.text}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )) : (
-        <div className="card" style={{ background: 'var(--bg-elev)', border: 'none', padding: 14 }}>
-          <p style={{ fontSize: 14, lineHeight: 1.5 }}>{String(insights)}</p>
-        </div>
-      )}
+        ));
+      })()}
     </div>
   );
 }
