@@ -486,10 +486,11 @@ export default function App() {
     );
   }
 
-  if (section) {
+  // Función para renderizar sección
+  const renderSection = () => {
+    if (!section) return null;
     return (
-      <div className="app-shell">
-
+      <>
         {section === 'budget' && (
           <Budget
             household={household}
@@ -549,10 +550,9 @@ export default function App() {
             onSubmit={() => showToast('¡Gracias por tu sugerencia!')}
           />
         )}
-        {toast && <div className="toast">{toast}</div>}
-      </div>
+      </>
     );
-  }
+  };
 
   return (
     <div className="app-shell">
@@ -571,46 +571,51 @@ export default function App() {
         />
       ) : (
         <>
-          {tab === 'dashboard' && (
-            <Dashboard
-              user={user}
-              accounts={accounts}
-              transactions={transactions}
-              fixedExpenses={fixedExpenses}
-              goals={goals}
-              household={household}
-              onOpenMenu={() => setShowMenu(true)}
-              onOpenSection={setSection}
-              onSwitchTab={setTab}
-              onConnectBank={() => setShowConnectBank(true)}
-              onNotifications={() => { setShowNotifications(true); setUnreadCount(0); }}
-              unreadCount={unreadCount}
-            />
-          )}
-          {tab === 'accounts' && (
-            <Accounts
-              accounts={accounts}
-              transactions={transactions}
-              onHome={goHome}
-              onMenu={() => setShowMenu(true)}
-            />
-          )}
-          {tab === 'goals' && (
-            <Goals
-              goals={goals}
-              fixedExpenses={fixedExpenses}
-              onAddSavings={handleGoalContribute}
-              onCreate={handleGoalCreate}
-              onHome={goHome}
-              onMenu={() => setShowMenu(true)}
-            />
+          {section ? renderSection() : (
+            <>
+              {tab === 'dashboard' && (
+                <Dashboard
+                  user={user}
+                  accounts={accounts}
+                  transactions={transactions}
+                  fixedExpenses={fixedExpenses}
+                  goals={goals}
+                  household={household}
+                  onOpenMenu={() => setShowMenu(true)}
+                  onOpenSection={setSection}
+                  onSwitchTab={setTab}
+                  onConnectBank={() => setShowConnectBank(true)}
+                  onNotifications={() => { setShowNotifications(true); setUnreadCount(0); }}
+                  unreadCount={unreadCount}
+                />
+              )}
+              {tab === 'accounts' && (
+                <Accounts
+                  accounts={accounts}
+                  transactions={transactions}
+                  onHome={goHome}
+                  onMenu={() => setShowMenu(true)}
+                />
+              )}
+              {tab === 'goals' && (
+                <Goals
+                  goals={goals}
+                  fixedExpenses={fixedExpenses}
+                  onAddSavings={handleGoalContribute}
+                  onCreate={handleGoalCreate}
+                  onHome={goHome}
+                  onMenu={() => setShowMenu(true)}
+                />
+              )}
+            </>
           )}
 
           <BottomNav
-            active={tab}
-            onChange={setTab}
+            active={section ? '' : tab}
+            onChange={(t) => { setTab(t); setSection(null); }}
             onAdd={() => setShowAdd(true)}
             onMenu={() => setShowMenu(true)}
+            onSection={(s) => { setSection(s); }}
           />
         </>
       )}

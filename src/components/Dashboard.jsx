@@ -178,6 +178,47 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
     <div className="screen" style={{ paddingTop: 0 }}>
       <TopBar onMenu={onOpenMenu} onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onNotifications={onNotifications} unreadCount={unreadCount} />
 
+      {/* Barra de acceso rápido */}
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        padding: '8px 16px',
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
+      }}>
+        {[
+          { id: 'calendar', icon: '📅', label: 'Calendario' },
+          { id: 'transactions', icon: '🧾', label: 'Transacciones' },
+          { id: 'budget', icon: '💰', label: 'Presupuesto' },
+          { id: 'analysis', icon: '📈', label: 'Rendimiento' },
+          { id: 'reports', icon: '📊', label: 'Reportes' }
+        ].map(s => (
+          <button
+            key={s.id}
+            onClick={() => onOpenSection(s.id)}
+            className="pressable"
+            style={{
+              flexShrink: 0,
+              padding: '8px 14px',
+              borderRadius: 20,
+              background: 'var(--bg-elev)',
+              border: '1px solid var(--border-soft)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 500,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>{s.icon}</span>
+            <span>{s.label}</span>
+          </button>
+        ))}
+      </div>
+
       <div style={{ padding: '8px 0 16px' }}>
         {/* Saludo */}
         <span className="tiny">Hola, {user.name.split(' ')[0]}</span>
