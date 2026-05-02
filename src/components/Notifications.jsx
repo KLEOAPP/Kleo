@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
+import { useI18n } from '../i18n/index.jsx';
 
 // Guardar notificaciones en localStorage
 const STORAGE_KEY = 'kleo_notifications';
@@ -42,6 +43,7 @@ export function markAllRead() {
 }
 
 export default function Notifications({ onClose }) {
+  const { strings: s } = useI18n();
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
@@ -59,12 +61,12 @@ export default function Notifications({ onClose }) {
   const timeAgo = (dateStr) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Ahora';
-    if (mins < 60) return `Hace ${mins}m`;
+    if (mins < 1) return s.now;
+    if (mins < 60) return s.agoMinutes.replace('{n}', mins);
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `Hace ${hours}h`;
+    if (hours < 24) return s.agoHours.replace('{n}', hours);
     const days = Math.floor(hours / 24);
-    return `Hace ${days}d`;
+    return s.agoDays.replace('{n}', days);
   };
 
   return (
@@ -114,13 +116,13 @@ export default function Notifications({ onClose }) {
               fontSize: 18
             }}
           >✕</button>
-          <span style={{ fontWeight: 700, fontSize: 20, flex: 1, textAlign: 'center' }}>🔔 Notificaciones</span>
+          <span style={{ fontWeight: 700, fontSize: 20, flex: 1, textAlign: 'center' }}>🔔 {s.notifications}</span>
           {notifications.length > 0 ? (
             <button
               onClick={clearAll}
               style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 600, minWidth: 32 }}
             >
-              Borrar
+              {s.clear}
             </button>
           ) : <span style={{ minWidth: 32 }}></span>}
         </div>
@@ -139,8 +141,8 @@ export default function Notifications({ onClose }) {
               color: 'var(--text-mute)'
             }}>
               <span style={{ fontSize: 48, display: 'block', marginBottom: 12 }}>🔕</span>
-              <p style={{ fontSize: 15, fontWeight: 500 }}>Sin notificaciones</p>
-              <p style={{ fontSize: 13, marginTop: 4 }}>Aquí verás alertas de pagos y consejos de Kleo</p>
+              <p style={{ fontSize: 15, fontWeight: 500 }}>{s.noNotifications}</p>
+              <p style={{ fontSize: 13, marginTop: 4 }}>{s.noNotificationsDesc}</p>
             </div>
           ) : (
             <div className="col gap-10">

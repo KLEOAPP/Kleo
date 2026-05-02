@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { LogoMark, Icon } from './icons.jsx';
 import { verifyBiometric, getBiometricType, checkBiometricSupport } from '../lib/biometric.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function FaceIdScreen({ userName, userId, onSuccess, onUsePin }) {
+  const { strings: s } = useI18n();
   const [status, setStatus] = useState('checking'); // checking, scanning, success, failed, unsupported
   const bioType = getBiometricType();
 
@@ -41,14 +43,14 @@ export default function FaceIdScreen({ userName, userId, onSuccess, onUsePin }) 
       <div className="col" style={{ alignItems: 'center', gap: 14 }}>
         <LogoMark size={52} />
         <h2 className="h2" style={{ marginTop: 8 }}>
-          {userName ? `Hola, ${userName.split(' ')[0]}` : 'Bienvenido'}
+          {userName ? s.helloUser.replace('{name}', userName.split(' ')[0]) : s.welcome}
         </h2>
         <p className="label">
-          {status === 'checking' && 'Verificando dispositivo...'}
-          {status === 'scanning' && `Usa ${bioType} para desbloquear`}
-          {status === 'success' && 'Identidad verificada'}
-          {status === 'failed' && `${bioType} no reconocido`}
-          {status === 'unsupported' && 'Biometría no disponible'}
+          {status === 'checking' && s.verifyingDevice}
+          {status === 'scanning' && s.useBioToUnlock.replace('{bioType}', bioType)}
+          {status === 'success' && s.identityVerified}
+          {status === 'failed' && s.bioNotRecognized.replace('{bioType}', bioType)}
+          {status === 'unsupported' && s.bioUnavailable}
         </p>
       </div>
 
@@ -75,11 +77,11 @@ export default function FaceIdScreen({ userName, userId, onSuccess, onUsePin }) 
             onClick={startBiometric}
             style={{ width: '100%', maxWidth: 280 }}
           >
-            Intentar {bioType} de nuevo
+            {s.retryBio.replace('{bioType}', bioType)}
           </button>
         )}
         <button className="btn-ghost" onClick={onUsePin} style={{ color: 'var(--green)', fontWeight: 600 }}>
-          Usar PIN
+          {s.usePin}
         </button>
       </div>
     </div>

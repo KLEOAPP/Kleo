@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { I18nProvider, useI18n } from './i18n/index.jsx';
 // StatusBar eliminado — el dispositivo real muestra su propia barra
 import Welcome from './components/Welcome.jsx';
 import PinScreen from './components/PinScreen.jsx';
@@ -62,6 +63,14 @@ const STAGE = {
 };
 
 export default function App() {
+  return (
+    <I18nProvider>
+      <AppInner />
+    </I18nProvider>
+  );
+}
+
+function AppInner() {
   const [stage, setStage] = useState(null);
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState('dashboard');

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Logo, Icon } from './icons.jsx';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Welcome({ onLogin }) {
+  const { strings: s } = useI18n();
   const [loading, setLoading] = useState(null);
 
   const handle = async (provider) => {
@@ -21,18 +23,18 @@ export default function Welcome({ onLogin }) {
         </div>
         <h1 className="h1 gradient-text" style={{ fontSize: 52, fontWeight: 800 }}>Kleo</h1>
         <p style={{ color: 'var(--text-mute)', textAlign: 'center', maxWidth: 280, fontSize: 16 }}>
-          Tus finanzas personales en un solo lugar.<br/>Hecho para Puerto Rico.
+          {s.welcomeTagline}<br/>{s.welcomeMadeIn}
         </p>
       </div>
 
       <div className="col gap-12" style={{ paddingBottom: 8 }}>
         <button className="btn-primary" onClick={() => handle('google')} disabled={loading}>
           {loading === 'google' ? (
-            <span>Conectando…</span>
+            <span>{s.connecting}</span>
           ) : (
             <>
               <Icon name="google" size={20} />
-              <span>Continuar con Google</span>
+              <span>{s.continueGoogle}</span>
             </>
           )}
         </button>
@@ -44,18 +46,18 @@ export default function Welcome({ onLogin }) {
           disabled={loading}
         >
           {loading === 'apple' ? (
-            <span>Conectando…</span>
+            <span>{s.connecting}</span>
           ) : (
             <>
               <Icon name="apple" size={20} color="#000" />
-              <span style={{ fontWeight: 600 }}>Continuar con Apple</span>
+              <span style={{ fontWeight: 600 }}>{s.continueApple}</span>
             </>
           )}
         </button>
 
         <p className="tiny" style={{ textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
-          Al continuar aceptas nuestros<br/>
-          <span style={{ color: 'var(--green)' }}>Términos</span> y <span style={{ color: 'var(--green)' }}>Política de Privacidad</span>
+          {s.termsPrefix}<br/>
+          <span style={{ color: 'var(--green)' }}>{s.terms}</span> {s.and} <span style={{ color: 'var(--green)' }}>{s.privacy}</span>
         </p>
       </div>
     </div>

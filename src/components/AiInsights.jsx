@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function AiInsights({ transactions, accounts, goals, fixedExpenses }) {
+  const { strings: s } = useI18n();
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -35,12 +37,12 @@ export default function AiInsights({ transactions, accounts, goals, fixedExpense
   if (error) {
     return (
       <div className="card" style={{ background: 'var(--bg-elev)', border: 'none', textAlign: 'center', padding: 20 }}>
-        <p style={{ fontSize: 14, color: 'var(--text-mute)' }}>No se pudieron cargar los consejos</p>
+        <p style={{ fontSize: 14, color: 'var(--text-mute)' }}>{s.aiCouldNotLoad}</p>
         <button
           onClick={fetchInsights}
           style={{ marginTop: 8, fontSize: 13, color: 'var(--blue)', fontWeight: 600 }}
         >
-          Reintentar
+          {s.retry}
         </button>
       </div>
     );
@@ -66,10 +68,10 @@ export default function AiInsights({ transactions, accounts, goals, fixedExpense
         <span style={{ fontSize: 24 }}>{loading ? '⏳' : '🤖'}</span>
         <div className="col gap-2" style={{ flex: 1 }}>
           <span style={{ fontWeight: 600, fontSize: 14 }}>
-            {loading ? 'Analizando tus finanzas...' : 'Consejos de Kleo IA'}
+            {loading ? s.aiAnalyzing : s.aiTitle}
           </span>
           <span className="tiny">
-            {loading ? 'Esto toma unos segundos' : 'Toca para obtener consejos personalizados'}
+            {loading ? s.aiTakesSeconds : s.aiTapForTips}
           </span>
         </div>
       </button>
@@ -80,13 +82,13 @@ export default function AiInsights({ transactions, accounts, goals, fixedExpense
     <div className="col gap-10">
       <div className="row gap-8" style={{ alignItems: 'center' }}>
         <span style={{ fontSize: 18 }}>🤖</span>
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Consejos de Kleo IA</span>
+        <span style={{ fontWeight: 600, fontSize: 14 }}>{s.aiTitle}</span>
         <button
           onClick={fetchInsights}
           className="tiny"
           style={{ marginLeft: 'auto', color: 'var(--blue)', fontWeight: 600 }}
         >
-          Actualizar
+          {s.aiUpdate}
         </button>
       </div>
       {(() => {

@@ -1,12 +1,14 @@
 import { Icon } from './icons.jsx';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function BottomNav({ active, onChange, onAdd, onMenu }) {
+  const { strings: s } = useI18n();
   const items = [
-    { id: 'dashboard', label: 'Inicio', icon: 'home' },
-    { id: 'accounts', label: 'Cuentas', icon: 'cards' },
+    { id: 'dashboard', label: s.navHome, icon: 'home' },
+    { id: 'accounts', label: s.navAccounts, icon: 'cards' },
     { id: 'add', label: '', icon: 'plus' },
-    { id: 'goals', label: 'Metas', icon: 'target' },
-    { id: 'menu', label: 'Más', icon: 'menu' }
+    { id: 'goals', label: s.navGoals, icon: 'target' },
+    { id: 'menu', label: s.navMore, icon: 'menu' }
   ];
 
   return (
@@ -25,7 +27,7 @@ export default function BottomNav({ active, onChange, onAdd, onMenu }) {
           return (
             <button key="menu" className="nav-item" onClick={onMenu}>
               <Icon name="menu" size={20} color="var(--text-dim)" />
-              <span>Más</span>
+              <span>{s.navMore}</span>
             </button>
           );
         }

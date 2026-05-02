@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed as checkSubscribed } from '../lib/push.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeedback, user }) {
+  const { strings: s, lang, setLang } = useI18n();
   const [theme, setTheme] = useState(() => localStorage.getItem('kleo_theme') || 'light');
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
@@ -38,12 +40,12 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
   };
 
   const sections = [
-    { id: 'credit', icon: '💳', title: 'Tarjetas de Crédito', subtitle: 'Plan de pago, score y consejos', color: 'var(--section-credit)' },
-    { id: 'analysis', icon: '📈', title: 'Rendimiento', subtitle: 'Cómo te está yendo este mes', color: 'var(--section-analysis)' },
-    { id: 'budget', icon: '💰', title: 'Presupuesto Mensual', subtitle: 'Compartido con tu hogar', color: 'var(--section-budget)' },
-    { id: 'calendar', icon: '📅', title: 'Calendario', subtitle: 'Pagos, cierres, recordatorios', color: 'var(--section-calendar)' },
-    { id: 'transactions', icon: '🧾', title: 'Transacciones', subtitle: 'Lista completa con filtros', color: 'var(--section-accounts)' },
-    { id: 'reports', icon: '📊', title: 'Reportes', subtitle: 'Mensual y trimestral', color: 'var(--section-reports)' }
+    { id: 'credit', icon: '💳', title: s.menuCredit, subtitle: s.menuCreditDesc, color: 'var(--section-credit)' },
+    { id: 'analysis', icon: '📈', title: s.menuAnalysis, subtitle: s.menuAnalysisDesc, color: 'var(--section-analysis)' },
+    { id: 'budget', icon: '💰', title: s.menuBudget, subtitle: s.menuBudgetDesc, color: 'var(--section-budget)' },
+    { id: 'calendar', icon: '📅', title: s.menuCalendar, subtitle: s.menuCalendarDesc, color: 'var(--section-calendar)' },
+    { id: 'transactions', icon: '🧾', title: s.menuTransactions, subtitle: s.menuTransactionsDesc, color: 'var(--section-accounts)' },
+    { id: 'reports', icon: '📊', title: s.menuReports, subtitle: s.menuReportsDesc, color: 'var(--section-reports)' }
   ];
 
   return (
@@ -100,7 +102,7 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
             }}
           >
             <Icon name="home" size={18} color="#fff" />
-            <span style={{ flex: 1, textAlign: 'left' }}>Volver al Inicio</span>
+            <span style={{ flex: 1, textAlign: 'left' }}>{s.goHome}</span>
             <Icon name="back" size={14} color="#fff" stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
           </button>
         </div>
@@ -134,7 +136,7 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
           </div>
 
           <div className="section-header" style={{ margin: '0 0 8px' }}>
-            <span>Secciones</span>
+            <span>{s.sectionsLabel}</span>
           </div>
           <div className="ios-list mb-20">
             {sections.map(item => (
@@ -162,7 +164,7 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
           </div>
 
           <div className="section-header" style={{ margin: '0 0 8px' }}>
-            <span>Apariencia</span>
+            <span>{s.appearance}</span>
           </div>
           <div className="ios-list mb-20">
             <button className="ios-list-item" onClick={() => toggleTheme('light')}>
@@ -172,7 +174,7 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 16, flexShrink: 0
               }}>☀️</span>
-              <span style={{ flex: 1, fontSize: 15 }}>Modo Claro</span>
+              <span style={{ flex: 1, fontSize: 15 }}>{s.lightMode}</span>
               {theme === 'light' && <Icon name="check" size={18} color="var(--blue)" />}
             </button>
             <button className="ios-list-item" onClick={() => toggleTheme('dark')}>
@@ -182,13 +184,41 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 16, flexShrink: 0
               }}>🌙</span>
-              <span style={{ flex: 1, fontSize: 15 }}>Modo Oscuro</span>
+              <span style={{ flex: 1, fontSize: 15 }}>{s.darkMode}</span>
               {theme === 'dark' && <Icon name="check" size={18} color="var(--blue)" />}
             </button>
           </div>
 
           <div className="section-header" style={{ margin: '0 0 8px' }}>
-            <span>Notificaciones</span>
+            <span>{s.language}</span>
+          </div>
+          <div className="ios-list mb-20">
+            <button className="ios-list-item" onClick={() => setLang('es')}>
+              <span style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'var(--bg-elev)',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, flexShrink: 0
+              }}>🇪🇸</span>
+              <span style={{ flex: 1, fontSize: 15 }}>{s.spanish}</span>
+              {lang === 'es' && <Icon name="check" size={18} color="var(--blue)" />}
+            </button>
+            <button className="ios-list-item" onClick={() => setLang('en')}>
+              <span style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'var(--bg-elev)',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, flexShrink: 0
+              }}>🇺🇸</span>
+              <span style={{ flex: 1, fontSize: 15 }}>{s.english}</span>
+              {lang === 'en' && <Icon name="check" size={18} color="var(--blue)" />}
+            </button>
+          </div>
+
+          <div className="section-header" style={{ margin: '0 0 8px' }}>
+            <span>{s.notificationsLabel}</span>
           </div>
           <div className="ios-list mb-20">
             {pushSupported ? (
@@ -206,10 +236,10 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
                 }}>🔔</span>
                 <div className="col gap-2" style={{ flex: 1 }}>
                   <span style={{ fontSize: 15, fontWeight: 500 }}>
-                    {pushLoading ? 'Configurando...' : pushEnabled ? 'Notificaciones activas' : 'Activar notificaciones'}
+                    {pushLoading ? s.configuring : pushEnabled ? s.notificationsActive : s.activateNotifications}
                   </span>
                   <span className="tiny">
-                    {pushEnabled ? 'Recibirás alertas de pagos y consejos' : 'Recordatorios de pagos y consejos de Kleo'}
+                    {pushEnabled ? s.notificationsActiveDesc : s.notificationsInactiveDesc}
                   </span>
                 </div>
                 <div style={{
@@ -239,15 +269,15 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
                   fontSize: 16, flexShrink: 0
                 }}>🔕</span>
                 <div className="col gap-2" style={{ flex: 1 }}>
-                  <span style={{ fontSize: 15, fontWeight: 500 }}>No disponible</span>
-                  <span className="tiny">Instala Kleo como app desde el navegador para activar notificaciones</span>
+                  <span style={{ fontSize: 15, fontWeight: 500 }}>{s.notAvailable}</span>
+                  <span className="tiny">{s.installAsApp}</span>
                 </div>
               </div>
             )}
           </div>
 
           <div className="section-header" style={{ margin: '0 0 8px' }}>
-            <span>Cuenta</span>
+            <span>{s.account}</span>
           </div>
           <div className="ios-list mb-20">
             <button
@@ -256,7 +286,7 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
               style={{ color: 'var(--danger)' }}
             >
               <Icon name="lock" size={20} color="var(--danger)" />
-              <span style={{ flex: 1, fontSize: 15, fontWeight: 500 }}>Cerrar Sesión</span>
+              <span style={{ flex: 1, fontSize: 15, fontWeight: 500 }}>{s.logout}</span>
             </button>
           </div>
 
@@ -283,13 +313,13 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
               fontSize: 20
             }}>💡</span>
             <div className="col gap-2" style={{ flex: 1, textAlign: 'left' }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>¿Qué te gustaría mejorar?</span>
-              <span className="tiny">Tu opinión hace a Kleo mejor</span>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.feedbackQuestion}</span>
+              <span className="tiny">{s.feedbackDesc}</span>
             </div>
           </button>
 
           <p className="tiny" style={{ textAlign: 'center', padding: '8px 0 24px' }}>
-            Kleo v1.0 · Hecho en Puerto Rico 🇵🇷
+            {s.version}
           </p>
         </div>
       </div>

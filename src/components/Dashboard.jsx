@@ -3,8 +3,10 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import AiInsights from './AiInsights.jsx';
 import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab, onConnectBank, onNotifications, unreadCount }) {
+  const { strings: s } = useI18n();
   const [hideBalance, setHideBalance] = useState(false);
 
   // Patrimonio neto = corriente + ahorros − deuda crédito
@@ -87,89 +89,89 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
     {
       id: 'credit',
       type: 'section',
-      title: 'Crédito',
+      title: s.sCredit,
       icon: '💳',
       color: 'var(--section-credit)',
       gradient: 'linear-gradient(135deg, #00B589 0%, #007A5C 100%)',
       metric: `${creditUtilization.toFixed(0)}%`,
-      sub: `Score ${score}`,
+      sub: s.sScore.replace('{score}', score),
       action: () => onOpenSection('credit')
     },
     {
       id: 'accounts',
       type: 'tab',
-      title: 'Cuentas',
+      title: s.sAccounts,
       icon: '🏦',
       color: 'var(--section-accounts)',
       gradient: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)',
       metric: fmtMoneyShort(patrimony.checking + patrimony.savings),
-      sub: 'corriente + ahorros',
+      sub: s.sCheckSavings,
       action: () => onSwitchTab('accounts')
     },
     {
       id: 'goals',
       type: 'tab',
-      title: 'Metas',
+      title: s.sGoals,
       icon: '🎯',
       color: 'var(--section-goals)',
       gradient: 'linear-gradient(135deg, #FF9500 0%, #B86600 100%)',
       metric: fmtMoneyShort(totalGoals),
-      sub: 'ahorrado',
+      sub: s.sSaved,
       action: () => onSwitchTab('goals')
     },
     {
       id: 'budget',
       type: 'section',
-      title: 'Presupuesto',
+      title: s.sBudget,
       icon: '💰',
       color: 'var(--section-budget)',
       gradient: 'linear-gradient(135deg, #FF2D6F 0%, #B0124A 100%)',
       metric: myBudgetShare ? fmtMoneyShort(myBudgetShare) : '—',
-      sub: myBudgetShare ? 'tu parte' : 'configurar',
+      sub: myBudgetShare ? s.sYourPart : s.sConfigure,
       action: () => onOpenSection('budget')
     },
     {
       id: 'calendar',
       type: 'section',
-      title: 'Calendario',
+      title: s.sCalendar,
       icon: '📅',
       color: 'var(--section-calendar)',
       gradient: 'linear-gradient(135deg, #34C759 0%, #1C8B3F 100%)',
       metric: upcomingCount,
-      sub: 'esta semana',
+      sub: s.sThisWeek,
       action: () => onOpenSection('calendar')
     },
     {
       id: 'analysis',
       type: 'section',
-      title: 'Rendimiento',
+      title: s.sAnalysis,
       icon: '📈',
       color: 'var(--section-analysis)',
       gradient: 'linear-gradient(135deg, #AF52DE 0%, #6F2D9A 100%)',
       metric: `−12%`,
-      sub: 'vs mes pasado',
+      sub: s.sVsLastMonth,
       action: () => onOpenSection('analysis')
     },
     {
       id: 'transactions',
       type: 'section',
-      title: 'Transacciones',
+      title: s.sTransactions,
       icon: '🧾',
       color: 'var(--section-accounts)',
       gradient: 'linear-gradient(135deg, #007AFF 0%, #003D80 100%)',
       metric: txThisMonth,
-      sub: 'este mes',
+      sub: s.sThisMonth,
       action: () => onOpenSection('transactions')
     },
     {
       id: 'reports',
       type: 'section',
-      title: 'Reportes',
+      title: s.sReports,
       icon: '📊',
       color: 'var(--section-reports)',
       gradient: 'linear-gradient(135deg, #FF9500 0%, #B86600 100%)',
-      metric: 'Ver',
-      sub: 'mensual y trimestral',
+      metric: s.sView,
+      sub: s.sMonthlyQuarterly,
       action: () => onOpenSection('reports')
     }
   ];
@@ -180,11 +182,11 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
 
       <div style={{ padding: '8px 0 16px' }}>
         {/* Saludo */}
-        <span className="tiny">Hola, {user.name.split(' ')[0]}</span>
+        <span className="tiny">{s.hello.replace('{name}', user.name.split(' ')[0])}</span>
 
         {/* Patrimonio Neto */}
         <div className="row gap-8 mt-4 mb-4">
-          <span className="label">Patrimonio Neto</span>
+          <span className="label">{s.netWorth}</span>
           <button onClick={() => setHideBalance(!hideBalance)} style={{ color: 'var(--text-mute)', display: 'flex' }}>
             <Icon name={hideBalance ? 'eye-off' : 'eye'} size={14} />
           </button>
@@ -193,7 +195,7 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
           {hideBalance ? '$••••••' : fmtMoney(patrimony.net)}
         </h1>
         <span className="tiny" style={{ display: 'block', marginTop: 4 }}>
-          Lo que tienes menos lo que debes
+          {s.netWorthDesc}
         </span>
 
         {/* Mini stats: ingresos, gastos, ahorros */}
@@ -204,17 +206,17 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
         }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <div className="col gap-2">
-              <span className="tiny">Ingresos mes</span>
+              <span className="tiny">{s.monthIncome}</span>
               <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>+{fmtMoneyShort(monthIncome || 2850)}</span>
             </div>
             <div style={{ width: 1, background: 'var(--border)' }}></div>
             <div className="col gap-2">
-              <span className="tiny">Gastos mes</span>
+              <span className="tiny">{s.monthExpenses}</span>
               <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--danger)' }}>−{fmtMoneyShort(monthSpending)}</span>
             </div>
             <div style={{ width: 1, background: 'var(--border)' }}></div>
             <div className="col gap-2">
-              <span className="tiny">Ahorrado</span>
+              <span className="tiny">{s.saved}</span>
               <span style={{ fontWeight: 700, fontSize: 16 }}>{fmtMoneyShort(patrimony.savings)}</span>
             </div>
           </div>
@@ -248,8 +250,8 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
           >
             <span style={{ fontSize: 24 }}>🏦</span>
             <div className="col gap-2" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Conectar banco</span>
-              <span className="tiny">Sincroniza tus cuentas y transacciones</span>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.connectBank}</span>
+              <span className="tiny">{s.connectBankDesc}</span>
             </div>
             <Icon name="back" size={14} color="var(--text-mute)" stroke={2} style={{ transform: 'rotate(180deg)' }} />
           </button>
@@ -257,7 +259,7 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
 
         {/* GRID DE SECCIONES BONITAS */}
         <div className="section-header">
-          <span>Secciones</span>
+          <span>{s.sections}</span>
         </div>
         <div style={{
           display: 'grid',

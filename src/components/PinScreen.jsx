@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { LogoMark, Icon } from './icons.jsx';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function PinScreen({ mode, verifyAsync, onComplete, onCancel, userName }) {
   // mode: 'create' | 'verify'
+  const { strings: s } = useI18n();
   const [pin, setPin] = useState('');
   const [step, setStep] = useState(mode === 'create' ? 'create' : 'verify');
   const [firstPin, setFirstPin] = useState('');
@@ -57,15 +59,15 @@ export default function PinScreen({ mode, verifyAsync, onComplete, onCancel, use
   };
 
   const titles = {
-    create: 'Crea tu PIN',
-    confirm: 'Confirma tu PIN',
-    verify: userName ? `Hola, ${userName.split(' ')[0]}` : 'Ingresa tu PIN'
+    create: s.createPin,
+    confirm: s.confirmPin,
+    verify: userName ? s.helloUser.replace('{name}', userName.split(' ')[0]) : s.enterPin
   };
 
   const subtitles = {
-    create: 'Usa 6 dígitos para proteger tu cuenta',
-    confirm: 'Escribe tu PIN una vez más',
-    verify: error ? 'PIN incorrecto, intenta de nuevo' : 'Ingresa tu PIN para continuar'
+    create: s.pinSubCreate,
+    confirm: s.pinSubConfirm,
+    verify: error ? s.pinIncorrect : s.pinSubVerify
   };
 
   return (
@@ -101,7 +103,7 @@ export default function PinScreen({ mode, verifyAsync, onComplete, onCancel, use
 
         {onCancel && (
           <button className="btn-ghost" style={{ marginTop: 16 }} onClick={onCancel}>
-            Cancelar
+            {s.cancel}
           </button>
         )}
       </div>

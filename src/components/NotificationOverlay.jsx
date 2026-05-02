@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function NotificationOverlay({ notification, onDismiss, onAction }) {
+  const { strings: s } = useI18n();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function NotificationOverlay({ notification, onDismiss, onAction 
 
   // Extraer emoji del título
   const emoji = notification.title?.match(/^[^\w\s]/u)?.[0] || '🔔';
-  const title = notification.title?.replace(/^[^\w\s]\s*/u, '') || 'Notificación';
+  const title = notification.title?.replace(/^[^\w\s]\s*/u, '') || s.notification;
 
   return (
     <div
@@ -108,10 +110,10 @@ export default function NotificationOverlay({ notification, onDismiss, onAction 
                 fontSize: 15
               }}
             >
-              {notification.section === 'credit' ? 'Ver tarjeta' :
-               notification.section === 'calendar' ? 'Ver calendario' :
-               notification.section === 'goals' ? 'Ver meta' :
-               'Ver más'}
+              {notification.section === 'credit' ? s.viewCard :
+               notification.section === 'calendar' ? s.viewCalendar :
+               notification.section === 'goals' ? s.viewGoal :
+               s.seeMore}
             </button>
           )}
           <button
@@ -126,7 +128,7 @@ export default function NotificationOverlay({ notification, onDismiss, onAction 
               fontSize: 14
             }}
           >
-            Cerrar
+            {s.close}
           </button>
         </div>
       </div>
