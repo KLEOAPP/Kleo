@@ -101,15 +101,25 @@ export default function Notifications({ onClose }) {
           alignItems: 'center',
           justifyContent: 'space-between'
         }}>
-          <span style={{ fontWeight: 700, fontSize: 20 }}>🔔 Notificaciones</span>
-          {notifications.length > 0 && (
+          <button
+            onClick={onClose}
+            style={{
+              width: 32, height: 32,
+              borderRadius: '50%',
+              background: 'var(--bg-elev)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18
+            }}
+          >✕</button>
+          <span style={{ fontWeight: 700, fontSize: 20, flex: 1, textAlign: 'center' }}>🔔 Notificaciones</span>
+          {notifications.length > 0 ? (
             <button
               onClick={clearAll}
-              style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 600 }}
+              style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 600, minWidth: 32 }}
             >
-              Borrar todo
+              Borrar
             </button>
-          )}
+          ) : <span style={{ minWidth: 32 }}></span>}
         </div>
 
         {/* Lista */}
