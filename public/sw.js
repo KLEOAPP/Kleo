@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kleo-v4';
+const CACHE_NAME = 'kleo-v5';
 const ASSETS = [
   '/',
   '/index.html'
@@ -66,31 +66,23 @@ self.addEventListener('push', (e) => {
   );
 });
 
-// Al tocar la notificación, abrir la sección correcta
+// Al tocar la notificación, abrir la app
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
 
-  const data = e.notification.data || {};
-  const section = data.section || '';
-  const url = data.url || '/';
-
-  const title = e.notification.title || '';
-  const body = e.notification.body || '';
-
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Si hay ventana abierta, enfocarla
       for (const client of windowClients) {
-        if (client.url.includes('kleopr.com') && 'focus' in client) {
-          client.postMessage({
-            type: 'NAVIGATE_SECTION',
-            section,
-            payload: { title, body }
-          });
+        if ('focus' in client) {
           return client.focus();
         }
       }
-      const params = section ? `?section=${section}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}` : '';
-      return self.clients.openWindow('/' + params);
+      // Si no, abrir la app
+      return self.clients.openWindow('/');
+    }).catch(() => {
+      // Fallback si falla
+      return self.clients.openWindow('/');
     })
   );
 });
