@@ -1,8 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed as checkSubscribed } from '../lib/push.js';
 
 export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeedback, user }) {
   const [theme, setTheme] = useState(() => localStorage.getItem('kleo_theme') || 'light');
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const pushSupported = isPushSupported();
+
+  useEffect(() => {
+    checkSubscribed().then(setPushEnabled);
+  }, []);
+
+  const togglePush = async () => {
+    setPushLoading(true);
+    try {
+      if (pushEnabled) {
+        await unsubscribeFromPush();
+        setPushEnabled(false);
+      } else {
+        await subscribeToPush(user?.id || user?.email || 'anonymous');
+        setPushEnabled(true);
+      }
+    } catch (err) {
+      console.error('Push toggle error:', err);
+      if (err.message === 'Permiso denegado') {
+        alert('Activa las notificaciones en Ajustes → Kleo para recibir alertas.');
+      }
+    }
+    setPushLoading(false);
+  };
 
   const toggleTheme = (newTheme) => {
     setTheme(newTheme);
@@ -158,6 +185,65 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
               <span style={{ flex: 1, fontSize: 15 }}>Modo Oscuro</span>
               {theme === 'dark' && <Icon name="check" size={18} color="var(--blue)" />}
             </button>
+          </div>
+
+          <div className="section-header" style={{ margin: '0 0 8px' }}>
+            <span>Notificaciones</span>
+          </div>
+          <div className="ios-list mb-20">
+            {pushSupported ? (
+              <button
+                className="ios-list-item"
+                onClick={togglePush}
+                disabled={pushLoading}
+              >
+                <span style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: pushEnabled ? 'var(--green)' : 'var(--bg-elev)',
+                  border: pushEnabled ? 'none' : '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16, flexShrink: 0
+                }}>🔔</span>
+                <div className="col gap-2" style={{ flex: 1 }}>
+                  <span style={{ fontSize: 15, fontWeight: 500 }}>
+                    {pushLoading ? 'Configurando...' : pushEnabled ? 'Notificaciones activas' : 'Activar notificaciones'}
+                  </span>
+                  <span className="tiny">
+                    {pushEnabled ? 'Recibirás alertas de pagos y consejos' : 'Recordatorios de pagos y consejos de Kleo'}
+                  </span>
+                </div>
+                <div style={{
+                  width: 44, height: 26, borderRadius: 13,
+                  background: pushEnabled ? 'var(--green)' : 'var(--border)',
+                  position: 'relative',
+                  transition: 'background .2s'
+                }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: '#fff',
+                    position: 'absolute',
+                    top: 2,
+                    left: pushEnabled ? 20 : 2,
+                    transition: 'left .2s',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                  }}></div>
+                </div>
+              </button>
+            ) : (
+              <div className="ios-list-item" style={{ opacity: 0.5 }}>
+                <span style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: 'var(--bg-elev)',
+                  border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16, flexShrink: 0
+                }}>🔕</span>
+                <div className="col gap-2" style={{ flex: 1 }}>
+                  <span style={{ fontSize: 15, fontWeight: 500 }}>No disponible</span>
+                  <span className="tiny">Instala Kleo como app desde el navegador para activar notificaciones</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="section-header" style={{ margin: '0 0 8px' }}>

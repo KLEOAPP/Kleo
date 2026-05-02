@@ -17,7 +17,9 @@
       "Bash(npm list *)",
       "Bash(npx sharp-cli *)",
       "mcp__Claude_Preview__preview_start",
-      "WebSearch"
+      "WebSearch",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(npx web-push *)"
     ]
   }
 }
