@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kleo-v3';
+const CACHE_NAME = 'kleo-v4';
 const ASSETS = [
   '/',
   '/index.html'
@@ -89,7 +89,7 @@ self.addEventListener('notificationclick', (e) => {
           return client.focus();
         }
       }
-      const params = section ? `?section=${section}&body=${encodeURIComponent(body)}` : '';
+      const params = section ? `?section=${section}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}` : '';
       return self.clients.openWindow('/' + params);
     })
   );

@@ -88,12 +88,17 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const openSection = params.get('section');
     if (openSection) {
+      const notifTitle = decodeURIComponent(params.get('title') || '');
+      const notifBody = decodeURIComponent(params.get('body') || '');
       window.history.replaceState({}, '', '/');
-      setPendingNotification({
-        title: 'Kleo',
-        body: decodeURIComponent(params.get('body') || ''),
-        section: openSection
-      });
+      // Esperar a que la app esté lista
+      setTimeout(() => {
+        setPendingNotification({
+          title: notifTitle || 'Kleo',
+          body: notifBody,
+          section: openSection
+        });
+      }, 500);
     }
     // Escuchar mensajes del service worker (push recibido)
     const handleMessage = (event) => {
