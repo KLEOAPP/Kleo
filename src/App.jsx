@@ -615,7 +615,6 @@ export default function App() {
             onChange={(t) => { setTab(t); setSection(null); }}
             onAdd={() => setShowAdd(true)}
             onMenu={() => setShowMenu(true)}
-            onSection={(s) => { setSection(s); }}
           />
         </>
       )}
