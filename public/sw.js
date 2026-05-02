@@ -74,16 +74,23 @@ self.addEventListener('notificationclick', (e) => {
   const section = data.section || '';
   const url = data.url || '/';
 
+  const title = e.notification.title || '';
+  const body = e.notification.body || '';
+
   e.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
         if (client.url.includes('kleopr.com') && 'focus' in client) {
-          // Enviar mensaje para navegar a la sección
-          client.postMessage({ type: 'NAVIGATE_SECTION', section });
+          client.postMessage({
+            type: 'NAVIGATE_SECTION',
+            section,
+            payload: { title, body }
+          });
           return client.focus();
         }
       }
-      return self.clients.openWindow(section ? `/?section=${section}` : url);
+      const params = section ? `?section=${section}&body=${encodeURIComponent(body)}` : '';
+      return self.clients.openWindow('/' + params);
     })
   );
 });

@@ -18,6 +18,7 @@ import MoreMenu from './components/MoreMenu.jsx';
 import BottomNav from './components/BottomNav.jsx';
 import ConnectBank from './components/ConnectBank.jsx';
 import Notifications, { getUnreadCount, saveNotification } from './components/Notifications.jsx';
+import NotificationOverlay from './components/NotificationOverlay.jsx';
 import { storage } from './utils/storage.js';
 import {
   defaultAccounts,
@@ -72,6 +73,7 @@ export default function App() {
   const [showConnectBank, setShowConnectBank] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingNotification, setPendingNotification] = useState(null);
 
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -87,11 +89,11 @@ export default function App() {
     const openSection = params.get('section');
     if (openSection) {
       window.history.replaceState({}, '', '/');
-      if (openSection === 'ai-insights') {
-        setTab('dashboard');
-      } else {
-        setSection(openSection);
-      }
+      setPendingNotification({
+        title: 'Kleo',
+        body: decodeURIComponent(params.get('body') || ''),
+        section: openSection
+      });
     }
     // Escuchar mensajes del service worker (push recibido)
     const handleMessage = (event) => {
@@ -101,17 +103,13 @@ export default function App() {
       }
       if (event.data?.type === 'NAVIGATE_SECTION') {
         const s = event.data.section;
-        // Primero muestra las notificaciones, luego navega
-        setShowNotifications(true);
-        setTimeout(() => {
-          setShowNotifications(false);
-          if (s === 'ai-insights') {
-            setTab('dashboard');
-            setSection(null);
-          } else if (s) {
-            setSection(s);
-          }
-        }, 2000);
+        const payload = event.data.payload || {};
+        // Mostrar overlay con el mensaje
+        setPendingNotification({
+          title: payload.title || 'Kleo',
+          body: payload.body || '',
+          section: s
+        });
       }
     };
     navigator.serviceWorker?.addEventListener('message', handleMessage);
@@ -589,6 +587,23 @@ export default function App() {
 
       {showNotifications && (
         <Notifications onClose={() => setShowNotifications(false)} />
+      )}
+
+      {pendingNotification && (
+        <NotificationOverlay
+          notification={pendingNotification}
+          onDismiss={() => setPendingNotification(null)}
+          onAction={() => {
+            const s = pendingNotification.section;
+            setPendingNotification(null);
+            if (s === 'ai-insights') {
+              setTab('dashboard');
+              setSection(null);
+            } else if (s) {
+              setSection(s);
+            }
+          }}
+        />
       )}
 
       {toast && <div className="toast">{toast}</div>}
