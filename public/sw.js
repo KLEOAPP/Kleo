@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kleo-v5';
+const CACHE_NAME = 'kleo-v6';
 const ASSETS = [
   '/',
   '/index.html'
@@ -66,22 +66,17 @@ self.addEventListener('push', (e) => {
   );
 });
 
-// Al tocar la notificación, abrir la app
+// Al tocar la notificación, abrir la app con datos en URL
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
 
+  const section = e.notification.data?.section || '';
+  const title = e.notification.title || '';
+  const body = e.notification.body || '';
+  const params = `?notif=1&section=${encodeURIComponent(section)}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+
   e.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Si hay ventana abierta, enfocarla
-      for (const client of windowClients) {
-        if ('focus' in client) {
-          return client.focus();
-        }
-      }
-      // Si no, abrir la app
-      return self.clients.openWindow('/');
-    }).catch(() => {
-      // Fallback si falla
+    self.clients.openWindow('/' + params).catch(() => {
       return self.clients.openWindow('/');
     })
   );

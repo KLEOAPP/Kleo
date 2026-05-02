@@ -84,21 +84,20 @@ export default function App() {
   // Contar notificaciones no leídas + detectar apertura desde notificación
   useEffect(() => {
     setUnreadCount(getUnreadCount());
-    // Si se abrió desde notificación con ?section=
+    // Si se abrió desde notificación (URL con ?notif=1 o ?section=)
     const params = new URLSearchParams(window.location.search);
-    const openSection = params.get('section');
-    if (openSection) {
-      const notifTitle = decodeURIComponent(params.get('title') || '');
+    if (params.get('notif') || params.get('section')) {
+      const notifTitle = decodeURIComponent(params.get('title') || 'Kleo');
       const notifBody = decodeURIComponent(params.get('body') || '');
+      const notifSection = decodeURIComponent(params.get('section') || '');
       window.history.replaceState({}, '', '/');
-      // Esperar a que la app esté lista
       setTimeout(() => {
         setPendingNotification({
-          title: notifTitle || 'Kleo',
+          title: notifTitle,
           body: notifBody,
-          section: openSection
+          section: notifSection
         });
-      }, 500);
+      }, 1000);
     }
     // Escuchar mensajes del service worker (push recibido)
     const handleMessage = (event) => {
