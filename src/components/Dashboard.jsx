@@ -6,7 +6,6 @@ import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/st
 
 export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab, onConnectBank, onNotifications, unreadCount }) {
   const [hideBalance, setHideBalance] = useState(false);
-  const [activeSection, setActiveSection] = useState(null);
 
   // Patrimonio neto = corriente + ahorros − deuda crédito
   const patrimony = useMemo(() => {
@@ -178,64 +177,6 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
       <TopBar onMenu={onOpenMenu} onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onNotifications={onNotifications} unreadCount={unreadCount} />
-
-      {/* Tabs fijas estilo Credit Karma */}
-      <div style={{
-        position: 'sticky',
-        top: 92,
-        zIndex: 15,
-        background: 'var(--bg)',
-        borderBottom: '1px solid var(--border-soft)',
-        display: 'flex',
-        overflowX: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-        padding: '0 8px'
-      }}>
-        {[
-          { id: null, label: 'Inicio' },
-          { id: 'credit', label: 'Crédito' },
-          { id: 'accounts', label: 'Cuentas' },
-          { id: 'goals', label: 'Metas' },
-          { id: 'calendar', label: 'Calendario' },
-          { id: 'transactions', label: 'Movimientos' },
-          { id: 'budget', label: 'Presupuesto' },
-          { id: 'analysis', label: 'Rendimiento' },
-          { id: 'reports', label: 'Reportes' }
-        ].map(t => {
-          const isActive = activeSection === t.id;
-          return (
-            <button
-              key={t.id || 'home'}
-              onClick={() => {
-                if (t.id === null) {
-                  onSwitchTab('dashboard');
-                  setActiveSection(null);
-                } else if (['accounts', 'goals'].includes(t.id)) {
-                  onSwitchTab(t.id);
-                  setActiveSection(t.id);
-                } else {
-                  onOpenSection(t.id);
-                  setActiveSection(t.id);
-                }
-              }}
-              style={{
-                flexShrink: 0,
-                padding: '12px 14px',
-                fontSize: 13,
-                fontWeight: isActive ? 700 : 500,
-                color: isActive ? 'var(--green)' : 'var(--text-mute)',
-                borderBottom: isActive ? '2px solid var(--green)' : '2px solid transparent',
-                whiteSpace: 'nowrap',
-                transition: 'all .15s'
-              }}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
 
       <div style={{ padding: '8px 0 16px' }}>
         {/* Saludo */}
