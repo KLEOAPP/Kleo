@@ -6,7 +6,22 @@ import { GOAL_TYPES } from '../data/sampleData.js';
 import { fmtMoney, fmtMoneyShort } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
 
-const FREQ_DAYS = { weekly: 7, biweekly: 14, monthly: 30 };
+const FREQ_DAYS = { weekly: 7, biweekly: 14, semimonthly: 15, monthly: 30 };
+
+/** Formatea un valor numérico a "1,234.56" */
+function formatMoneyInput(value) {
+  if (value === '' || value === null || value === undefined) return '';
+  const cleaned = String(value).replace(/,/g, '').replace(/[^0-9.]/g, '');
+  const num = parseFloat(cleaned);
+  if (isNaN(num)) return '';
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Convierte "1,234.56" a 1234.56 */
+function parseMoneyInput(value) {
+  if (value === '' || value === null || value === undefined) return 0;
+  return parseFloat(String(value).replace(/,/g, '').replace(/[^0-9.]/g, '')) || 0;
+}
 
 /**
  * Calcula el progreso "real" de una meta:
@@ -522,6 +537,7 @@ function GoalCard({ goal: g, accounts, s, calcSuggestion, onEdit, onDelete, onUp
 function freqLabel(freq, s) {
   if (freq === 'weekly') return s.freqWeekly;
   if (freq === 'biweekly') return s.freqBiweekly;
+  if (freq === 'semimonthly') return s.freqSemimonthly;
   if (freq === 'monthly') return s.freqMonthly;
   return '';
 }
@@ -534,18 +550,22 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
   const [step, setStep] = useState(isEdit ? 2 : 1);
   const [type, setType] = useState(goal?.type || null);
   const [name, setName] = useState(goal?.name || '');
-  const [target, setTarget] = useState(goal?.target ? String(goal.target) : '');
+  const [target, setTarget] = useState(goal?.target ? formatMoneyInput(goal.target) : '');
   const [deadline, setDeadline] = useState(goal?.deadline || '');
   const [notes, setNotes] = useState(goal?.notes || '');
   const [accountId, setAccountId] = useState(goal?.accountId || '');
   const [scheduleAmount, setScheduleAmount] = useState(
-    goal?.schedule?.amount ? String(goal.schedule.amount) : ''
+    goal?.schedule?.amount ? formatMoneyInput(goal.schedule.amount) : ''
   );
-  const [scheduleFreq, setScheduleFreq] = useState(goal?.schedule?.frequency || 'weekly');
+  const [scheduleFreq, setScheduleFreq] = useState(goal?.schedule?.frequency || 'biweekly');
   const [scheduleNext, setScheduleNext] = useState(
     goal?.schedule?.nextDate || new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
   );
   const [hasSchedule, setHasSchedule] = useState(!!goal?.schedule?.amount);
+  const [notifications, setNotifications] = useState(goal?.notifications || {
+    reminder: true, progress: true, milestones: true
+  });
+  const [customNotifs, setCustomNotifs] = useState(false);
 
   const selectType = (t) => {
     setType(t);
@@ -560,15 +580,16 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
     const data = {
       name,
       type,
-      target: parseFloat(target),
+      target: parseMoneyInput(target),
       deadline,
       icon: tpl?.icon || '🎯',
       color: tpl?.color || '#A855F7',
       notes,
       accountId: accountId || null,
-      schedule: hasSchedule && scheduleAmount
-        ? { amount: parseFloat(scheduleAmount), frequency: scheduleFreq, nextDate: scheduleNext }
-        : null
+      schedule: hasSchedule && parseMoneyInput(scheduleAmount) > 0
+        ? { amount: parseMoneyInput(scheduleAmount), frequency: scheduleFreq, nextDate: scheduleNext }
+        : null,
+      notifications
     };
     if (!isEdit) data.current = 0;
     onSubmit(data);
@@ -615,7 +636,25 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
       {step === 2 && (
         <>
           <h2 className="h2 mb-8">{isEdit ? s.editGoal : s.goalDetails}</h2>
-          {type && <p className="label mb-20">{GOAL_TYPES[type]?.label}</p>}
+          {type && <p className="label mb-12">{GOAL_TYPES[type]?.label}</p>}
+
+          {/* Cómo funciona */}
+          {!isEdit && (
+            <div className="card mb-16" style={{
+              background: 'rgba(168, 85, 247, 0.08)',
+              border: '1px solid rgba(168, 85, 247, 0.2)',
+              padding: 12,
+              borderRadius: 12
+            }}>
+              <div className="row gap-10" style={{ alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 22 }}>💡</span>
+                <div className="col gap-2" style={{ flex: 1 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>{s.goalsHowTitle}</span>
+                  <span className="tiny" style={{ lineHeight: 1.5 }}>{s.goalsHowDesc}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="col gap-16">
             <div className="col gap-6">
@@ -630,9 +669,13 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
                 <input
                   style={{ background: 'transparent', border: 'none', height: 54, fontSize: 18, fontWeight: 600, padding: '0 8px', flex: 1, outline: 'none', color: 'inherit' }}
                   value={target}
-                  onChange={e => setTarget(e.target.value.replace(/[^0-9.]/g, ''))}
+                  onChange={e => setTarget(e.target.value.replace(/[^0-9.,]/g, ''))}
+                  onBlur={e => {
+                    const formatted = formatMoneyInput(e.target.value);
+                    if (formatted) setTarget(formatted);
+                  }}
                   inputMode="decimal"
-                  placeholder="0"
+                  placeholder="0.00"
                 />
               </div>
             </div>
@@ -648,41 +691,58 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
               />
             </div>
 
-            {/* Preview en vivo: cuánto tendrías que ahorrar */}
-            {target && deadline && parseFloat(target) > 0 && (() => {
-              const t = new Date();
+            {/* Preview en vivo: cuánto tendrías que ahorrar (math correcto: ceil de cuotas) */}
+            {target && deadline && parseMoneyInput(target) > 0 && (() => {
+              const start = scheduleNext ? new Date(scheduleNext) : new Date();
               const d = new Date(deadline);
-              const days = Math.max(1, (d - t) / (1000 * 60 * 60 * 24));
-              const remaining = Math.max(0, parseFloat(target) - (goal?.current || 0));
-              const weekly = remaining / Math.max(1, days / 7);
-              const biweekly = remaining / Math.max(1, days / 14);
-              const monthly = remaining / Math.max(1, days / 30);
+              const days = Math.max(1, (d - start) / (1000 * 60 * 60 * 24));
+              const remaining = Math.max(0, parseMoneyInput(target) - (goal?.current || 0));
+              // Para que cuadre: amount = remaining / floor(days/periodDays)
+              // Esto asegura que con N cuotas ENTERAS de ese amount llegamos en o antes de deadline
+              const calc = (periodDays) => {
+                const periods = Math.max(1, Math.floor(days / periodDays));
+                const amount = remaining / periods;
+                // Redondear hacia arriba al .01 para evitar centavos
+                return Math.ceil(amount * 100) / 100;
+              };
+              const weekly = calc(7);
+              const biweekly = calc(14);
+              const semimonthly = calc(15);
+              const monthly = calc(30);
+
               const setSchedule = (freq, amount) => {
                 setHasSchedule(true);
                 setScheduleFreq(freq);
-                setScheduleAmount(String(Math.ceil(amount)));
+                setScheduleAmount(formatMoneyInput(amount));
               };
-              const FreqOption = ({ freqKey, amount, label }) => {
+
+              const FreqTile = ({ freqKey, amount, label, hint }) => {
                 const sel = hasSchedule && scheduleFreq === freqKey;
                 return (
                   <button
                     onClick={() => setSchedule(freqKey, amount)}
                     style={{
-                      flex: 1, padding: '12px 8px',
+                      flex: 1, padding: '10px 6px',
                       borderRadius: 12,
                       background: sel ? 'var(--pill-grad)' : 'var(--bg-elev)',
                       color: sel ? '#fff' : 'var(--text)',
                       border: 'none',
                       display: 'flex', flexDirection: 'column', gap: 2,
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      minWidth: 0
                     }}
                   >
-                    <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
-                      {fmtMoneyShort(amount)}
+                    <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                      ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
-                    <span style={{ fontSize: 10, fontWeight: 600, opacity: sel ? 0.95 : 0.7 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, opacity: sel ? 0.95 : 0.85, lineHeight: 1.1 }}>
                       {label}
                     </span>
+                    {hint && (
+                      <span style={{ fontSize: 9, fontWeight: 500, opacity: sel ? 0.85 : 0.55, lineHeight: 1.1 }}>
+                        {hint}
+                      </span>
+                    )}
                   </button>
                 );
               };
@@ -698,9 +758,10 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{s.toReachGoal}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <FreqOption freqKey="weekly" amount={weekly} label={s.perWeek} />
-                    <FreqOption freqKey="biweekly" amount={biweekly} label={s.perBiweek} />
-                    <FreqOption freqKey="monthly" amount={monthly} label={s.perMonth} />
+                    <FreqTile freqKey="weekly" amount={weekly} label={s.freqWeekly} />
+                    <FreqTile freqKey="biweekly" amount={biweekly} label={s.freqBiweekly} hint={s.freqBiweeklyHint} />
+                    <FreqTile freqKey="semimonthly" amount={semimonthly} label={s.freqSemimonthly} hint={s.freqSemimonthlyHint} />
+                    <FreqTile freqKey="monthly" amount={monthly} label={s.freqMonthly} />
                   </div>
                   <span className="tiny mt-8" style={{ display: 'block', fontSize: 11, lineHeight: 1.4 }}>
                     💡 {s.goalRecommendHint}
@@ -776,42 +837,51 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
               {hasSchedule && (() => {
                 // Cálculo dinámico de fecha de término según monto + frecuencia
                 const periodDays = FREQ_DAYS[scheduleFreq] || 7;
-                const amt = parseFloat(scheduleAmount) || 0;
-                const remaining = Math.max(0, parseFloat(target || 0) - (goal?.current || 0));
+                const amt = parseMoneyInput(scheduleAmount);
+                const remaining = Math.max(0, parseMoneyInput(target) - (goal?.current || 0));
                 let endDate = null;
                 let onTime = true;
                 if (amt > 0 && remaining > 0) {
                   const periodsNeeded = Math.ceil(remaining / amt);
                   const startMs = scheduleNext ? new Date(scheduleNext).getTime() : Date.now();
-                  endDate = new Date(startMs + periodsNeeded * periodDays * 86400000);
-                  if (deadline) onTime = endDate <= new Date(deadline);
+                  // El último depósito completa la meta — endDate = start + (periodsNeeded - 1) * periodDays
+                  endDate = new Date(startMs + Math.max(0, periodsNeeded - 1) * periodDays * 86400000);
+                  if (deadline) {
+                    const ddl = new Date(deadline);
+                    ddl.setHours(23, 59, 59, 999);
+                    onTime = endDate <= ddl;
+                  }
                 }
                 const fmtDate = (d) => d.toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' });
                 return (
                   <div className="col gap-10 mt-8">
-                    {/* Frecuencia */}
+                    {/* Frecuencia con sub-hint */}
                     <div className="col gap-4">
                       <span className="tiny" style={{ fontWeight: 600 }}>{s.scheduleFrequency}</span>
                       <div style={{ display: 'flex', gap: 6 }}>
                         {[
-                          { k: 'weekly', label: s.freqWeekly },
-                          { k: 'biweekly', label: s.freqBiweekly },
-                          { k: 'monthly', label: s.freqMonthly }
+                          { k: 'weekly', label: s.freqWeekly, hint: '7 días' },
+                          { k: 'biweekly', label: s.freqBiweekly, hint: s.freqBiweeklyHint },
+                          { k: 'semimonthly', label: s.freqSemimonthly, hint: s.freqSemimonthlyHint },
+                          { k: 'monthly', label: s.freqMonthly, hint: '30 días' }
                         ].map(opt => (
                           <button
                             key={opt.k}
                             onClick={() => setScheduleFreq(opt.k)}
                             style={{
-                              flex: 1,
-                              padding: '10px 4px',
+                              flex: 1, padding: '10px 4px',
                               borderRadius: 10,
                               background: scheduleFreq === opt.k ? 'var(--pill-grad)' : 'var(--bg-elev)',
                               color: scheduleFreq === opt.k ? '#fff' : 'var(--text)',
                               border: 'none',
-                              fontSize: 13, fontWeight: 600
+                              fontSize: 12, fontWeight: 700,
+                              display: 'flex', flexDirection: 'column', gap: 1, lineHeight: 1.1
                             }}
                           >
-                            {opt.label}
+                            <span>{opt.label}</span>
+                            <span style={{ fontSize: 9, fontWeight: 500, opacity: scheduleFreq === opt.k ? 0.85 : 0.55 }}>
+                              {opt.hint}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -829,7 +899,7 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
                       />
                     </div>
 
-                    {/* Cantidad manual */}
+                    {/* Cantidad manual con auto-format */}
                     <div className="col gap-4">
                       <span className="tiny" style={{ fontWeight: 600 }}>{s.customAmount}</span>
                       <div className="row" style={{ background: 'var(--bg-input)', borderRadius: 12, border: '1px solid var(--border)', padding: '0 14px', height: 46 }}>
@@ -837,9 +907,13 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
                         <input
                           style={{ background: 'transparent', border: 'none', height: 46, fontSize: 16, fontWeight: 600, padding: '0 6px', flex: 1, outline: 'none', color: 'inherit' }}
                           value={scheduleAmount}
-                          onChange={e => setScheduleAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                          onChange={e => setScheduleAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
+                          onBlur={e => {
+                            const formatted = formatMoneyInput(e.target.value);
+                            if (formatted) setScheduleAmount(formatted);
+                          }}
                           inputMode="decimal"
-                          placeholder="50"
+                          placeholder="50.00"
                         />
                       </div>
                     </div>
@@ -852,8 +926,7 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
                         border: `1px solid ${onTime ? 'rgba(0, 229, 176, 0.3)' : 'rgba(255, 149, 0, 0.3)'}`
                       }}>
                         <span style={{
-                          fontSize: 13,
-                          fontWeight: 700,
+                          fontSize: 13, fontWeight: 700,
                           color: onTime ? 'var(--green)' : 'var(--orange)',
                           lineHeight: 1.4
                         }}>
@@ -869,6 +942,77 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
             <div className="col gap-6">
               <span className="label">{s.notesOptional}</span>
               <input className="input-field" value={notes} onChange={e => setNotes(e.target.value)} placeholder={s.notesPlaceholder} />
+            </div>
+
+            {/* Notificaciones */}
+            <div className="col gap-8">
+              <div className="spread">
+                <span className="label">🔔 {s.notifsTitle}</span>
+                <button
+                  onClick={() => setCustomNotifs(!customNotifs)}
+                  className="tiny"
+                  style={{ color: 'var(--blue)', fontWeight: 700 }}
+                >
+                  {customNotifs ? '◂ ' + s.recommended : s.customizeNotifs + ' ▸'}
+                </button>
+              </div>
+              <span className="tiny" style={{ marginTop: -4, lineHeight: 1.4 }}>{s.notifsHint}</span>
+
+              {!customNotifs ? (
+                <div className="card" style={{
+                  padding: 12, borderRadius: 12,
+                  background: 'rgba(0, 229, 176, 0.08)',
+                  border: '1px solid rgba(0, 229, 176, 0.25)'
+                }}>
+                  <div className="row gap-10" style={{ alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 18 }}>✨</span>
+                    <div className="col gap-2" style={{ flex: 1 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>
+                        {s.recommended}
+                      </span>
+                      <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                        Recordatorios + Resumen semanal + Logros (todo activado)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="col gap-8">
+                  {[
+                    { k: 'reminder', title: s.notifReminder, desc: s.notifReminderDesc },
+                    { k: 'progress', title: s.notifProgress, desc: s.notifProgressDesc },
+                    { k: 'milestones', title: s.notifMilestones, desc: s.notifMilestonesDesc }
+                  ].map(opt => (
+                    <div key={opt.k} className="row gap-10 spread" style={{
+                      background: 'var(--bg-elev)',
+                      padding: 12,
+                      borderRadius: 10,
+                      alignItems: 'flex-start'
+                    }}>
+                      <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700 }}>{opt.title}</span>
+                        <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4 }}>{opt.desc}</span>
+                      </div>
+                      <button
+                        onClick={() => setNotifications(prev => ({ ...prev, [opt.k]: !prev[opt.k] }))}
+                        style={{
+                          width: 44, height: 26, borderRadius: 999,
+                          background: notifications[opt.k] ? 'var(--green)' : 'var(--bg-card)',
+                          border: notifications[opt.k] ? 'none' : '1px solid var(--border)',
+                          position: 'relative', flexShrink: 0,
+                          transition: 'background .2s'
+                        }}
+                      >
+                        <div style={{
+                          position: 'absolute', top: 2, left: notifications[opt.k] ? 20 : 2,
+                          width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                          transition: 'left .2s'
+                        }}></div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
