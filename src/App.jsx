@@ -596,6 +596,7 @@ function AppInner() {
                   onConnectBank={() => setShowConnectBank(true)}
                   onNotifications={() => { setShowNotifications(true); setUnreadCount(0); }}
                   unreadCount={unreadCount}
+                  onAddExpense={() => setShowAdd(true)}
                 />
               )}
               {tab === 'accounts' && (

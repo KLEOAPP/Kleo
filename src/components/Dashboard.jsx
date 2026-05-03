@@ -1,19 +1,24 @@
 import { useMemo, useState } from 'react';
 import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
-import AiInsights from './AiInsights.jsx';
 import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
 
-export default function Dashboard({ user, accounts, transactions, fixedExpenses, goals, household, onOpenMenu, onOpenSection, onSwitchTab, onConnectBank, onNotifications, unreadCount }) {
-  const { strings: s } = useI18n();
-  const [hideBalance, setHideBalance] = useState(false);
+const PERIODS = ['day', 'week', 'month', '3m', '6m', 'ytd'];
 
-  // Patrimonio neto = corriente + ahorros − deuda crédito
+export default function Dashboard({
+  user, accounts, transactions, fixedExpenses, goals, household,
+  onOpenMenu, onOpenSection, onSwitchTab, onConnectBank,
+  onNotifications, unreadCount, onAddExpense
+}) {
+  const { strings: s } = useI18n();
+  const [period, setPeriod] = useState('month');
+
+  /* ---------------- Derived data ---------------- */
   const patrimony = useMemo(() => {
-    const checking = accounts.filter(a => a.type === 'checking').reduce((s, a) => s + a.balance, 0);
-    const savings = accounts.filter(a => a.type === 'savings').reduce((s, a) => s + a.balance, 0);
-    const debt = accounts.filter(a => a.type === 'credit').reduce((s, a) => s + Math.abs(a.balance), 0);
+    const checking = accounts.filter(a => a.type === 'checking').reduce((acc, a) => acc + a.balance, 0);
+    const savings = accounts.filter(a => a.type === 'savings').reduce((acc, a) => acc + a.balance, 0);
+    const debt = accounts.filter(a => a.type === 'credit').reduce((acc, a) => acc + Math.abs(a.balance), 0);
     return { net: checking + savings - debt, checking, savings, debt };
   }, [accounts]);
 
@@ -22,7 +27,7 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     return transactions
       .filter(t => new Date(t.date) >= monthStart && t.amount < 0 && t.category !== 'transferencia')
-      .reduce((s, t) => s + Math.abs(t.amount), 0);
+      .reduce((acc, t) => acc + Math.abs(t.amount), 0);
   }, [transactions]);
 
   const monthIncome = useMemo(() => {
@@ -30,309 +35,574 @@ export default function Dashboard({ user, accounts, transactions, fixedExpenses,
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     return transactions
       .filter(t => new Date(t.date) >= monthStart && t.amount > 0)
-      .reduce((s, t) => s + t.amount, 0);
+      .reduce((acc, t) => acc + t.amount, 0);
   }, [transactions]);
 
   const creditCards = useMemo(() => accounts.filter(a => a.type === 'credit'), [accounts]);
-  const creditUtilization = useMemo(() => {
-    const used = creditCards.reduce((s, c) => s + Math.abs(c.balance), 0);
-    const limit = creditCards.reduce((s, c) => s + (c.limit || 0), 0);
-    return limit > 0 ? (used / limit) * 100 : 0;
-  }, [creditCards]);
+  const creditUsed = creditCards.reduce((acc, c) => acc + Math.abs(c.balance), 0);
+  const creditLimit = creditCards.reduce((acc, c) => acc + (c.limit || 0), 0);
+  const creditUtilization = creditLimit > 0 ? (creditUsed / creditLimit) * 100 : 0;
 
-  // Cuántos pagos próximos en los próximos 7 días
-  const upcomingCount = useMemo(() => {
-    const today = new Date();
-    const day = today.getDate();
-    let count = 0;
-    fixedExpenses.forEach(f => {
-      const days = f.dueDay >= day ? f.dueDay - day : (30 - day + f.dueDay);
-      if (days <= 7) count++;
-    });
-    creditCards.forEach(c => {
-      if (c.paymentDueDay) {
-        const days = daysUntil(nextPaymentDate(c.paymentDueDay));
-        if (days <= 7) count++;
-      }
-    });
-    return count;
-  }, [fixedExpenses, creditCards]);
-
-  const totalGoals = useMemo(() => goals?.reduce((s, g) => s + g.current, 0) || 0, [goals]);
-  const txThisMonth = useMemo(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    return transactions.filter(t => new Date(t.date) >= start).length;
-  }, [transactions]);
-
-  // Tu parte del presupuesto compartido (ejemplo: gastos compartidos × incomeRatio)
-  const myBudgetShare = useMemo(() => {
-    if (!household?.enabled) return null;
-    const me = household.members.find(m => m.isMe);
-    const fixedShared = fixedExpenses.filter(f => f.shared).reduce((s, f) => s + f.amount, 0);
-    return fixedShared * (me?.incomeRatio || 0.5);
-  }, [household, fixedExpenses]);
-
-  // FICO simulado
   const score = useMemo(() => {
     let base = 750;
     if (creditUtilization > 30) base -= (creditUtilization - 30) * 4;
-    else if (creditUtilization < 5) base += 30;
-    else if (creditUtilization < 10) base += 15;
-    return Math.max(580, Math.min(820, Math.round(base)));
+    else if (creditUtilization < 5) base += 70;
+    else if (creditUtilization < 10) base += 40;
+    return Math.max(580, Math.min(890, Math.round(base)));
   }, [creditUtilization]);
 
-  const utilColor = creditUtilization < 5 ? '#00B589' : creditUtilization < 30 ? '#FF9500' : '#FF3B30';
+  const scoreLabel = score >= 800 ? s.excellentScore : score >= 740 ? s.goodScore : score >= 670 ? s.fairScore : s.poorScore;
+  const scoreColor = score >= 800 ? '#00E5B0' : score >= 740 ? '#34C759' : score >= 670 ? '#FF9500' : '#FF3B30';
 
-  // Secciones para el grid
-  const sections = [
-    {
-      id: 'credit',
-      type: 'section',
-      title: s.sCredit,
-      icon: '💳',
-      color: 'var(--section-credit)',
-      gradient: 'linear-gradient(135deg, #00B589 0%, #007A5C 100%)',
-      metric: `${creditUtilization.toFixed(0)}%`,
-      sub: s.sScore.replace('{score}', score),
-      action: () => onOpenSection('credit')
-    },
-    {
-      id: 'accounts',
-      type: 'tab',
-      title: s.sAccounts,
-      icon: '🏦',
-      color: 'var(--section-accounts)',
-      gradient: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)',
-      metric: fmtMoneyShort(patrimony.checking + patrimony.savings),
-      sub: s.sCheckSavings,
-      action: () => onSwitchTab('accounts')
-    },
-    {
-      id: 'goals',
-      type: 'tab',
-      title: s.sGoals,
-      icon: '🎯',
-      color: 'var(--section-goals)',
-      gradient: 'linear-gradient(135deg, #FF9500 0%, #B86600 100%)',
-      metric: fmtMoneyShort(totalGoals),
-      sub: s.sSaved,
-      action: () => onSwitchTab('goals')
-    },
-    {
-      id: 'budget',
-      type: 'section',
-      title: s.sBudget,
-      icon: '💰',
-      color: 'var(--section-budget)',
-      gradient: 'linear-gradient(135deg, #FF2D6F 0%, #B0124A 100%)',
-      metric: myBudgetShare ? fmtMoneyShort(myBudgetShare) : '—',
-      sub: myBudgetShare ? s.sYourPart : s.sConfigure,
-      action: () => onOpenSection('budget')
-    },
-    {
-      id: 'calendar',
-      type: 'section',
-      title: s.sCalendar,
-      icon: '📅',
-      color: 'var(--section-calendar)',
-      gradient: 'linear-gradient(135deg, #34C759 0%, #1C8B3F 100%)',
-      metric: upcomingCount,
-      sub: s.sThisWeek,
-      action: () => onOpenSection('calendar')
-    },
-    {
-      id: 'analysis',
-      type: 'section',
-      title: s.sAnalysis,
-      icon: '📈',
-      color: 'var(--section-analysis)',
-      gradient: 'linear-gradient(135deg, #AF52DE 0%, #6F2D9A 100%)',
-      metric: `−12%`,
-      sub: s.sVsLastMonth,
-      action: () => onOpenSection('analysis')
-    },
-    {
-      id: 'transactions',
-      type: 'section',
-      title: s.sTransactions,
-      icon: '🧾',
-      color: 'var(--section-accounts)',
-      gradient: 'linear-gradient(135deg, #007AFF 0%, #003D80 100%)',
-      metric: txThisMonth,
-      sub: s.sThisMonth,
-      action: () => onOpenSection('transactions')
-    },
-    {
-      id: 'reports',
-      type: 'section',
-      title: s.sReports,
-      icon: '📊',
-      color: 'var(--section-reports)',
-      gradient: 'linear-gradient(135deg, #FF9500 0%, #B86600 100%)',
-      metric: s.sView,
-      sub: s.sMonthlyQuarterly,
-      action: () => onOpenSection('reports')
+  // Available to spend = checking - upcoming bills due in next 12 days
+  const safeToSpend = useMemo(() => {
+    const upcoming = fixedExpenses.reduce((acc, f) => acc + f.amount, 0);
+    return Math.max(0, patrimony.checking - upcoming);
+  }, [patrimony.checking, fixedExpenses]);
+
+  const utilStatus = creditUtilization < 10 ? s.veryGoodLabel : creditUtilization < 30 ? s.goodLabel : s.watchOutLabel;
+  const utilColor = creditUtilization < 10 ? '#00E5B0' : creditUtilization < 30 ? '#FF9500' : '#FF3B30';
+
+  // Insight: simple savings opportunity
+  const savingsOpportunity = useMemo(() => {
+    const diff = monthIncome - monthSpending;
+    return Math.max(50, Math.round(Math.abs(diff) * 0.12));
+  }, [monthIncome, monthSpending]);
+
+  // Synthetic net worth history per period
+  const chartData = useMemo(() => {
+    const points = period === 'day' ? 12 : period === 'week' ? 14 : period === 'month' ? 30 : period === '3m' ? 12 : period === '6m' ? 24 : 12;
+    const seed = patrimony.net || 46000;
+    const base = seed * 0.78;
+    const arr = [];
+    for (let i = 0; i < points; i++) {
+      const t = i / (points - 1);
+      // smooth growth + noise
+      const noise = Math.sin(i * 1.7) * (seed * 0.015) + Math.cos(i * 0.9) * (seed * 0.008);
+      arr.push(base + (seed - base) * t + noise);
     }
-  ];
+    arr[arr.length - 1] = seed;
+    return arr;
+  }, [period, patrimony.net]);
 
+  const change = useMemo(() => {
+    const first = chartData[0];
+    const last = chartData[chartData.length - 1];
+    return first > 0 ? ((last - first) / first) * 100 : 0;
+  }, [chartData]);
+
+  /* ---------------- Render ---------------- */
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onMenu={onOpenMenu} onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })} onNotifications={onNotifications} unreadCount={unreadCount} />
+      <TopBar
+        onMenu={onOpenMenu}
+        onHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        onNotifications={onNotifications}
+        unreadCount={unreadCount}
+      />
 
-      <div style={{ padding: '8px 0 16px' }}>
-        {/* Saludo */}
-        <span className="tiny">{s.hello.replace('{name}', user.name.split(' ')[0])}</span>
+      <div style={{ padding: '4px 0 24px' }}>
+        {/* Greeting */}
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
+          {s.hello.replace('{name}', user.name.split(' ')[0])} 👋
+        </h2>
 
-        {/* Patrimonio Neto */}
-        <div className="row gap-8 mt-4 mb-4">
-          <span className="label">{s.netWorth}</span>
-          <button onClick={() => setHideBalance(!hideBalance)} style={{ color: 'var(--text-mute)', display: 'flex' }}>
-            <Icon name={hideBalance ? 'eye-off' : 'eye'} size={14} />
-          </button>
-        </div>
-        <h1 className="h1" style={{ fontSize: 42, fontWeight: 700, letterSpacing: '-0.03em' }}>
-          {hideBalance ? '$••••••' : fmtMoney(patrimony.net)}
-        </h1>
-        <span className="tiny" style={{ display: 'block', marginTop: 4 }}>
-          {s.netWorthDesc}
-        </span>
-
-        {/* Mini stats: ingresos, gastos, ahorros */}
-        <div className="card mt-16" style={{
-          background: 'var(--bg-elev)',
-          border: 'none',
-          padding: '14px 16px'
+        {/* ============ HERO: NET WORTH + CHART ============ */}
+        <div className="card mb-16" style={{
+          background: 'var(--bg-card)',
+          borderColor: 'var(--border-soft)',
+          padding: 18,
+          borderRadius: 22
         }}>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <div className="col gap-2">
-              <span className="tiny">{s.monthIncome}</span>
-              <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>+{fmtMoneyShort(monthIncome || 2850)}</span>
+          <div className="spread mb-4" style={{ alignItems: 'flex-start' }}>
+            <div className="row gap-6" style={{ alignItems: 'center' }}>
+              <span style={{ fontSize: 14, color: 'var(--text-mute)', fontWeight: 500 }}>{s.netWorth}</span>
+              <Icon name="info" size={13} color="var(--text-mute)" />
             </div>
-            <div style={{ width: 1, background: 'var(--border)' }}></div>
-            <div className="col gap-2">
-              <span className="tiny">{s.monthExpenses}</span>
-              <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--danger)' }}>−{fmtMoneyShort(monthSpending)}</span>
-            </div>
-            <div style={{ width: 1, background: 'var(--border)' }}></div>
-            <div className="col gap-2">
-              <span className="tiny">{s.saved}</span>
-              <span style={{ fontWeight: 700, fontSize: 16 }}>{fmtMoneyShort(patrimony.savings)}</span>
+            <div className="row gap-4" style={{
+              background: change >= 0 ? 'rgba(0, 229, 176, 0.12)' : 'rgba(255, 77, 109, 0.12)',
+              color: change >= 0 ? '#00E5B0' : '#FF4D6D',
+              padding: '5px 10px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 600,
+              alignItems: 'center'
+            }}>
+              <Icon name={change >= 0 ? 'trending-up' : 'trending-down'} size={12} />
+              <span>{change >= 0 ? s.growing : s.declining}</span>
             </div>
           </div>
+
+          <h1 style={{
+            fontSize: 38,
+            fontWeight: 700,
+            letterSpacing: '-0.03em',
+            marginTop: 4,
+            marginBottom: 6
+          }}>
+            {fmtMoney(patrimony.net || 46112.16)}
+          </h1>
+
+          <div className="row gap-4" style={{ alignItems: 'center' }}>
+            <span style={{ color: change >= 0 ? '#00E5B0' : '#FF4D6D', fontWeight: 600, fontSize: 13 }}>
+              {change >= 0 ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
+            </span>
+            <span className="tiny">{s.vsLastMonthShort}</span>
+          </div>
+
+          {/* Period tabs */}
+          <div style={{
+            display: 'flex',
+            gap: 4,
+            marginTop: 16,
+            marginBottom: 8,
+            background: 'transparent'
+          }}>
+            {PERIODS.map(p => {
+              const label =
+                p === 'day' ? s.periodDay :
+                p === 'week' ? s.periodWeek :
+                p === 'month' ? s.periodMonth :
+                p === '3m' ? s.period3M :
+                p === '6m' ? s.period6M : s.periodYTD;
+              const active = period === p;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  style={{
+                    flex: 1,
+                    padding: '7px 0',
+                    borderRadius: 999,
+                    background: active ? 'var(--gradient, linear-gradient(135deg, #7C3AED, #A855F7))' : 'transparent',
+                    border: active ? 'none' : '1px solid var(--border)',
+                    color: active ? '#fff' : 'var(--text-mute)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    transition: 'all .15s'
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Chart */}
+          <Sparkline data={chartData} />
         </div>
 
-        {/* Kleo IA */}
-        <div style={{ marginTop: 16 }}>
-          <AiInsights
-            transactions={transactions}
-            accounts={accounts}
-            goals={goals}
-            fixedExpenses={fixedExpenses}
-          />
-        </div>
-
-        {/* Conectar banco */}
+        {/* ============ CONNECT BANK ============ */}
         {onConnectBank && (
           <button
             onClick={onConnectBank}
-            className="card pressable mt-16"
+            className="pressable mb-20"
             style={{
               width: '100%',
-              padding: '14px 16px',
-              background: 'var(--bg-elev)',
-              border: '1px dashed var(--border)',
+              padding: 14,
+              borderRadius: 18,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-soft)',
               textAlign: 'left',
               display: 'flex',
               alignItems: 'center',
               gap: 12
             }}
           >
-            <span style={{ fontSize: 24 }}>🏦</span>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'rgba(167, 139, 250, 0.18)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Icon name="bank" size={22} color="#A78BFA" />
+            </div>
             <div className="col gap-2" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.connectBank}</span>
+              <span style={{ fontWeight: 600, fontSize: 15 }}>{s.connectBank}</span>
               <span className="tiny">{s.connectBankDesc}</span>
             </div>
-            <Icon name="back" size={14} color="var(--text-mute)" stroke={2} style={{ transform: 'rotate(180deg)' }} />
+            <Icon name="back" size={16} color="#A78BFA" stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
           </button>
         )}
 
-        {/* GRID DE SECCIONES BONITAS */}
-        <div className="section-header">
-          <span>{s.sections}</span>
+        {/* ============ TU RESUMEN ============ */}
+        <div className="spread mb-12" style={{ alignItems: 'center' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700 }}>{s.yourSummary}</h3>
+          <button
+            onClick={() => onSwitchTab('accounts')}
+            className="row gap-4"
+            style={{ color: '#A855F7', fontSize: 13, fontWeight: 600, alignItems: 'center' }}
+          >
+            <span>{s.viewAll}</span>
+            <Icon name="back" size={12} stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
+          </button>
         </div>
+
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 12
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 10,
+          marginBottom: 20
         }}>
-          {sections.map(s => (
-            <button
-              key={s.id}
-              onClick={s.action}
-              className="pressable"
-              style={{
-                position: 'relative',
-                padding: 16,
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-soft)',
-                textAlign: 'left',
-                aspectRatio: '1.05',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                overflow: 'hidden',
-                boxShadow: 'var(--shadow-sm)'
-              }}
-            >
-              {/* Decoración: círculo de gradiente atrás */}
-              <div style={{
-                position: 'absolute',
-                top: -25,
-                right: -25,
-                width: 90,
-                height: 90,
-                borderRadius: '50%',
-                background: s.gradient,
-                opacity: 0.12,
-                pointerEvents: 'none'
-              }}></div>
-
-              {/* Icon top */}
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: s.gradient,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 22,
-                color: '#fff',
-                boxShadow: `0 4px 12px ${s.color}55`
-              }}>
-                {s.icon}
+          {/* Disponible */}
+          <SummaryCard
+            iconName="wallet"
+            iconColor="#00E5B0"
+            iconBg="rgba(0, 229, 176, 0.15)"
+            label={s.availableLabel}
+            labelColor="#00E5B0"
+            value={fmtMoneyShort(safeToSpend || 1240)}
+            sub={s.toSpend}
+            footer={
+              <div className="row gap-4" style={{ alignItems: 'center', color: '#00E5B0', fontSize: 10 }}>
+                <Icon name="shield" size={11} color="#00E5B0" />
+                <span style={{ fontWeight: 600 }}>{s.safeForDays.replace('{n}', 12)}</span>
               </div>
+            }
+            onClick={() => onSwitchTab('accounts')}
+          />
 
-              {/* Bottom: title + metric */}
-              <div className="col gap-2">
-                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-mute)' }}>{s.title}</span>
-                <div className="row gap-6" style={{ alignItems: 'baseline' }}>
-                  <span style={{
-                    fontWeight: 700,
-                    fontSize: typeof s.metric === 'string' && s.metric.length > 5 ? 18 : 22,
-                    letterSpacing: '-0.02em'
-                  }}>
-                    {s.metric}
-                  </span>
+          {/* Uso de crédito */}
+          <SummaryCard
+            iconName="credit-card"
+            iconColor="#A855F7"
+            iconBg="rgba(168, 85, 247, 0.15)"
+            label={s.creditUse}
+            labelColor="#A855F7"
+            value={`${creditUtilization.toFixed(0)}%`}
+            sub={utilStatus}
+            subColor={utilColor}
+            footer={
+              <>
+                <span className="tiny" style={{ fontSize: 10, marginBottom: 4, display: 'block' }}>
+                  {s.limitUsed.replace('{amount}', fmtMoneyShort(creditUsed))}
+                </span>
+                <div style={{ height: 4, background: 'var(--bg-elev)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.min(100, creditUtilization)}%`,
+                    height: '100%',
+                    background: utilColor
+                  }} />
                 </div>
-                <span className="tiny" style={{ marginTop: -2 }}>{s.sub}</span>
-              </div>
-            </button>
-          ))}
+              </>
+            }
+            onClick={() => onOpenSection('credit')}
+          />
+
+          {/* Insight */}
+          <SummaryCard
+            iconName="lightbulb"
+            iconColor="#FF9500"
+            iconBg="rgba(255, 149, 0, 0.15)"
+            label={s.insightForYou}
+            labelColor="#FF9500"
+            value={null}
+            customBody={
+              <>
+                <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 500, lineHeight: 1.3 }}>
+                  {s.youCanSave}
+                </div>
+                <div style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: '#FF9500',
+                  letterSpacing: '-0.02em',
+                  margin: '2px 0'
+                }}>
+                  ${savingsOpportunity}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-mute)' }}>{s.thisMonthRocket}</div>
+              </>
+            }
+            footer={
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenSection('analysis'); }}
+                className="row gap-2"
+                style={{
+                  background: 'rgba(255, 149, 0, 0.15)',
+                  color: '#FF9500',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  width: '100%',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span>{s.seeHow}</span>
+                <Icon name="back" size={10} stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
+              </button>
+            }
+            onClick={() => onOpenSection('analysis')}
+          />
+        </div>
+
+        {/* ============ KLEO SCORE ============ */}
+        <button
+          onClick={() => onOpenSection('credit')}
+          className="card pressable mb-20"
+          style={{
+            width: '100%',
+            padding: 18,
+            borderRadius: 22,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-soft)',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14
+          }}
+        >
+          <div style={{
+            width: 52, height: 52, borderRadius: 14,
+            background: 'linear-gradient(135deg, #FF2D6F, #A855F7, #00E5B0)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 800, fontSize: 24,
+            flexShrink: 0
+          }}>
+            K
+          </div>
+
+          <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-mute)', fontWeight: 500 }}>{s.kleoScore}</span>
+            <div className="row gap-8" style={{ alignItems: 'baseline' }}>
+              <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em' }}>{score}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: scoreColor }}>{scoreLabel}</span>
+            </div>
+          </div>
+
+          <ScoreGauge score={score} color={scoreColor} />
+
+          <div className="col" style={{ alignItems: 'flex-end', flexShrink: 0, maxWidth: 110 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-mute)', textAlign: 'right', lineHeight: 1.3 }}>
+              {s.financialHealth}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-mute)', textAlign: 'right', lineHeight: 1.3 }}>
+              {s.isInState.split('{state}')[0]}
+              <span style={{ color: scoreColor, fontWeight: 600 }}>{scoreLabel.toLowerCase()}</span>
+              {s.isInState.split('{state}')[1]}
+            </span>
+          </div>
+        </button>
+
+        {/* ============ QUICK ACTIONS ============ */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 10
+        }}>
+          <QuickAction
+            iconName="camera"
+            color="#FF2D6F"
+            label={s.scanReceiptShort}
+            sub={s.scanReceiptSub}
+            onClick={() => onAddExpense ? onAddExpense() : onOpenSection('transactions')}
+          />
+          <QuickAction
+            iconName="pie-chart"
+            color="#5856D6"
+            label={s.monthlyBudgetShort}
+            sub={s.monthlyBudgetSub}
+            onClick={() => onOpenSection('budget')}
+          />
+          <QuickAction
+            iconName="bell"
+            color="#FF9500"
+            label={s.smartAlerts}
+            sub={s.smartAlertsSub}
+            onClick={onNotifications}
+          />
+          <QuickAction
+            iconName="file-text"
+            color="#00E5B0"
+            label={s.financialReports}
+            sub={s.financialReportsSub}
+            onClick={() => onOpenSection('reports')}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+/* ============================ Sub-components ============================ */
+
+function Sparkline({ data, height = 120 }) {
+  const width = 320;
+  const padding = 8;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const stepX = (width - padding * 2) / (data.length - 1);
+
+  const points = data.map((v, i) => ({
+    x: padding + i * stepX,
+    y: padding + (1 - (v - min) / range) * (height - padding * 2)
+  }));
+
+  // Smooth Catmull-Rom-ish curve
+  const path = points.reduce((acc, p, i, arr) => {
+    if (i === 0) return `M ${p.x} ${p.y}`;
+    const prev = arr[i - 1];
+    const cx = (prev.x + p.x) / 2;
+    return `${acc} C ${cx} ${prev.y}, ${cx} ${p.y}, ${p.x} ${p.y}`;
+  }, '');
+
+  const areaPath = `${path} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
+  const last = points[points.length - 1];
+
+  // Y-axis labels
+  const yLabels = [max, min + range * 0.66, min + range * 0.33, min];
+
+  return (
+    <div style={{ position: 'relative', marginTop: 8 }}>
+      <svg viewBox={`0 0 ${width + 40} ${height + 8}`} width="100%" style={{ display: 'block' }}>
+        <defs>
+          <linearGradient id="kleoLineGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#FF2D6F" />
+            <stop offset="50%" stopColor="#A855F7" />
+            <stop offset="100%" stopColor="#00E5B0" />
+          </linearGradient>
+          <linearGradient id="kleoAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#A855F7" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {yLabels.map((v, i) => {
+          const y = padding + (i / (yLabels.length - 1)) * (height - padding * 2);
+          return (
+            <g key={i}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2 4" opacity="0.5" />
+              <text x={width + 4} y={y + 3} fill="var(--text-mute)" fontSize="9" fontWeight="500">
+                {fmtMoneyShort(v).replace('$', '')}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Area */}
+        <path d={areaPath} fill="url(#kleoAreaGrad)" />
+
+        {/* Line */}
+        <path d={path} fill="none" stroke="url(#kleoLineGrad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* End dot */}
+        <circle cx={last.x} cy={last.y} r="4" fill="#00E5B0" />
+        <circle cx={last.x} cy={last.y} r="7" fill="#00E5B0" opacity="0.3" />
+      </svg>
+    </div>
+  );
+}
+
+function SummaryCard({ iconName, iconColor, iconBg, label, labelColor, value, sub, subColor, customBody, footer, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="pressable"
+      style={{
+        padding: 12,
+        borderRadius: 16,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-soft)',
+        textAlign: 'left',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        minHeight: 165
+      }}
+    >
+      <div style={{
+        width: 32, height: 32, borderRadius: 10,
+        background: iconBg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        <Icon name={iconName} size={16} color={iconColor} />
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {customBody ? customBody : (
+          <>
+            <span style={{ fontSize: 11, color: labelColor, fontWeight: 600 }}>{label}</span>
+            <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{value}</span>
+            {sub && <span style={{ fontSize: 11, color: subColor || 'var(--text-mute)', fontWeight: subColor ? 600 : 500 }}>{sub}</span>}
+          </>
+        )}
+      </div>
+
+      {footer && <div style={{ marginTop: 'auto' }}>{footer}</div>}
+    </button>
+  );
+}
+
+function ScoreGauge({ score, color }) {
+  const size = 60;
+  const r = 24;
+  const cx = size / 2;
+  const cy = size / 2 + 4;
+  // Half circle from -180° to 0°
+  const pct = Math.max(0, Math.min(1, (score - 300) / (890 - 300)));
+  const angle = -Math.PI + pct * Math.PI;
+  const needleX = cx + Math.cos(angle) * (r - 2);
+  const needleY = cy + Math.sin(angle) * (r - 2);
+
+  return (
+    <svg width={size} height={size * 0.7} viewBox={`0 0 ${size} ${size * 0.7}`} style={{ flexShrink: 0 }}>
+      <defs>
+        <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#FF3B30" />
+          <stop offset="33%" stopColor="#FF9500" />
+          <stop offset="66%" stopColor="#FFCC00" />
+          <stop offset="100%" stopColor="#00E5B0" />
+        </linearGradient>
+      </defs>
+      <path
+        d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+        fill="none"
+        stroke="url(#gaugeGrad)"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <line
+        x1={cx} y1={cy}
+        x2={needleX} y2={needleY}
+        stroke="var(--text)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx={cx} cy={cy} r="3" fill="var(--text)" />
+    </svg>
+  );
+}
+
+function QuickAction({ iconName, color, label, sub, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="pressable"
+      style={{
+        padding: 12,
+        borderRadius: 16,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-soft)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 8
+      }}
+    >
+      <div style={{
+        width: 32, height: 32, borderRadius: 10,
+        background: color + '22',
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        <Icon name={iconName} size={16} color={color} />
+      </div>
+      <div className="col" style={{ alignItems: 'flex-start', gap: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{sub}</span>
+      </div>
+    </button>
   );
 }
