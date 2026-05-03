@@ -277,6 +277,18 @@ export default {
   goalReached: '🎉 Goal reached!',
   ahead: '🚀 Ahead of plan',
   manageGoal: 'Manage goal',
+  toReachGoal: 'To reach your goal you would save:',
+  perWeek: 'per week',
+  perBiweek: 'per biweekly',
+  perMonth: 'per month',
+  goalRecommendHint: 'Pick a frequency below to auto-fill the amount.',
+  overDepositTitle: '🚀 You are ahead!',
+  overDepositDesc: 'You have deposited {extra} more than planned. Two options:',
+  optionLowerAmount: 'Lower my amount',
+  optionLowerDesc: 'Keep the date. New amount drops to {amount}/{freq}.',
+  optionFasterDeadline: 'Reach goal sooner',
+  optionFasterDesc: 'Keep amount. You reach the goal on {date}.',
+  applied: '✓ Applied',
 
   // Credit
   yourCredit: 'Your Credit',

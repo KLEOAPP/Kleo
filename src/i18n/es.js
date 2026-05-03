@@ -277,6 +277,18 @@ export default {
   goalReached: '🎉 ¡Llegaste a la meta!',
   ahead: '🚀 Vas adelantado',
   manageGoal: 'Administrar meta',
+  toReachGoal: 'Para llegar a tu meta tendrás que ahorrar:',
+  perWeek: 'por semana',
+  perBiweek: 'por quincena',
+  perMonth: 'por mes',
+  goalRecommendHint: 'Selecciona una frecuencia abajo para que se llene sola.',
+  overDepositTitle: '🚀 ¡Vas adelantado!',
+  overDepositDesc: 'Has aportado {extra} más de lo planeado. Tienes dos opciones:',
+  optionLowerAmount: 'Bajar mi cuota',
+  optionLowerDesc: 'Mantén la fecha. Tu nueva cuota baja a {amount}/{freq}.',
+  optionFasterDeadline: 'Llegar más rápido',
+  optionFasterDesc: 'Mantén tu cuota. Llegas a la meta el {date}.',
+  applied: '✓ Aplicado',
 
   // Credit
   yourCredit: 'Tu Crédito',

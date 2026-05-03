@@ -127,12 +127,12 @@ export default function Goals({
             s={s}
             calcSuggestion={calcSuggestion}
             onEdit={() => setEditingGoal(g)}
+            onUpdate={(updates) => onUpdate(g.id, updates)}
             onDelete={() => {
               if (window.confirm(s.deleteGoalConfirm.replace('{name}', g.name))) {
                 onDelete(g.id);
               }
             }}
-            onContribute={(amount) => onAddSavings(g.id, amount)}
           />
         ))}
       </div>
@@ -154,7 +154,7 @@ export default function Goals({
 /* =============================================================
  *  Goal Card — versión rica con cuenta vinculada y plan
  * ============================================================= */
-function GoalCard({ goal: g, accounts, s, calcSuggestion, onEdit, onDelete, onContribute }) {
+function GoalCard({ goal: g, accounts, s, calcSuggestion, onEdit, onDelete, onUpdate }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -189,6 +189,38 @@ function GoalCard({ goal: g, accounts, s, calcSuggestion, onEdit, onDelete, onCo
       };
     } else {
       planStatus = { kind: 'ontrack', text: s.onTrack, color: 'var(--green)' };
+    }
+  }
+
+  // Detección de "vas adelantado": ¿ha aportado más de lo planeado?
+  let overDeposit = null;
+  if (g.schedule?.amount && g.startedAt && currentNow < g.target) {
+    const periodDays = FREQ_DAYS[g.schedule.frequency] || 7;
+    const start = new Date(g.startedAt);
+    const today = new Date();
+    const daysElapsed = Math.max(0, (today - start) / (1000 * 60 * 60 * 24));
+    const periodsElapsed = Math.max(1, Math.floor(daysElapsed / periodDays));
+    const expectedByNow = periodsElapsed * g.schedule.amount;
+    if (currentNow > expectedByNow * 1.15) {
+      // Cliente va adelantado por al menos 15%
+      const extra = currentNow - expectedByNow;
+      const deadline = new Date(g.deadline);
+      const remainingPeriods = Math.max(1, Math.ceil((deadline - today) / (1000 * 60 * 60 * 24 * periodDays)));
+      const newAmount = Math.max(5, Math.round((g.target - currentNow) / remainingPeriods));
+      const periodsNeeded = Math.ceil((g.target - currentNow) / g.schedule.amount);
+      const newDeadlineMs = today.getTime() + periodsNeeded * periodDays * 86400000;
+      const newDeadline = new Date(newDeadlineMs);
+      overDeposit = {
+        extra,
+        newAmount,
+        newDeadline,
+        applyLower: () => onUpdate({
+          schedule: { ...g.schedule, amount: newAmount }
+        }),
+        applyFaster: () => onUpdate({
+          deadline: newDeadline.toISOString().slice(0, 10)
+        })
+      };
     }
   }
 
@@ -359,6 +391,69 @@ function GoalCard({ goal: g, accounts, s, calcSuggestion, onEdit, onDelete, onCo
         </div>
       )}
 
+      {/* Vas adelantado · ofrecer dos opciones */}
+      {overDeposit && (
+        <div className="card mt-12" style={{
+          background: 'linear-gradient(135deg, rgba(0, 229, 176, 0.12), rgba(168, 85, 247, 0.12))',
+          border: '1px solid rgba(0, 229, 176, 0.3)',
+          padding: 14,
+          borderRadius: 14
+        }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>
+            {s.overDepositTitle}
+          </span>
+          <p className="tiny mt-4" style={{ lineHeight: 1.5 }}>
+            {s.overDepositDesc.replace('{extra}', fmtMoney(overDeposit.extra))}
+          </p>
+          <div className="col gap-8 mt-12">
+            <button
+              onClick={overDeposit.applyLower}
+              className="row gap-10"
+              style={{
+                width: '100%', padding: 12,
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                textAlign: 'left'
+              }}
+            >
+              <span style={{ fontSize: 18 }}>⬇</span>
+              <div className="col gap-2" style={{ flex: 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{s.optionLowerAmount}</span>
+                <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                  {s.optionLowerDesc
+                    .replace('{amount}', fmtMoney(overDeposit.newAmount))
+                    .replace('{freq}', freqLabel(g.schedule.frequency, s).toLowerCase())}
+                </span>
+              </div>
+              <Icon name="back" size={14} stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
+            </button>
+            <button
+              onClick={overDeposit.applyFaster}
+              className="row gap-10"
+              style={{
+                width: '100%', padding: 12,
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                textAlign: 'left'
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🚀</span>
+              <div className="col gap-2" style={{ flex: 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{s.optionFasterDeadline}</span>
+                <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                  {s.optionFasterDesc.replace('{date}',
+                    overDeposit.newDeadline.toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' })
+                  )}
+                </span>
+              </div>
+              <Icon name="back" size={14} stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sugerencia de ahorro semanal (si no tiene plan) */}
       {remaining > 0 && !g.schedule?.amount && (
         <div className="ai-alert mt-12">
@@ -420,16 +515,6 @@ function GoalCard({ goal: g, accounts, s, calcSuggestion, onEdit, onDelete, onCo
         </div>
       )}
 
-      {/* Aportar manual (solo si no hay cuenta vinculada) */}
-      {!linkedAccount && remaining > 0 && (
-        <button
-          className="btn-secondary mt-12"
-          style={{ height: 44, fontSize: 14 }}
-          onClick={() => onContribute(sug.weekly)}
-        >
-          {s.contribute.replace('{amount}', fmtMoneyShort(sug.weekly))}
-        </button>
-      )}
     </div>
   );
 }
@@ -562,6 +647,67 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
                 style={{ colorScheme: 'dark' }}
               />
             </div>
+
+            {/* Preview en vivo: cuánto tendrías que ahorrar */}
+            {target && deadline && parseFloat(target) > 0 && (() => {
+              const t = new Date();
+              const d = new Date(deadline);
+              const days = Math.max(1, (d - t) / (1000 * 60 * 60 * 24));
+              const remaining = Math.max(0, parseFloat(target) - (goal?.current || 0));
+              const weekly = remaining / Math.max(1, days / 7);
+              const biweekly = remaining / Math.max(1, days / 14);
+              const monthly = remaining / Math.max(1, days / 30);
+              const setSchedule = (freq, amount) => {
+                setHasSchedule(true);
+                setScheduleFreq(freq);
+                setScheduleAmount(String(Math.ceil(amount)));
+              };
+              const FreqOption = ({ freqKey, amount, label }) => {
+                const sel = hasSchedule && scheduleFreq === freqKey;
+                return (
+                  <button
+                    onClick={() => setSchedule(freqKey, amount)}
+                    style={{
+                      flex: 1, padding: '12px 8px',
+                      borderRadius: 12,
+                      background: sel ? 'var(--pill-grad)' : 'var(--bg-elev)',
+                      color: sel ? '#fff' : 'var(--text)',
+                      border: 'none',
+                      display: 'flex', flexDirection: 'column', gap: 2,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                      {fmtMoneyShort(amount)}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 600, opacity: sel ? 0.95 : 0.7 }}>
+                      {label}
+                    </span>
+                  </button>
+                );
+              };
+              return (
+                <div className="card" style={{
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.10), rgba(0, 229, 176, 0.08))',
+                  border: '1px solid rgba(168, 85, 247, 0.25)',
+                  padding: 14,
+                  borderRadius: 14
+                }}>
+                  <div className="row gap-8 mb-10" style={{ alignItems: 'center' }}>
+                    <Icon name="sparkle" size={16} color="#A855F7" />
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{s.toReachGoal}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <FreqOption freqKey="weekly" amount={weekly} label={s.perWeek} />
+                    <FreqOption freqKey="biweekly" amount={biweekly} label={s.perBiweek} />
+                    <FreqOption freqKey="monthly" amount={monthly} label={s.perMonth} />
+                  </div>
+                  <span className="tiny mt-8" style={{ display: 'block', fontSize: 11, lineHeight: 1.4 }}>
+                    💡 {s.goalRecommendHint}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Vincular cuenta */}
             <div className="col gap-6">
