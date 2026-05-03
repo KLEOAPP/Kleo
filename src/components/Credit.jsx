@@ -179,172 +179,295 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
         ))}
       </div>
 
-      {/* ===== Calculadora con selector de tarjetas ===== */}
+      {/* ===== Calculadora rediseñada — paso a paso ===== */}
       <div className="section-header">
         <span>{s.extraPayCalc}</span>
       </div>
-      <div className="card mb-20">
-        {/* Selector de tarjetas */}
-        <div className="col gap-8 mb-16">
-          <div className="spread">
-            <span className="label" style={{ fontWeight: 600 }}>{s.cardsToCalc}</span>
-            <button
-              onClick={() => setSelectedCardIds(allSelected ? [] : cards.map(c => c.id))}
-              className="tiny"
-              style={{ color: 'var(--blue)', fontWeight: 700 }}
-            >
-              {allSelected ? s.deselectAll : s.selectAll}
-            </button>
-          </div>
-          <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8
-          }}>
-            {cards.map(c => {
-              const sel = validSelected.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => toggleCard(c.id)}
-                  className="row gap-8 pressable"
-                  style={{
-                    padding: '6px 10px 6px 6px',
-                    borderRadius: 999,
-                    background: sel ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-elev)',
-                    border: `1px solid ${sel ? 'var(--purple)' : 'var(--border)'}`,
-                    alignItems: 'center'
-                  }}
-                >
-                  <BankLogo institution={c.institution || c.name} size={22} radius={6} />
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>
-                    {c.institution || c.name} ••{c.last4}
-                  </span>
-                  {sel && <Icon name="check" size={12} color="var(--purple)" stroke={3} />}
-                </button>
-              );
-            })}
+
+      {/* Mini intro */}
+      <div className="card mb-12" style={{
+        padding: 14,
+        borderRadius: 14,
+        background: 'rgba(168, 85, 247, 0.08)',
+        border: '1px solid rgba(168, 85, 247, 0.2)'
+      }}>
+        <div className="row gap-10" style={{ alignItems: 'flex-start' }}>
+          <span style={{ fontSize: 22 }}>💡</span>
+          <div className="col gap-2" style={{ flex: 1 }}>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>{s.calcHowTitle}</span>
+            <span className="tiny" style={{ lineHeight: 1.5 }}>{s.calcHowDesc}</span>
           </div>
         </div>
+      </div>
 
-        {selectedCards.length === 0 ? (
-          <p className="tiny" style={{ textAlign: 'center', padding: 16 }}>{s.noCardsSelected}</p>
-        ) : (
-          <div className="col gap-12">
-            <div>
-              <span className="label" style={{ display: 'block', marginBottom: 4 }}>{s.selectedDebt}</span>
-              <span style={{ fontSize: 22, fontWeight: 700 }}>{fmtMoney(selectedDebt)}</span>
-              <span className="tiny" style={{ display: 'block' }}>
-                {s.avgApr.replace('{apr}', selectedAvgApr.toFixed(1)).replace('{amount}', fmtMoney(selectedMin))}
-              </span>
-            </div>
-
-            {comparison?.minMonths && (
-              <div style={{
-                background: 'rgba(255, 59, 48, 0.08)',
-                border: '1px solid rgba(255, 59, 48, 0.2)',
-                borderRadius: 12,
-                padding: 14
-              }}>
-                <div className="spread mb-4">
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{s.payingMinOnly}</span>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--danger)' }}>
-                    {Math.floor(comparison.minMonths / 12)}a {comparison.minMonths % 12}m
-                  </span>
-                </div>
-                <span className="tiny">{s.payInterest.replace('{amount}', fmtMoney(comparison.minInterest))}</span>
-              </div>
-            )}
-
-            <div className="col gap-8">
-              <span className="label">{s.payExtraMonthly}</span>
-              <div className="row gap-8" style={{ alignItems: 'center' }}>
-                <input
-                  type="range"
-                  min="0"
-                  max={Math.max(500, suggestedExtra * 2)}
-                  step="25"
-                  value={extraPayment}
-                  onChange={e => setExtraPayment(Number(e.target.value))}
-                  style={{ flex: 1, accentColor: 'var(--purple)' }}
-                />
-                <span style={{ fontWeight: 700, fontSize: 18, minWidth: 80, textAlign: 'right' }}>
-                  +{fmtMoney(extraPayment)}
+      {/* PASO 1 — Escoger tarjetas */}
+      <div className="card mb-12" style={{ padding: 16 }}>
+        <CalcStepHeader number={1} title={s.calcStep1} desc={s.calcStep1Desc} />
+        <div className="spread mb-8" style={{ marginTop: 12 }}>
+          <span className="tiny" style={{ fontWeight: 600 }}>
+            {validSelected.length} / {cards.length}
+          </span>
+          <button
+            onClick={() => setSelectedCardIds(allSelected ? [] : cards.map(c => c.id))}
+            className="tiny"
+            style={{ color: 'var(--blue)', fontWeight: 700 }}
+          >
+            {allSelected ? s.deselectAll : s.selectAll}
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {cards.map(c => {
+            const sel = validSelected.includes(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => toggleCard(c.id)}
+                className="row gap-8 pressable"
+                style={{
+                  padding: '6px 12px 6px 6px',
+                  borderRadius: 999,
+                  background: sel ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-elev)',
+                  border: `1.5px solid ${sel ? 'var(--purple)' : 'var(--border)'}`,
+                  alignItems: 'center'
+                }}
+              >
+                <BankLogo institution={c.institution || c.name} size={22} radius={6} />
+                <span style={{ fontSize: 12, fontWeight: 600 }}>
+                  ••{c.last4}
                 </span>
-              </div>
-              {suggestedExtra > 0 && (
-                <button
-                  onClick={() => setExtraPayment(suggestedExtra)}
-                  className="tiny"
-                  style={{ color: 'var(--blue)', fontWeight: 600, textAlign: 'left', padding: 0 }}
-                >
-                  {s.suggested50pct.replace('{amount}', suggestedExtra)}
-                </button>
-              )}
+                {sel && <Icon name="check" size={12} color="var(--purple)" stroke={3} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedCards.length > 0 && (
+          <div className="row gap-12 mt-12" style={{
+            background: 'var(--bg-elev)',
+            padding: 12,
+            borderRadius: 10,
+            justifyContent: 'space-between'
+          }}>
+            <div className="col gap-2">
+              <span className="tiny" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.selectedDebt}</span>
+              <span style={{ fontSize: 18, fontWeight: 800 }}>{fmtMoney(selectedDebt)}</span>
             </div>
-
-            {comparison?.extraMonths && (
-              <div style={{
-                background: 'rgba(0, 229, 176, 0.1)',
-                border: '1px solid rgba(0, 229, 176, 0.3)',
-                borderRadius: 12,
-                padding: 14
-              }}>
-                <div className="spread mb-4">
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>
-                    {s.payingPerMonth.replace('{amount}', (selectedMin + extraPayment).toFixed(0))}
-                  </span>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--green)' }}>
-                    {Math.floor(comparison.extraMonths / 12)}a {comparison.extraMonths % 12}m
-                  </span>
-                </div>
-                <span className="tiny">{s.payInterest.replace('{amount}', fmtMoney(comparison.extraInterest))}</span>
-              </div>
-            )}
-
-            {comparison?.interestSaved > 0 && (
-              <div style={{ background: 'var(--brand-grad)', borderRadius: 12, padding: 14, color: '#fff' }}>
-                <div className="row gap-8 mb-4">
-                  <Icon name="sparkle" size={16} color="#fff" />
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>
-                    {s.savingsPayingExtra.replace('{amount}', extraPayment)}
-                  </span>
-                </div>
-                <div className="row gap-12">
-                  <div className="col gap-2">
-                    <span style={{ fontSize: 11, opacity: 0.85 }}>{s.time}</span>
-                    <span style={{ fontSize: 18, fontWeight: 700 }}>
-                      {Math.floor(comparison.monthsSaved / 12) > 0 && `${Math.floor(comparison.monthsSaved / 12)}a `}
-                      {s.lessTime.replace('{time}', `${comparison.monthsSaved % 12}m`)}
-                    </span>
-                  </div>
-                  <div className="col gap-2">
-                    <span style={{ fontSize: 11, opacity: 0.85 }}>{s.interest}</span>
-                    <span style={{ fontSize: 18, fontWeight: 700 }}>{fmtMoney(comparison.interestSaved)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {highestApr && selectedDebt > 1000 && (
-              <div className="ai-alert">
-                <div className="ai-icon">
-                  <Icon name="sparkle" size={14} color="#fff" />
-                </div>
-                <div className="col gap-4" style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{s.avalancheStrategy}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-mute)', lineHeight: 1.5 }}>
-                    {s.avalancheDesc
-                      .replace('{extra}', extraPayment)
-                      .replace('{card}', highestApr.institution || highestApr.name)
-                      .replace('{apr}', highestApr.apr)}
-                  </span>
-                </div>
-              </div>
-            )}
+            <div className="col gap-2" style={{ alignItems: 'flex-end' }}>
+              <span className="tiny" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>APR prom.</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--orange)' }}>{selectedAvgApr.toFixed(1)}%</span>
+            </div>
           </div>
         )}
       </div>
+
+      {selectedCards.length === 0 ? (
+        <div className="card mb-20" style={{
+          padding: 24, textAlign: 'center',
+          background: 'var(--bg-elev)', border: 'none'
+        }}>
+          <span style={{ fontSize: 32, opacity: 0.5 }}>👆</span>
+          <p className="tiny mt-8">{s.noCardsSelected}</p>
+        </div>
+      ) : (
+        <>
+          {/* PASO 2 — Cuánto extra */}
+          <div className="card mb-12" style={{ padding: 16 }}>
+            <CalcStepHeader number={2} title={s.calcStep2} desc={s.calcStep2Desc} />
+
+            <div className="row gap-8 mt-16" style={{ alignItems: 'baseline', justifyContent: 'center' }}>
+              <span style={{ fontSize: 14, color: 'var(--text-mute)', fontWeight: 600 }}>+</span>
+              <span style={{
+                fontSize: 44,
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                background: 'var(--brand-grad)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}>
+                ${extraPayment}
+              </span>
+              <span className="tiny" style={{ fontSize: 12 }}>/ mes</span>
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max={Math.max(500, suggestedExtra * 2)}
+              step="25"
+              value={extraPayment}
+              onChange={e => setExtraPayment(Number(e.target.value))}
+              style={{ width: '100%', accentColor: '#A855F7', marginTop: 12 }}
+            />
+
+            <div className="col gap-6 mt-12">
+              <span className="tiny" style={{ fontSize: 11, fontWeight: 600 }}>{s.quickAmount}</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[25, 50, 100, 200, suggestedExtra > 0 ? suggestedExtra : 300]
+                  .filter((v, i, arr) => v > 0 && arr.indexOf(v) === i)
+                  .map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setExtraPayment(v)}
+                      style={{
+                        flex: 1,
+                        minWidth: 64,
+                        padding: '8px 4px',
+                        borderRadius: 10,
+                        background: extraPayment === v ? 'var(--pill-grad)' : 'var(--bg-elev)',
+                        color: extraPayment === v ? '#fff' : 'var(--text)',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        border: 'none'
+                      }}
+                    >
+                      ${v}
+                    </button>
+                  ))}
+              </div>
+              {suggestedExtra > 0 && (
+                <span className="tiny" style={{ fontSize: 11, color: 'var(--text-mute)' }}>
+                  💡 {s.suggested50pct.replace('{amount}', suggestedExtra)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* PASO 3 — Resultado */}
+          <div className="card mb-12" style={{ padding: 16 }}>
+            <CalcStepHeader number={3} title={s.calcStep3} desc={s.calcStep3Desc} />
+
+            {/* Comparación lado a lado */}
+            {comparison?.minMonths && comparison?.extraMonths && (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8,
+                marginTop: 14
+              }}>
+                {/* Solo mínimo */}
+                <div style={{
+                  background: 'rgba(255, 59, 48, 0.08)',
+                  border: '1px solid rgba(255, 59, 48, 0.2)',
+                  borderRadius: 12,
+                  padding: 12
+                }}>
+                  <div className="row gap-4" style={{ alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 14 }}>😬</span>
+                    <span style={{ fontWeight: 700, fontSize: 12 }}>{s.payingMin}</span>
+                  </div>
+                  <span className="tiny" style={{ fontSize: 10, display: 'block', marginBottom: 8 }}>
+                    {s.payingMinSub.replace('{amount}', fmtMoney(selectedMin))}
+                  </span>
+                  <div className="col gap-6">
+                    <div>
+                      <span className="tiny" style={{ fontSize: 9, textTransform: 'uppercase' }}>{s.payingMinTime}</span>
+                      <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--danger)' }}>
+                        {s.yearsMonths
+                          .replace('{years}', Math.floor(comparison.minMonths / 12))
+                          .replace('{months}', comparison.minMonths % 12)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="tiny" style={{ fontSize: 9, textTransform: 'uppercase' }}>{s.payingMinInterest}</span>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--danger)' }}>
+                        {fmtMoney(comparison.minInterest)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Con pago extra */}
+                <div style={{
+                  background: 'rgba(0, 229, 176, 0.1)',
+                  border: '1px solid rgba(0, 229, 176, 0.3)',
+                  borderRadius: 12,
+                  padding: 12
+                }}>
+                  <div className="row gap-4" style={{ alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 14 }}>🚀</span>
+                    <span style={{ fontWeight: 700, fontSize: 12 }}>{s.payingExtra}</span>
+                  </div>
+                  <span className="tiny" style={{ fontSize: 10, display: 'block', marginBottom: 8 }}>
+                    {s.payingExtraSub.replace('{amount}', fmtMoney(selectedMin + extraPayment))}
+                  </span>
+                  <div className="col gap-6">
+                    <div>
+                      <span className="tiny" style={{ fontSize: 9, textTransform: 'uppercase' }}>{s.payingMinTime}</span>
+                      <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--green)' }}>
+                        {s.yearsMonths
+                          .replace('{years}', Math.floor(comparison.extraMonths / 12))
+                          .replace('{months}', comparison.extraMonths % 12)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="tiny" style={{ fontSize: 9, textTransform: 'uppercase' }}>{s.payingMinInterest}</span>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--green)' }}>
+                        {fmtMoney(comparison.extraInterest)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Banner de ahorros */}
+            {comparison?.interestSaved > 0 && (
+              <div style={{
+                background: 'var(--brand-grad)',
+                borderRadius: 14,
+                padding: 16,
+                color: '#fff',
+                marginTop: 12,
+                boxShadow: '0 8px 24px rgba(168, 85, 247, 0.3)'
+              }}>
+                <div className="row gap-8 mb-12">
+                  <Icon name="sparkle" size={18} color="#fff" />
+                  <span style={{ fontWeight: 800, fontSize: 15 }}>
+                    {s.youSaveBig}
+                  </span>
+                </div>
+                <div className="row gap-16">
+                  <div className="col gap-2" style={{ flex: 1 }}>
+                    <span style={{ fontSize: 10, opacity: 0.85, textTransform: 'uppercase', fontWeight: 600 }}>
+                      ⏱ {s.saveTimeLabel}
+                    </span>
+                    <span style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>
+                      {Math.floor(comparison.monthsSaved / 12) > 0 && `${Math.floor(comparison.monthsSaved / 12)}a `}
+                      {comparison.monthsSaved % 12}m
+                    </span>
+                  </div>
+                  <div style={{ width: 1, background: 'rgba(255,255,255,0.3)' }}></div>
+                  <div className="col gap-2" style={{ flex: 1 }}>
+                    <span style={{ fontSize: 10, opacity: 0.85, textTransform: 'uppercase', fontWeight: 600 }}>
+                      💵 {s.saveMoneyLabel}
+                    </span>
+                    <span style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{fmtMoney(comparison.interestSaved)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tip avalanche */}
+          {highestApr && selectedDebt > 1000 && (
+            <div className="ai-alert mb-20">
+              <div className="ai-icon">
+                <Icon name="sparkle" size={14} color="#fff" />
+              </div>
+              <div className="col gap-4" style={{ flex: 1 }}>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{s.avalancheStrategy}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-mute)', lineHeight: 1.5 }}>
+                  {s.avalancheDesc
+                    .replace('{extra}', extraPayment)
+                    .replace('{card}', highestApr.institution || highestApr.name)
+                    .replace('{apr}', highestApr.apr)}
+                </span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* ===== Factores FICO ===== */}
       <div className="section-header">
@@ -402,6 +525,28 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* ===== Header con número de paso para la calculadora ===== */
+function CalcStepHeader({ number, title, desc }) {
+  return (
+    <div className="row gap-12" style={{ alignItems: 'flex-start' }}>
+      <div style={{
+        width: 28, height: 28, borderRadius: 999,
+        background: 'var(--pill-grad)',
+        color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 800, fontSize: 14,
+        flexShrink: 0
+      }}>
+        {number}
+      </div>
+      <div className="col gap-2" style={{ flex: 1 }}>
+        <span style={{ fontWeight: 700, fontSize: 14 }}>{title.replace(/^Paso \d+ · /, '').replace(/^Step \d+ · /, '')}</span>
+        <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4 }}>{desc}</span>
       </div>
     </div>
   );
