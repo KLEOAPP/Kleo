@@ -4,7 +4,7 @@ import App from './App.jsx';
 import './index.css';
 
 // Aplicar tema guardado antes de renderizar
-const savedTheme = localStorage.getItem('kleo_theme') || 'light';
+const savedTheme = localStorage.getItem('kleo_theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
 ReactDOM.createRoot(document.getElementById('root')).render(

@@ -264,9 +264,10 @@ export default function Dashboard({
                     flex: 1,
                     padding: '7px 0',
                     borderRadius: 999,
-                    background: active ? 'var(--gradient, linear-gradient(135deg, #7C3AED, #A855F7))' : 'transparent',
+                    background: active ? 'var(--pill-grad)' : 'transparent',
                     border: active ? 'none' : '1px solid var(--border)',
                     color: active ? '#fff' : 'var(--text-mute)',
+                    boxShadow: active ? '0 4px 14px rgba(124, 58, 237, 0.4)' : 'none',
                     fontSize: 12,
                     fontWeight: 600,
                     transition: 'all .15s'
@@ -301,10 +302,11 @@ export default function Dashboard({
           >
             <div style={{
               width: 44, height: 44, borderRadius: 12,
-              background: 'rgba(167, 139, 250, 0.18)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
+              background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(124, 58, 237, 0.4)'
             }}>
-              <Icon name="bank" size={22} color="#A78BFA" />
+              <Icon name="bank" size={22} color="#fff" />
             </div>
             <div className="col gap-2" style={{ flex: 1 }}>
               <span style={{ fontWeight: 600, fontSize: 15 }}>{s.connectBank}</span>
@@ -327,7 +329,9 @@ export default function Dashboard({
           <SummaryCard
             iconName="wallet"
             iconColor="#00E5B0"
-            iconBg="rgba(0, 229, 176, 0.15)"
+            iconBg="rgba(0, 229, 176, 0.18)"
+            glow="var(--glow-green)"
+            borderColor="rgba(0, 229, 176, 0.25)"
             label={s.availableLabel}
             labelColor="#00E5B0"
             value={fmtMoneyShort(safeToSpend || 1240)}
@@ -345,7 +349,9 @@ export default function Dashboard({
           <SummaryCard
             iconName="credit-card"
             iconColor="#A855F7"
-            iconBg="rgba(168, 85, 247, 0.15)"
+            iconBg="rgba(168, 85, 247, 0.18)"
+            glow="var(--glow-purple)"
+            borderColor="rgba(168, 85, 247, 0.25)"
             label={s.creditUse}
             labelColor="#A855F7"
             value={`${creditUtilization.toFixed(0)}%`}
@@ -372,7 +378,9 @@ export default function Dashboard({
           <SummaryCard
             iconName="lightbulb"
             iconColor="#FF9500"
-            iconBg="rgba(255, 149, 0, 0.15)"
+            iconBg="rgba(255, 149, 0, 0.18)"
+            glow="var(--glow-orange)"
+            borderColor="rgba(255, 149, 0, 0.25)"
             label={s.insightForYou}
             labelColor="#FF9500"
             value={null}
@@ -623,21 +631,24 @@ function Sparkline({ data, height = 120 }) {
   );
 }
 
-function SummaryCard({ iconName, iconColor, iconBg, label, labelColor, value, sub, subColor, customBody, footer, onClick }) {
+function SummaryCard({ iconName, iconColor, iconBg, glow, borderColor, label, labelColor, value, sub, subColor, customBody, footer, onClick }) {
   return (
     <button
       onClick={onClick}
       className="pressable"
       style={{
-        padding: 12,
-        borderRadius: 16,
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-soft)',
+        position: 'relative',
+        padding: 14,
+        borderRadius: 18,
+        background: `${glow || ''}, var(--bg-card)`.replace(/^,\s*/, ''),
+        backgroundColor: 'var(--bg-card)',
+        border: `1px solid ${borderColor || 'var(--border-soft)'}`,
         textAlign: 'left',
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        minHeight: 165
+        gap: 10,
+        minHeight: 175,
+        overflow: 'hidden'
       }}
     >
       <div style={{

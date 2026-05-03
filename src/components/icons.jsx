@@ -19,6 +19,23 @@ export const Logo = ({ size = 64 }) => (
   </svg>
 );
 
+export const LogoWord = ({ size = 32 }) => (
+  <span style={{
+    fontSize: size,
+    fontWeight: 800,
+    letterSpacing: '-0.04em',
+    lineHeight: 1,
+    background: 'linear-gradient(135deg, #FF2D6F 0%, #A855F7 50%, #FF6B00 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+    display: 'inline-block'
+  }}>
+    Kleo
+  </span>
+);
+
 export const LogoMark = ({ size = 36 }) => (
   <svg width={size} height={size} viewBox="0 0 100 100">
     <defs>

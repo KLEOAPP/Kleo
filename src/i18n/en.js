@@ -80,6 +80,7 @@ export default {
   navGoals: 'Goals',
   navMore: 'More',
   navKleoAi: 'Kleo AI',
+  navQuickAction: 'Quick action',
   kleoAiHeader: 'Kleo AI',
   kleoAiSubtitle: 'Personalized recommendations for you',
   generateAdvice: 'Generate advice',

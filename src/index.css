@@ -3,76 +3,98 @@
    Default: claro (blanco). Toggle a oscuro disponible.
    ========================================================= */
 
+/* Brand neon palette — same accents both themes */
+:root {
+  --neon-green: #00E5B0;
+  --neon-pink: #FF2D6F;
+  --neon-purple: #A855F7;
+  --neon-violet: #7C3AED;
+  --neon-orange: #FF9500;
+  --neon-blue: #0A84FF;
+  --neon-cyan: #4FD1FF;
+  --brand-grad: linear-gradient(135deg, #FF2D6F 0%, #A855F7 50%, #FF6B00 100%);
+  --line-grad: linear-gradient(90deg, #FF2D6F 0%, #A855F7 50%, #00E5B0 100%);
+  --pill-grad: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
+}
+
 :root[data-theme="light"] {
   --bg: #FFFFFF;
   --bg-card: #FFFFFF;
   --bg-elev: #F5F5F7;
   --bg-input: #F5F5F7;
   --bg-section: #FAFAFA;
-  --text: #000000;
+  --text: #0A0A0F;
   --text-mute: #6E6E73;
   --text-dim: #A1A1A6;
   --border: #E5E5EA;
   --border-soft: #F0F0F2;
 
   --green: #00B589;
-  --blue: #007AFF;
+  --blue: #0A84FF;
   --orange: #FF9500;
   --pink: #FF2D6F;
-  --purple: #AF52DE;
+  --purple: #A855F7;
   --yellow: #FFCC00;
   --danger: #FF3B30;
   --warning: #FF9500;
 
-  --gradient: linear-gradient(135deg, #00B589 0%, #007AFF 100%);
+  --gradient: var(--brand-grad);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 
-  --section-dashboard: #007AFF;
+  --section-dashboard: #0A84FF;
   --section-accounts: #5856D6;
-  --section-analysis: #AF52DE;
+  --section-analysis: #A855F7;
   --section-goals: #FF9500;
   --section-budget: #FF2D6F;
   --section-calendar: #34C759;
   --section-credit: #00B589;
   --section-reports: #FF9500;
+
+  --glow-green: radial-gradient(circle at 30% 0%, rgba(0, 229, 176, 0.18), transparent 70%);
+  --glow-purple: radial-gradient(circle at 30% 0%, rgba(168, 85, 247, 0.18), transparent 70%);
+  --glow-orange: radial-gradient(circle at 30% 0%, rgba(255, 149, 0, 0.18), transparent 70%);
 }
 
 :root[data-theme="dark"] {
   --bg: #000000;
-  --bg-card: #1C1C1E;
-  --bg-elev: #2C2C2E;
-  --bg-input: #1C1C1E;
-  --bg-section: #0A0A0C;
+  --bg-card: #0E0E14;
+  --bg-elev: #1A1A22;
+  --bg-input: #14141B;
+  --bg-section: #06060A;
   --text: #FFFFFF;
-  --text-mute: #98989F;
-  --text-dim: #6E6E73;
-  --border: #2C2C2E;
-  --border-soft: #1C1C1E;
+  --text-mute: #9A9AA5;
+  --text-dim: #5C5C66;
+  --border: #1F1F28;
+  --border-soft: #15151D;
 
-  --green: #30D158;
+  --green: #00E5B0;
   --blue: #0A84FF;
-  --orange: #FF9F0A;
-  --pink: #FF375F;
-  --purple: #BF5AF2;
+  --orange: #FF9500;
+  --pink: #FF2D6F;
+  --purple: #A855F7;
   --yellow: #FFD60A;
-  --danger: #FF453A;
-  --warning: #FF9F0A;
+  --danger: #FF4D6D;
+  --warning: #FF9500;
 
-  --gradient: linear-gradient(135deg, #30D158 0%, #0A84FF 100%);
+  --gradient: var(--brand-grad);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
 
   --section-dashboard: #0A84FF;
   --section-accounts: #5E5CE6;
-  --section-analysis: #BF5AF2;
-  --section-goals: #FF9F0A;
-  --section-budget: #FF375F;
-  --section-calendar: #30D158;
-  --section-credit: #30D158;
-  --section-reports: #FF9F0A;
+  --section-analysis: #A855F7;
+  --section-goals: #FF9500;
+  --section-budget: #FF2D6F;
+  --section-calendar: #00E5B0;
+  --section-credit: #00E5B0;
+  --section-reports: #FF9500;
+
+  --glow-green: radial-gradient(circle at 30% 0%, rgba(0, 229, 176, 0.22), transparent 70%);
+  --glow-purple: radial-gradient(circle at 30% 0%, rgba(168, 85, 247, 0.25), transparent 70%);
+  --glow-orange: radial-gradient(circle at 30% 0%, rgba(255, 149, 0, 0.22), transparent 70%);
 }
 
 * {
@@ -322,7 +344,20 @@ input::placeholder {
 }
 
 .nav-item.active {
-  color: var(--blue);
+  color: var(--neon-pink);
+  position: relative;
+}
+
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--neon-pink);
 }
 
 .nav-item.add-btn {
@@ -330,15 +365,15 @@ input::placeholder {
 }
 
 .nav-item.add-btn .add-circle {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  background: var(--blue);
+  background: conic-gradient(from 180deg, #FF2D6F, #A855F7, #FF6B00, #FFD60A, #00E5B0, #FF2D6F);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -10px;
-  box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35);
+  margin-top: -16px;
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
 }
 
 /* PIN dots */

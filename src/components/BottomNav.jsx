@@ -16,8 +16,9 @@ export default function BottomNav({ active, onChange, onAdd, onMenu }) {
 
       <button className="nav-item add-btn" onClick={onAdd}>
         <span className="add-circle">
-          <Icon name="plus" size={22} color="#fff" stroke={3} />
+          <Icon name="plus" size={24} color="#fff" stroke={3} />
         </span>
+        <span style={{ marginTop: 4 }}>{s.navQuickAction}</span>
       </button>
 
       <button className="nav-item" onClick={onMenu}>

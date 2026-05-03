@@ -1,4 +1,4 @@
-import { LogoMark, Icon } from './icons.jsx';
+import { LogoMark, LogoWord, Icon } from './icons.jsx';
 
 /**
  * Header pequeño con logo Kleo interactivo (vuelve al inicio).
@@ -47,7 +47,7 @@ export default function TopBar({ onHome, onBack, onMenu, onNotifications, unread
             className="pressable"
             aria-label="Inicio"
           >
-            <LogoMark size={32} />
+            {title ? <LogoMark size={32} /> : <LogoWord size={34} />}
           </button>
         )}
         {title && (
