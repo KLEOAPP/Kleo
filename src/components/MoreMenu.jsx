@@ -76,32 +76,47 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Handle fijo arriba */}
-        <div style={{ paddingTop: 8, paddingBottom: 4, flexShrink: 0 }}>
+        {/* Handle + cerrar */}
+        <div style={{ paddingTop: 8, paddingBottom: 4, flexShrink: 0, position: 'relative' }}>
           <div style={{
             width: 36, height: 5,
             background: 'var(--border)',
             borderRadius: 3,
             margin: '0 auto'
           }}></div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              position: 'absolute',
+              top: 6, right: 12,
+              width: 32, height: 32,
+              borderRadius: '50%',
+              background: 'var(--bg-elev)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            <Icon name="x" size={16} />
+          </button>
         </div>
 
         {/* Botón Volver al Inicio (sticky arriba) */}
-        <div style={{ padding: '8px 16px 12px', flexShrink: 0, borderBottom: '1px solid var(--border-soft)' }}>
+        <div style={{ padding: '12px 16px 12px', flexShrink: 0, borderBottom: '1px solid var(--border-soft)' }}>
           <button
             onClick={() => { onClose(); onHome(); }}
             className="row gap-10 pressable"
             style={{
               width: '100%',
-              padding: '12px 14px',
+              padding: '14px 16px',
               background: 'var(--gradient)',
-              borderRadius: 12,
+              borderRadius: 14,
               color: '#fff',
-              fontWeight: 600,
-              fontSize: 14
+              fontWeight: 700,
+              fontSize: 15,
+              boxShadow: '0 4px 14px rgba(168, 85, 247, 0.3)'
             }}
           >
-            <Icon name="home" size={18} color="#fff" />
+            <Icon name="home" size={20} color="#fff" stroke={2.5} />
             <span style={{ flex: 1, textAlign: 'left' }}>{s.goHome}</span>
             <Icon name="back" size={14} color="#fff" stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
           </button>
