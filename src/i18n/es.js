@@ -289,6 +289,10 @@ export default {
   optionFasterDeadline: 'Llegar más rápido',
   optionFasterDesc: 'Mantén tu cuota. Llegas a la meta el {date}.',
   applied: '✓ Aplicado',
+  startingFrom: 'Empezando desde',
+  customAmount: 'O escribe tu monto',
+  willReachOn: '✓ Llegarás a tu meta el {date}',
+  wontReachOn: '⚠ Con esa cantidad no llegas a la fecha límite. Llegarías el {date}.',
 
   // Credit
   yourCredit: 'Tu Crédito',

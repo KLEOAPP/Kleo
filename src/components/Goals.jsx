@@ -773,59 +773,97 @@ function GoalForm({ s, goal, accounts, recommendedEmergency, onCancel, onSubmit 
               </div>
               <span className="tiny" style={{ marginTop: -4, lineHeight: 1.4 }}>{s.depositScheduleHint}</span>
 
-              {hasSchedule && (
-                <div className="col gap-10 mt-8">
-                  <div className="col gap-4">
-                    <span className="tiny" style={{ fontWeight: 600 }}>{s.scheduleAmount}</span>
-                    <div className="row" style={{ background: 'var(--bg-input)', borderRadius: 12, border: '1px solid var(--border)', padding: '0 14px', height: 46 }}>
-                      <span style={{ fontSize: 16, color: 'var(--text-mute)' }}>$</span>
+              {hasSchedule && (() => {
+                // Cálculo dinámico de fecha de término según monto + frecuencia
+                const periodDays = FREQ_DAYS[scheduleFreq] || 7;
+                const amt = parseFloat(scheduleAmount) || 0;
+                const remaining = Math.max(0, parseFloat(target || 0) - (goal?.current || 0));
+                let endDate = null;
+                let onTime = true;
+                if (amt > 0 && remaining > 0) {
+                  const periodsNeeded = Math.ceil(remaining / amt);
+                  const startMs = scheduleNext ? new Date(scheduleNext).getTime() : Date.now();
+                  endDate = new Date(startMs + periodsNeeded * periodDays * 86400000);
+                  if (deadline) onTime = endDate <= new Date(deadline);
+                }
+                const fmtDate = (d) => d.toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' });
+                return (
+                  <div className="col gap-10 mt-8">
+                    {/* Frecuencia */}
+                    <div className="col gap-4">
+                      <span className="tiny" style={{ fontWeight: 600 }}>{s.scheduleFrequency}</span>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[
+                          { k: 'weekly', label: s.freqWeekly },
+                          { k: 'biweekly', label: s.freqBiweekly },
+                          { k: 'monthly', label: s.freqMonthly }
+                        ].map(opt => (
+                          <button
+                            key={opt.k}
+                            onClick={() => setScheduleFreq(opt.k)}
+                            style={{
+                              flex: 1,
+                              padding: '10px 4px',
+                              borderRadius: 10,
+                              background: scheduleFreq === opt.k ? 'var(--pill-grad)' : 'var(--bg-elev)',
+                              color: scheduleFreq === opt.k ? '#fff' : 'var(--text)',
+                              border: 'none',
+                              fontSize: 13, fontWeight: 600
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Empezando desde */}
+                    <div className="col gap-4">
+                      <span className="tiny" style={{ fontWeight: 600 }}>{s.startingFrom}</span>
                       <input
-                        style={{ background: 'transparent', border: 'none', height: 46, fontSize: 16, fontWeight: 600, padding: '0 6px', flex: 1, outline: 'none', color: 'inherit' }}
-                        value={scheduleAmount}
-                        onChange={e => setScheduleAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                        inputMode="decimal"
-                        placeholder="50"
+                        type="date"
+                        className="input-field"
+                        value={scheduleNext}
+                        onChange={e => setScheduleNext(e.target.value)}
+                        style={{ colorScheme: 'dark' }}
                       />
                     </div>
-                  </div>
-                  <div className="col gap-4">
-                    <span className="tiny" style={{ fontWeight: 600 }}>{s.scheduleFrequency}</span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {[
-                        { k: 'weekly', label: s.freqWeekly },
-                        { k: 'biweekly', label: s.freqBiweekly },
-                        { k: 'monthly', label: s.freqMonthly }
-                      ].map(opt => (
-                        <button
-                          key={opt.k}
-                          onClick={() => setScheduleFreq(opt.k)}
-                          style={{
-                            flex: 1,
-                            padding: '10px 4px',
-                            borderRadius: 10,
-                            background: scheduleFreq === opt.k ? 'var(--pill-grad)' : 'var(--bg-elev)',
-                            color: scheduleFreq === opt.k ? '#fff' : 'var(--text)',
-                            border: 'none',
-                            fontSize: 13, fontWeight: 600
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+
+                    {/* Cantidad manual */}
+                    <div className="col gap-4">
+                      <span className="tiny" style={{ fontWeight: 600 }}>{s.customAmount}</span>
+                      <div className="row" style={{ background: 'var(--bg-input)', borderRadius: 12, border: '1px solid var(--border)', padding: '0 14px', height: 46 }}>
+                        <span style={{ fontSize: 16, color: 'var(--text-mute)' }}>$</span>
+                        <input
+                          style={{ background: 'transparent', border: 'none', height: 46, fontSize: 16, fontWeight: 600, padding: '0 6px', flex: 1, outline: 'none', color: 'inherit' }}
+                          value={scheduleAmount}
+                          onChange={e => setScheduleAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                          inputMode="decimal"
+                          placeholder="50"
+                        />
+                      </div>
                     </div>
+
+                    {/* Preview de fecha de término */}
+                    {endDate && (
+                      <div className="card" style={{
+                        padding: 12, borderRadius: 12,
+                        background: onTime ? 'rgba(0, 229, 176, 0.1)' : 'rgba(255, 149, 0, 0.1)',
+                        border: `1px solid ${onTime ? 'rgba(0, 229, 176, 0.3)' : 'rgba(255, 149, 0, 0.3)'}`
+                      }}>
+                        <span style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: onTime ? 'var(--green)' : 'var(--orange)',
+                          lineHeight: 1.4
+                        }}>
+                          {(onTime ? s.willReachOn : s.wontReachOn).replace('{date}', fmtDate(endDate))}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="col gap-4">
-                    <span className="tiny" style={{ fontWeight: 600 }}>{s.nextDeposit}</span>
-                    <input
-                      type="date"
-                      className="input-field"
-                      value={scheduleNext}
-                      onChange={e => setScheduleNext(e.target.value)}
-                      style={{ colorScheme: 'dark' }}
-                    />
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             <div className="col gap-6">

@@ -289,6 +289,10 @@ export default {
   optionFasterDeadline: 'Reach goal sooner',
   optionFasterDesc: 'Keep amount. You reach the goal on {date}.',
   applied: '✓ Applied',
+  startingFrom: 'Starting from',
+  customAmount: 'Or enter your amount',
+  willReachOn: '✓ You will reach your goal on {date}',
+  wontReachOn: '⚠ With that amount you won\'t make the deadline. You\'d reach it on {date}.',
 
   // Credit
   yourCredit: 'Your Credit',
