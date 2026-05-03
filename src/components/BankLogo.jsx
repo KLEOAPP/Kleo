@@ -1,19 +1,23 @@
+import { useState } from 'react';
 import { getBankLogo } from '../utils/bankLogos.js';
 
 /**
- * Logo del banco / emisor — iniciales con el color de marca.
- * Si el nombre no está en el mapa, genera iniciales y un color consistente.
+ * Logo del banco / emisor.
+ * Intenta cargar el logo oficial vía Clearbit; si falla, muestra iniciales con el color de marca.
  */
 export default function BankLogo({ institution, size = 36, radius = 10, style }) {
   const logo = getBankLogo(institution || '');
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = logo.url && !imgFailed;
+
   return (
     <div
       style={{
         width: size,
         height: size,
         borderRadius: radius,
-        background: logo.bg,
-        color: logo.fg,
+        background: showImage ? '#fff' : logo.bg,
+        color: '#fff',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -22,10 +26,27 @@ export default function BankLogo({ institution, size = 36, radius = 10, style })
         letterSpacing: '-0.02em',
         flexShrink: 0,
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        overflow: 'hidden',
         ...style
       }}
     >
-      {logo.icon || logo.initials}
+      {showImage ? (
+        <img
+          src={logo.url}
+          alt={logo.name}
+          width={size}
+          height={size}
+          onError={() => setImgFailed(true)}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            padding: size * 0.1
+          }}
+        />
+      ) : (
+        logo.initials
+      )}
     </div>
   );
 }
