@@ -528,6 +528,7 @@ function AppInner() {
             accounts={accounts}
             fixedExpenses={fixedExpenses}
             transactions={transactions}
+            goals={goals}
             onBack={() => setSection(null)}
             onHome={goHome}
           />
