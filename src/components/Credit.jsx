@@ -76,98 +76,151 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
         <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>{s.personalizedPlan}</span>
       </div>
 
-      {/* ===== Score (estilo Kleo Score del dashboard) ===== */}
-      <div className="card mb-12" style={{
-        padding: 18,
-        borderRadius: 22,
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-soft)'
+      {/* ===== Score + Utilización · grid 2 columnas ===== */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 10,
+        marginBottom: 12
       }}>
-        <div className="row gap-14" style={{ alignItems: 'center' }}>
+        {/* Card 1 — Kleo Score */}
+        <div className="card" style={{
+          padding: 14,
+          borderRadius: 18,
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-soft)'
+        }}>
+          {/* Glow decorativo */}
           <div style={{
-            width: 56, height: 56, borderRadius: 16,
+            position: 'absolute',
+            top: -30, right: -30,
+            width: 90, height: 90,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #FF2D6F, #A855F7, #00E5B0)',
+            opacity: 0.18,
+            pointerEvents: 'none'
+          }} />
+
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
             background: 'linear-gradient(135deg, #FF2D6F, #A855F7, #00E5B0)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 800, fontSize: 26,
-            flexShrink: 0
+            color: '#fff', fontWeight: 800, fontSize: 18,
+            marginBottom: 10
           }}>K</div>
 
-          <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-mute)', fontWeight: 500 }}>{s.kleoScore}</span>
-            <div className="row gap-8" style={{ alignItems: 'baseline' }}>
-              <span style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em' }}>{score}</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: scoreColor }}>{scoreLabel}</span>
-            </div>
+          <span style={{ fontSize: 11, color: 'var(--text-mute)', fontWeight: 600 }}>{s.kleoScore}</span>
+          <div className="col gap-2" style={{ marginTop: 4 }}>
+            <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>{score}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor }}>{scoreLabel}</span>
           </div>
 
-          <ScoreGauge score={score} color={scoreColor} />
+          <div style={{ marginTop: 8 }}>
+            <ScoreGauge score={score} color={scoreColor} />
+          </div>
         </div>
 
-        {/* Pill explicativa "Aproximado · saber más" */}
-        <button
-          onClick={() => setShowApproxInfo(!showApproxInfo)}
-          className="row gap-6 pressable mt-12"
-          style={{
-            background: 'var(--bg-elev)',
-            padding: '8px 12px',
-            borderRadius: 999,
-            fontSize: 12,
-            color: 'var(--text-mute)',
-            border: '1px solid var(--border)',
-            alignItems: 'center'
-          }}
-        >
-          <Icon name="info" size={13} color="var(--text-mute)" />
-          <span style={{ fontWeight: 600 }}>{s.approximate}</span>
-          <span style={{ color: 'var(--blue)', fontWeight: 600, marginLeft: 'auto' }}>
-            {showApproxInfo ? '▲' : s.approxKnowMore + ' ▼'}
-          </span>
-        </button>
+        {/* Card 2 — Utilización */}
+        <div className="card" style={{
+          padding: 14,
+          borderRadius: 18,
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-soft)'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: -30, right: -30,
+            width: 90, height: 90,
+            borderRadius: '50%',
+            background: totalUtilization < 5 ? 'var(--green)' : totalUtilization < 30 ? 'var(--orange)' : 'var(--danger)',
+            opacity: 0.15,
+            pointerEvents: 'none'
+          }} />
 
-        {showApproxInfo && (
-          <p style={{
-            marginTop: 12,
-            fontSize: 12,
-            lineHeight: 1.55,
-            color: 'var(--text-mute)',
-            background: 'var(--bg-elev)',
-            padding: 12,
-            borderRadius: 12
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: totalUtilization < 5 ? 'rgba(0, 229, 176, 0.18)' : totalUtilization < 30 ? 'rgba(255, 149, 0, 0.18)' : 'rgba(255, 77, 109, 0.18)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 10
           }}>
-            {s.approxExplain}
-          </p>
-        )}
-      </div>
+            <Icon name="credit-card" size={18} color={totalUtilization < 5 ? '#00E5B0' : totalUtilization < 30 ? '#FF9500' : '#FF4D6D'} />
+          </div>
 
-      {/* ===== Resumen total compacto (subido al lado del score) ===== */}
-      <div className="card mb-20" style={{ padding: 14, borderRadius: 16 }}>
-        <div className="spread mb-8">
-          <div className="row gap-8" style={{ alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-mute)', fontWeight: 600 }}>{s.totalUtilization}</span>
+          <div className="col gap-2" style={{ marginTop: 4 }}>
             <span style={{
-              fontSize: 11, fontWeight: 700,
-              color: totalUtilization < 10 ? 'var(--green)' : totalUtilization < 30 ? 'var(--orange)' : 'var(--danger)',
-              textTransform: 'uppercase', letterSpacing: '0.05em'
+              fontSize: 28,
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              lineHeight: 1,
+              color: totalUtilization < 5 ? 'var(--green)' : totalUtilization < 30 ? 'var(--orange)' : 'var(--danger)'
             }}>
-              {s.utilizationCompact.replace('{pct}', totalUtilization.toFixed(1))}
+              {totalUtilization.toFixed(1)}%
+            </span>
+            <span className="tiny" style={{ fontSize: 11 }}>
+              {fmtMoney(totalUsed)} / {fmtMoney(totalLimit)}
             </span>
           </div>
-          <span className="tiny">{s.totalDebtCompact.replace('{used}', fmtMoney(totalUsed)).replace('{limit}', fmtMoney(totalLimit))}</span>
-        </div>
-        <div className="bar-track" style={{ height: 6, position: 'relative', borderRadius: 3, background: 'var(--bg-elev)', overflow: 'hidden' }}>
-          <div style={{
-            width: `${Math.min(100, totalUtilization)}%`,
-            height: '100%',
-            background: totalUtilization < 5 ? 'var(--green)' : totalUtilization < 30 ? 'var(--orange)' : 'var(--danger)',
-            transition: 'width .3s'
-          }}></div>
-          <div style={{ position: 'absolute', left: '5%', top: -2, width: 1.5, height: 10, background: 'var(--green)', opacity: 0.7 }}></div>
-          <div style={{ position: 'absolute', left: '30%', top: -2, width: 1.5, height: 10, background: 'var(--orange)', opacity: 0.7 }}></div>
-        </div>
-        <div className="row spread mt-6">
-          <span className="tiny" style={{ color: 'var(--green)', fontSize: 10 }}>{s.excellent5}</span>
-          <span className="tiny" style={{ color: 'var(--orange)', fontSize: 10 }}>{s.maxOk30}</span>
+
+          <div style={{ marginTop: 10 }}>
+            <div className="bar-track" style={{ height: 5, position: 'relative', borderRadius: 3, background: 'var(--bg-elev)', overflow: 'hidden' }}>
+              <div style={{
+                width: `${Math.min(100, totalUtilization)}%`,
+                height: '100%',
+                background: totalUtilization < 5 ? 'var(--green)' : totalUtilization < 30 ? 'var(--orange)' : 'var(--danger)',
+                transition: 'width .3s'
+              }}></div>
+              <div style={{ position: 'absolute', left: '5%', top: -2, width: 1.5, height: 9, background: 'var(--green)', opacity: 0.7 }}></div>
+              <div style={{ position: 'absolute', left: '30%', top: -2, width: 1.5, height: 9, background: 'var(--orange)', opacity: 0.7 }}></div>
+            </div>
+            <div className="row spread mt-4">
+              <span className="tiny" style={{ color: 'var(--green)', fontSize: 9 }}>5%</span>
+              <span className="tiny" style={{ color: 'var(--orange)', fontSize: 9 }}>30%</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Pill explicativa "Aproximado · saber más" — full width debajo */}
+      <button
+        onClick={() => setShowApproxInfo(!showApproxInfo)}
+        className="row gap-6 pressable mb-20"
+        style={{
+          width: '100%',
+          background: 'var(--bg-elev)',
+          padding: '10px 14px',
+          borderRadius: 12,
+          fontSize: 12,
+          color: 'var(--text-mute)',
+          border: '1px solid var(--border)',
+          alignItems: 'center'
+        }}
+      >
+        <Icon name="info" size={13} color="var(--text-mute)" />
+        <span style={{ fontWeight: 600 }}>{s.approximate}</span>
+        <span style={{ color: 'var(--blue)', fontWeight: 600, marginLeft: 'auto' }}>
+          {showApproxInfo ? '▲' : s.approxKnowMore + ' ▼'}
+        </span>
+      </button>
+
+      {showApproxInfo && (
+        <p style={{
+          marginTop: -12,
+          marginBottom: 20,
+          fontSize: 12,
+          lineHeight: 1.55,
+          color: 'var(--text-mute)',
+          background: 'var(--bg-elev)',
+          padding: 14,
+          borderRadius: 12
+        }}>
+          {s.approxExplain}
+        </p>
+      )}
 
       {/* ===== Plan de Acción · Por Tarjeta ===== */}
       <div className="section-header">
@@ -620,48 +673,141 @@ function CardActionPlan({ card, plan, s }) {
   };
 
   return (
-    <div className="card" style={{
-      padding: 0,
+    <div style={{
+      borderRadius: 22,
       overflow: 'hidden',
-      borderColor: plan.urgency === 'urgent' ? plan.statusColor : 'var(--border)'
+      background: 'var(--bg-card)',
+      border: `1px solid ${plan.urgency === 'urgent' ? plan.statusColor : 'var(--border-soft)'}`,
+      boxShadow: plan.urgency === 'urgent' ? `0 8px 24px ${plan.statusColor}22` : 'var(--shadow-sm)'
     }}>
+      {/* ===== Header tipo tarjeta de crédito real ===== */}
       <button
         onClick={() => setExpanded(!expanded)}
-        style={{ width: '100%', padding: 14, textAlign: 'left' }}
+        style={{
+          width: '100%',
+          padding: 16,
+          textAlign: 'left',
+          background: card.color || 'linear-gradient(135deg, #1a1a22, #0e0e14)',
+          color: '#fff',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
       >
-        <div className="spread mb-8">
-          <div className="row gap-12">
-            <BankLogo institution={card.institution || card.name} size={40} radius={10} />
-            <div className="col gap-2">
-              <span style={{ fontWeight: 700, fontSize: 14 }}>{card.institution || card.name}</span>
-              <span className="tiny">
-                {card.label || ''}{card.label ? ' · ' : ''}••{card.last4}
-                {card.apr ? ` · APR ${card.apr}%` : ''}
-              </span>
-            </div>
+        {/* Glow decorativo */}
+        <div style={{
+          position: 'absolute',
+          top: -40, right: -40,
+          width: 140, height: 140,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.12)',
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: -50, left: -50,
+          width: 120, height: 120,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)',
+          pointerEvents: 'none'
+        }} />
+
+        {/* Top row: logo + status pill */}
+        <div className="spread" style={{ alignItems: 'flex-start', position: 'relative' }}>
+          <BankLogo
+            institution={card.institution || card.name}
+            size={42}
+            radius={10}
+            style={{
+              background: 'rgba(255,255,255,0.95)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.25)'
+            }}
+          />
+          <div className="row gap-6" style={{
+            background: 'rgba(0,0,0,0.25)',
+            backdropFilter: 'blur(10px)',
+            padding: '4px 10px',
+            borderRadius: 999,
+            alignItems: 'center'
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: plan.statusColor,
+              boxShadow: `0 0 8px ${plan.statusColor}`
+            }} />
+            <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.05em' }}>{plan.status}</span>
+          </div>
+        </div>
+
+        {/* Card name + last4 */}
+        <div className="col gap-2" style={{ marginTop: 18, position: 'relative' }}>
+          <span style={{ fontSize: 11, opacity: 0.75, fontWeight: 500 }}>
+            {card.label || (card.institution || card.name)}
+          </span>
+          <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '0.05em', fontFamily: 'monospace' }}>
+            •••• •••• •••• {card.last4}
+          </span>
+        </div>
+
+        {/* Balance grande + utilización */}
+        <div className="spread" style={{ alignItems: 'flex-end', marginTop: 14, position: 'relative' }}>
+          <div className="col gap-2">
+            <span style={{ fontSize: 10, opacity: 0.75, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {s.balance}
+            </span>
+            <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
+              {fmtMoney(plan.balance)}
+            </span>
+            <span style={{ fontSize: 11, opacity: 0.7 }}>
+              {s.limit.replace('{amount}', fmtMoney(plan.limit))}
+              {card.apr ? ` · APR ${card.apr}%` : ''}
+            </span>
           </div>
           <div className="col" style={{ alignItems: 'flex-end', gap: 2 }}>
-            <span style={{ fontWeight: 800, color: plan.statusColor, fontSize: 18 }}>
-              {plan.utilization.toFixed(1)}%
+            <span style={{
+              fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em',
+              lineHeight: 1,
+              color: plan.statusColor === '#00B589' ? '#00E5B0' : plan.statusColor
+            }}>
+              {plan.utilization.toFixed(0)}%
             </span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: plan.statusColor }}>
-              {plan.status}
+            <span style={{ fontSize: 9, opacity: 0.75, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              utilización
             </span>
           </div>
         </div>
 
-        <div className="bar-track" style={{ height: 6 }}>
-          <div className="bar-fill" style={{
+        {/* Barra inferior */}
+        <div style={{
+          marginTop: 14,
+          height: 5,
+          background: 'rgba(255,255,255,0.15)',
+          borderRadius: 999,
+          overflow: 'hidden',
+          position: 'relative'
+        }}>
+          <div style={{
             width: `${Math.min(100, plan.utilization)}%`,
-            background: plan.statusColor
-          }}></div>
+            height: '100%',
+            background: plan.statusColor,
+            boxShadow: `0 0 8px ${plan.statusColor}`,
+            transition: 'width .3s'
+          }} />
         </div>
 
-        <div className="spread mt-8">
-          <span className="tiny">{s.balance} {fmtMoney(plan.balance)} / {s.limit.replace('{amount}', fmtMoney(plan.limit))}</span>
-          <span className="tiny" style={{ color: 'var(--blue)', fontWeight: 600 }}>
-            {expanded ? s.hidePlan : s.showPlan}
+        <div className="spread mt-12" style={{ alignItems: 'center', position: 'relative' }}>
+          <span style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>
+            {expanded ? '▾ Ocultar plan' : '▸ Ver plan de acción'}
           </span>
+          {plan.urgency === 'urgent' && (
+            <span style={{
+              fontSize: 10, fontWeight: 800,
+              background: '#FF4D6D',
+              padding: '3px 8px',
+              borderRadius: 999
+            }}>
+              ⚡ URGENTE
+            </span>
+          )}
         </div>
       </button>
 
