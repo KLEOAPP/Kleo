@@ -333,6 +333,8 @@ export default {
   saveTimeLabel: 'time',
   saveMoneyLabel: 'money',
   quickAmount: 'Quick amount',
+  totalMonthly: 'Total: {amount}/mo',
+  totalMonthlyBreak: 'min {min} + extra {extra}',
   cardsToCalc: 'Calculate on',
   allCards: 'All',
   selectAll: 'All',

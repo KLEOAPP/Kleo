@@ -274,20 +274,41 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
           <div className="card mb-12" style={{ padding: 16 }}>
             <CalcStepHeader number={2} title={s.calcStep2} desc={s.calcStep2Desc} />
 
-            <div className="row gap-8 mt-16" style={{ alignItems: 'baseline', justifyContent: 'center' }}>
-              <span style={{ fontSize: 14, color: 'var(--text-mute)', fontWeight: 600 }}>+</span>
-              <span style={{
-                fontSize: 44,
-                fontWeight: 800,
-                letterSpacing: '-0.03em',
-                background: 'var(--brand-grad)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>
-                ${extraPayment}
+            <div className="col" style={{ alignItems: 'center', marginTop: 16, gap: 4 }}>
+              <span className="tiny" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Pago extra
               </span>
-              <span className="tiny" style={{ fontSize: 12 }}>/ mes</span>
+              <div className="row gap-4" style={{ alignItems: 'baseline' }}>
+                <span style={{ fontSize: 14, color: 'var(--text-mute)', fontWeight: 600 }}>+</span>
+                <span style={{
+                  fontSize: 40,
+                  fontWeight: 800,
+                  letterSpacing: '-0.03em',
+                  background: 'var(--brand-grad)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}>
+                  ${extraPayment}
+                </span>
+              </div>
+              {/* Total real para evitar confusión */}
+              <div className="col" style={{
+                alignItems: 'center',
+                background: 'var(--bg-elev)',
+                padding: '8px 14px',
+                borderRadius: 10,
+                marginTop: 6
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>
+                  {s.totalMonthly.replace('{amount}', fmtMoney(selectedMin + extraPayment))}
+                </span>
+                <span className="tiny" style={{ fontSize: 10 }}>
+                  {s.totalMonthlyBreak
+                    .replace('{min}', fmtMoney(selectedMin))
+                    .replace('{extra}', fmtMoney(extraPayment))}
+                </span>
+              </div>
             </div>
 
             <input

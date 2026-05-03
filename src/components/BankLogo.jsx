@@ -3,12 +3,23 @@ import { getBankLogo } from '../utils/bankLogos.js';
 
 /**
  * Logo del banco / emisor.
- * Intenta cargar el logo oficial vía Clearbit; si falla, muestra iniciales con el color de marca.
+ * Intenta cargar el logo oficial probando varias fuentes (Clearbit → Google → DuckDuckGo)
+ * y cae a iniciales con el color de marca si todas fallan.
  */
 export default function BankLogo({ institution, size = 36, radius = 10, style }) {
   const logo = getBankLogo(institution || '');
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImage = logo.url && !imgFailed;
+  const [urlIdx, setUrlIdx] = useState(0);
+  const url = logo.urls?.[urlIdx];
+  const showImage = !!url;
+
+  const handleError = () => {
+    if (urlIdx < (logo.urls?.length || 0) - 1) {
+      setUrlIdx(urlIdx + 1);
+    } else {
+      // Marcar como totalmente fallido (índice fuera de rango)
+      setUrlIdx(logo.urls?.length || 0);
+    }
+  };
 
   return (
     <div
@@ -32,16 +43,17 @@ export default function BankLogo({ institution, size = 36, radius = 10, style })
     >
       {showImage ? (
         <img
-          src={logo.url}
+          key={url}
+          src={url}
           alt={logo.name}
-          width={size}
-          height={size}
-          onError={() => setImgFailed(true)}
+          referrerPolicy="no-referrer"
+          onError={handleError}
           style={{
             width: '100%',
             height: '100%',
             objectFit: 'contain',
-            padding: size * 0.1
+            padding: size * 0.08,
+            display: 'block'
           }}
         />
       ) : (

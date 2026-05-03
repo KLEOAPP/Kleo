@@ -1,6 +1,9 @@
 // Mapa de instituciones financieras → dominio + estilo de fallback
-// Los logos oficiales se sirven vía Clearbit Logo API (https://logo.clearbit.com/{domain})
-// Si la imagen falla, usamos las iniciales con el color de marca.
+// Probamos múltiples fuentes de logos en cadena para máxima confiabilidad:
+//   1) Clearbit Logo API (logos limpios sobre transparente)
+//   2) Google Favicon S2 (siempre funciona si el dominio existe)
+//   3) DuckDuckGo icon service
+// Si todas fallan, mostramos las iniciales con el color de marca.
 
 const BANKS = {
   // Puerto Rico
@@ -42,30 +45,33 @@ const BANKS = {
   pnc: { domain: 'pnc.com', initials: 'PNC', bg: '#F58025', name: 'PNC Bank' }
 };
 
-/**
- * Devuelve { url, initials, bg, name } para mostrar el logo de un banco.
- * url puede ser null si no tenemos dominio conocido — en ese caso solo se ve el fallback.
- */
+/** Genera la cadena de URLs candidatas para el logo de un dominio. */
+function buildUrls(domain) {
+  if (!domain) return [];
+  return [
+    `https://logo.clearbit.com/${domain}`,
+    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+    `https://icons.duckduckgo.com/ip3/${domain}.ico`
+  ];
+}
+
 export function getBankLogo(institutionOrName = '') {
   const k = institutionOrName.toLowerCase().trim();
   if (!k) return fallback(institutionOrName);
 
-  if (BANKS[k]) return withUrl(BANKS[k]);
+  if (BANKS[k]) return withUrls(BANKS[k]);
 
   for (const key of Object.keys(BANKS)) {
     if (k.includes(key) || key.includes(k.split(' ')[0])) {
-      return withUrl(BANKS[key]);
+      return withUrls(BANKS[key]);
     }
   }
 
   return fallback(institutionOrName);
 }
 
-function withUrl(bank) {
-  return {
-    ...bank,
-    url: `https://logo.clearbit.com/${bank.domain}`
-  };
+function withUrls(bank) {
+  return { ...bank, urls: buildUrls(bank.domain) };
 }
 
 function fallback(name) {
@@ -79,7 +85,7 @@ function fallback(name) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
   return {
-    url: null,
+    urls: [],
     initials,
     bg: colors[Math.abs(hash) % colors.length],
     name
