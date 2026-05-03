@@ -104,7 +104,7 @@ export default function TopBar({ onHome, onBack, onMenu, onNotifications, unread
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}
           >
-            <Icon name="menu" size={16} />
+            <Icon name="settings" size={16} />
           </button>
         )}
       </div>

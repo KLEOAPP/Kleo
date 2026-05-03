@@ -598,6 +598,7 @@ function AppInner() {
                   onNotifications={() => { setShowNotifications(true); setUnreadCount(0); }}
                   unreadCount={unreadCount}
                   onAddExpense={() => setShowAdd(true)}
+                  onOpenKleoAi={() => setTab('kleoai')}
                 />
               )}
               {tab === 'accounts' && (

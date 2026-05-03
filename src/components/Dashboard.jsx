@@ -9,7 +9,7 @@ const PERIODS = ['day', 'week', 'month', '3m', '6m', 'ytd'];
 export default function Dashboard({
   user, accounts, transactions, fixedExpenses, goals, household,
   onOpenMenu, onOpenSection, onSwitchTab, onConnectBank,
-  onNotifications, unreadCount, onAddExpense
+  onNotifications, unreadCount, onAddExpense, onOpenKleoAi
 }) {
   const { strings: s } = useI18n();
   const [period, setPeriod] = useState('month');
@@ -90,6 +90,96 @@ export default function Dashboard({
     const last = chartData[chartData.length - 1];
     return first > 0 ? ((last - first) / first) * 100 : 0;
   }, [chartData]);
+
+  // Sections grid (rich cards with metric + sub)
+  const totalGoals = goals?.reduce((acc, g) => acc + g.current, 0) || 0;
+  const txThisMonth = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return transactions.filter(t => new Date(t.date) >= start).length;
+  }, [transactions]);
+  const upcomingCount = useMemo(() => {
+    const today = new Date();
+    const day = today.getDate();
+    let count = 0;
+    fixedExpenses.forEach(f => {
+      const days = f.dueDay >= day ? f.dueDay - day : (30 - day + f.dueDay);
+      if (days <= 7) count++;
+    });
+    creditCards.forEach(c => {
+      if (c.paymentDueDay) {
+        const days = daysUntil(nextPaymentDate(c.paymentDueDay));
+        if (days <= 7) count++;
+      }
+    });
+    return count;
+  }, [fixedExpenses, creditCards]);
+  const myBudgetShare = useMemo(() => {
+    if (!household?.enabled) return null;
+    const me = household.members.find(m => m.isMe);
+    const fixedShared = fixedExpenses.filter(f => f.shared).reduce((acc, f) => acc + f.amount, 0);
+    return fixedShared * (me?.incomeRatio || 0.5);
+  }, [household, fixedExpenses]);
+  const monthChangePct = monthIncome > 0 ? Math.round(((monthSpending - monthIncome * 0.85) / (monthIncome * 0.85)) * 100) : -12;
+
+  const sectionCards = [
+    {
+      id: 'credit', emoji: '💳', title: s.sCredit,
+      metric: `${creditUtilization.toFixed(0)}%`,
+      sub: s.sScore.replace('{score}', score),
+      gradient: 'linear-gradient(135deg, #00B589, #007A5C)',
+      onClick: () => onOpenSection('credit')
+    },
+    {
+      id: 'accounts', emoji: '🏦', title: s.sAccounts,
+      metric: fmtMoneyShort(patrimony.checking + patrimony.savings),
+      sub: s.sCheckSavings,
+      gradient: 'linear-gradient(135deg, #5856D6, #3634A3)',
+      onClick: () => onSwitchTab('accounts')
+    },
+    {
+      id: 'goals', emoji: '🎯', title: s.sGoals,
+      metric: fmtMoneyShort(totalGoals),
+      sub: s.sSaved,
+      gradient: 'linear-gradient(135deg, #FF9500, #B86600)',
+      onClick: () => onSwitchTab('goals')
+    },
+    {
+      id: 'budget', emoji: '💰', title: s.sBudget,
+      metric: myBudgetShare ? fmtMoneyShort(myBudgetShare) : '—',
+      sub: myBudgetShare ? s.sYourPart : s.sConfigure,
+      gradient: 'linear-gradient(135deg, #FF2D6F, #B0124A)',
+      onClick: () => onOpenSection('budget')
+    },
+    {
+      id: 'calendar', emoji: '📅', title: s.sCalendar,
+      metric: upcomingCount,
+      sub: s.sThisWeek,
+      gradient: 'linear-gradient(135deg, #34C759, #1C8B3F)',
+      onClick: () => onOpenSection('calendar')
+    },
+    {
+      id: 'analysis', emoji: '📈', title: s.sAnalysis,
+      metric: `${monthChangePct >= 0 ? '+' : ''}${monthChangePct}%`,
+      sub: s.sVsLastMonth,
+      gradient: 'linear-gradient(135deg, #AF52DE, #6F2D9A)',
+      onClick: () => onOpenSection('analysis')
+    },
+    {
+      id: 'transactions', emoji: '🧾', title: s.sTransactions,
+      metric: txThisMonth,
+      sub: s.sThisMonth,
+      gradient: 'linear-gradient(135deg, #007AFF, #003D80)',
+      onClick: () => onOpenSection('transactions')
+    },
+    {
+      id: 'reports', emoji: '📊', title: s.sReports,
+      metric: s.sView,
+      sub: s.sMonthlyQuarterly,
+      gradient: 'linear-gradient(135deg, #FF9500, #B86600)',
+      onClick: () => onOpenSection('reports')
+    }
+  ];
 
   /* ---------------- Render ---------------- */
   return (
@@ -375,54 +465,44 @@ export default function Dashboard({
           </div>
         </button>
 
-        {/* ============ QUICK ACTIONS ============ */}
+        {/* ============ KLEO AI TIPS BANNER ============ */}
+        {onOpenKleoAi && (
+          <button
+            onClick={onOpenKleoAi}
+            className="pressable mb-12"
+            style={{
+              width: '100%',
+              padding: 14,
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, rgba(0, 229, 176, 0.10), rgba(0, 132, 255, 0.10))',
+              border: '1px solid rgba(0, 229, 176, 0.25)',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12
+            }}
+          >
+            <span style={{ fontSize: 28 }}>🤖</span>
+            <div className="col gap-2" style={{ flex: 1 }}>
+              <span style={{ fontWeight: 700, fontSize: 15 }}>{s.kleoAiTipsTitle}</span>
+              <span className="tiny">{s.kleoAiTipsDesc}</span>
+            </div>
+            <Icon name="back" size={14} color="var(--text-mute)" stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+        )}
+
+        {/* ============ SECCIONES GRID ============ */}
+        <div className="section-header" style={{ marginTop: 8 }}>
+          <span>{s.sections}</span>
+        </div>
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
-          gap: 10
+          gap: 12
         }}>
-          <QuickAction
-            iconName="camera"
-            color="#FF2D6F"
-            label={s.scanReceiptShort}
-            sub={s.scanReceiptSub}
-            onClick={() => onAddExpense ? onAddExpense() : onOpenSection('transactions')}
-          />
-          <QuickAction
-            iconName="pie-chart"
-            color="#5856D6"
-            label={s.monthlyBudgetShort}
-            sub={s.monthlyBudgetSub}
-            onClick={() => onOpenSection('budget')}
-          />
-          <QuickAction
-            iconName="bell"
-            color="#FF9500"
-            label={s.smartAlerts}
-            sub={s.smartAlertsSub}
-            onClick={onNotifications}
-          />
-          <QuickAction
-            iconName="file-text"
-            color="#00E5B0"
-            label={s.financialReports}
-            sub={s.financialReportsSub}
-            onClick={() => onOpenSection('reports')}
-          />
-          <QuickAction
-            iconName="target"
-            color="#FF9500"
-            label={s.sGoals}
-            sub={s.sSaved}
-            onClick={() => onSwitchTab('goals')}
-          />
-          <QuickAction
-            iconName="calendar"
-            color="#5856D6"
-            label={s.sCalendar}
-            sub={s.sThisWeek}
-            onClick={() => onOpenSection('calendar')}
-          />
+          {sectionCards.map(c => (
+            <SectionCard key={c.id} {...c} />
+          ))}
         </div>
       </div>
     </div>
@@ -620,6 +700,63 @@ function ScoreGauge({ score, color }) {
       />
       <circle cx={cx} cy={cy} r="3" fill="var(--text)" />
     </svg>
+  );
+}
+
+function SectionCard({ emoji, title, metric, sub, gradient, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="pressable"
+      style={{
+        position: 'relative',
+        padding: 14,
+        borderRadius: 18,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-soft)',
+        textAlign: 'left',
+        aspectRatio: '1.05',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        overflow: 'hidden',
+        boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.04))'
+      }}
+    >
+      {/* Decorative blob top-right */}
+      <div style={{
+        position: 'absolute',
+        top: -28, right: -28,
+        width: 90, height: 90,
+        borderRadius: '50%',
+        background: gradient,
+        opacity: 0.18,
+        pointerEvents: 'none'
+      }} />
+
+      <div style={{
+        width: 44, height: 44, borderRadius: 12,
+        background: gradient,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 22,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+      }}>
+        {emoji}
+      </div>
+
+      <div className="col gap-2">
+        <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-mute)' }}>{title}</span>
+        <span style={{
+          fontWeight: 800,
+          fontSize: typeof metric === 'string' && metric.length > 5 ? 18 : 22,
+          letterSpacing: '-0.02em',
+          lineHeight: 1.1
+        }}>
+          {metric}
+        </span>
+        <span className="tiny" style={{ marginTop: -2 }}>{sub}</span>
+      </div>
+    </button>
   );
 }
 

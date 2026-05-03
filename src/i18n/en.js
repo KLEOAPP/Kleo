@@ -84,6 +84,8 @@ export default {
   kleoAiSubtitle: 'Personalized recommendations for you',
   generateAdvice: 'Generate advice',
   refreshAdvice: 'Refresh advice',
+  kleoAiTipsTitle: 'Kleo AI Tips',
+  kleoAiTipsDesc: 'Tap to get personalized advice',
 
   // AI Insights
   aiTitle: 'Kleo AI Tips',
