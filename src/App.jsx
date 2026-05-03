@@ -9,6 +9,7 @@ import Accounts from './components/Accounts.jsx';
 import AddExpense from './components/AddExpense.jsx';
 import Analysis from './components/Analysis.jsx';
 import Goals from './components/Goals.jsx';
+import KleoAi from './components/KleoAi.jsx';
 import Budget from './components/Budget.jsx';
 import Calendar from './components/Calendar.jsx';
 import Credit from './components/Credit.jsx';
@@ -613,6 +614,16 @@ function AppInner() {
                   fixedExpenses={fixedExpenses}
                   onAddSavings={handleGoalContribute}
                   onCreate={handleGoalCreate}
+                  onHome={goHome}
+                  onMenu={() => setShowMenu(true)}
+                />
+              )}
+              {tab === 'kleoai' && (
+                <KleoAi
+                  transactions={transactions}
+                  accounts={accounts}
+                  goals={goals}
+                  fixedExpenses={fixedExpenses}
                   onHome={goHome}
                   onMenu={() => setShowMenu(true)}
                 />

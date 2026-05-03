@@ -75,10 +75,15 @@ export default {
   sMonthlyQuarterly: 'mensual y trimestral',
 
   // BottomNav
-  navHome: 'Inicio',
+  navHome: 'Dashboard',
   navAccounts: 'Cuentas',
   navGoals: 'Metas',
   navMore: 'Más',
+  navKleoAi: 'Kleo AI',
+  kleoAiHeader: 'Kleo AI',
+  kleoAiSubtitle: 'Recomendaciones personalizadas para ti',
+  generateAdvice: 'Generar consejos',
+  refreshAdvice: 'Actualizar consejos',
 
   // AI Insights
   aiTitle: 'Consejos de Kleo IA',

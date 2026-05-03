@@ -75,10 +75,15 @@ export default {
   sMonthlyQuarterly: 'monthly & quarterly',
 
   // BottomNav
-  navHome: 'Home',
+  navHome: 'Dashboard',
   navAccounts: 'Accounts',
   navGoals: 'Goals',
   navMore: 'More',
+  navKleoAi: 'Kleo AI',
+  kleoAiHeader: 'Kleo AI',
+  kleoAiSubtitle: 'Personalized recommendations for you',
+  generateAdvice: 'Generate advice',
+  refreshAdvice: 'Refresh advice',
 
   // AI Insights
   aiTitle: 'Kleo AI Tips',

@@ -376,19 +376,11 @@ export default function Dashboard({
         </button>
 
         {/* ============ QUICK ACTIONS ============ */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            scrollSnapType: 'x mandatory',
-            paddingBottom: 4,
-            margin: '0 -16px',
-            padding: '0 16px 4px'
-          }}
-          className="hide-scrollbar"
-        >
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 10
+        }}>
           <QuickAction
             iconName="camera"
             color="#FF2D6F"
@@ -637,17 +629,14 @@ function QuickAction({ iconName, color, label, sub, onClick }) {
       onClick={onClick}
       className="pressable"
       style={{
-        flex: '0 0 110px',
-        minWidth: 110,
-        scrollSnapAlign: 'start',
-        padding: 12,
+        padding: 14,
         borderRadius: 16,
         background: 'var(--bg-card)',
         border: '1px solid var(--border-soft)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        gap: 8
+        gap: 10
       }}
     >
       <div style={{

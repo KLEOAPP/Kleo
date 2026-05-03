@@ -5,9 +5,8 @@ export default function BottomNav({ active, onChange, onAdd, onMenu }) {
   const { strings: s } = useI18n();
   const items = [
     { id: 'dashboard', label: s.navHome, icon: 'home' },
-    { id: 'accounts', label: s.navAccounts, icon: 'cards' },
     { id: 'add', label: '', icon: 'plus' },
-    { id: 'goals', label: s.navGoals, icon: 'target' },
+    { id: 'kleoai', label: s.navKleoAi, icon: 'sparkle' },
     { id: 'menu', label: s.navMore, icon: 'menu' }
   ];
 
