@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/storage.js';
@@ -225,17 +225,7 @@ export default function Dashboard({
         )}
 
         {/* ============ TU RESUMEN ============ */}
-        <div className="spread mb-12" style={{ alignItems: 'center' }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700 }}>{s.yourSummary}</h3>
-          <button
-            onClick={() => onSwitchTab('accounts')}
-            className="row gap-4"
-            style={{ color: '#A855F7', fontSize: 13, fontWeight: 600, alignItems: 'center' }}
-          >
-            <span>{s.viewAll}</span>
-            <Icon name="back" size={12} stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
-          </button>
-        </div>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{s.yourSummary}</h3>
 
         <div style={{
           display: 'grid',
@@ -386,11 +376,19 @@ export default function Dashboard({
         </button>
 
         {/* ============ QUICK ACTIONS ============ */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 10
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollSnapType: 'x mandatory',
+            paddingBottom: 4,
+            margin: '0 -16px',
+            padding: '0 16px 4px'
+          }}
+          className="hide-scrollbar"
+        >
           <QuickAction
             iconName="camera"
             color="#FF2D6F"
@@ -419,6 +417,20 @@ export default function Dashboard({
             sub={s.financialReportsSub}
             onClick={() => onOpenSection('reports')}
           />
+          <QuickAction
+            iconName="target"
+            color="#FF9500"
+            label={s.sGoals}
+            sub={s.sSaved}
+            onClick={() => onSwitchTab('goals')}
+          />
+          <QuickAction
+            iconName="calendar"
+            color="#5856D6"
+            label={s.sCalendar}
+            sub={s.sThisWeek}
+            onClick={() => onOpenSection('calendar')}
+          />
         </div>
       </div>
     </div>
@@ -430,6 +442,9 @@ export default function Dashboard({
 function Sparkline({ data, height = 120 }) {
   const width = 320;
   const padding = 8;
+  const [hoverIdx, setHoverIdx] = useState(null);
+  const svgRef = useRef(null);
+
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
@@ -437,10 +452,10 @@ function Sparkline({ data, height = 120 }) {
 
   const points = data.map((v, i) => ({
     x: padding + i * stepX,
-    y: padding + (1 - (v - min) / range) * (height - padding * 2)
+    y: padding + (1 - (v - min) / range) * (height - padding * 2),
+    v
   }));
 
-  // Smooth Catmull-Rom-ish curve
   const path = points.reduce((acc, p, i, arr) => {
     if (i === 0) return `M ${p.x} ${p.y}`;
     const prev = arr[i - 1];
@@ -449,14 +464,53 @@ function Sparkline({ data, height = 120 }) {
   }, '');
 
   const areaPath = `${path} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
-  const last = points[points.length - 1];
-
-  // Y-axis labels
   const yLabels = [max, min + range * 0.66, min + range * 0.33, min];
+
+  const active = hoverIdx !== null ? points[hoverIdx] : points[points.length - 1];
+  const isScrubbing = hoverIdx !== null;
+
+  const handleMove = (clientX) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const scale = (width + 40) / rect.width;
+    const x = (clientX - rect.left) * scale - padding;
+    const idx = Math.round(x / stepX);
+    if (idx >= 0 && idx < points.length) setHoverIdx(idx);
+  };
 
   return (
     <div style={{ position: 'relative', marginTop: 8 }}>
-      <svg viewBox={`0 0 ${width + 40} ${height + 8}`} width="100%" style={{ display: 'block' }}>
+      {isScrubbing && (
+        <div style={{
+          position: 'absolute',
+          top: -22,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'var(--bg-elev)',
+          border: '1px solid var(--border)',
+          padding: '4px 10px',
+          borderRadius: 8,
+          fontSize: 12,
+          fontWeight: 700,
+          whiteSpace: 'nowrap',
+          zIndex: 2
+        }}>
+          {fmtMoneyShort(active.v)}
+        </div>
+      )}
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width + 40} ${height + 8}`}
+        width="100%"
+        style={{ display: 'block', touchAction: 'pan-y', cursor: 'crosshair' }}
+        onTouchStart={(e) => handleMove(e.touches[0].clientX)}
+        onTouchMove={(e) => { e.preventDefault(); handleMove(e.touches[0].clientX); }}
+        onTouchEnd={() => setHoverIdx(null)}
+        onMouseDown={(e) => handleMove(e.clientX)}
+        onMouseMove={(e) => { if (e.buttons === 1) handleMove(e.clientX); }}
+        onMouseLeave={() => setHoverIdx(null)}
+        onMouseUp={() => setHoverIdx(null)}
+      >
         <defs>
           <linearGradient id="kleoLineGrad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#FF2D6F" />
@@ -469,7 +523,6 @@ function Sparkline({ data, height = 120 }) {
           </linearGradient>
         </defs>
 
-        {/* Grid lines */}
         {yLabels.map((v, i) => {
           const y = padding + (i / (yLabels.length - 1)) * (height - padding * 2);
           return (
@@ -482,15 +535,17 @@ function Sparkline({ data, height = 120 }) {
           );
         })}
 
-        {/* Area */}
         <path d={areaPath} fill="url(#kleoAreaGrad)" />
-
-        {/* Line */}
         <path d={path} fill="none" stroke="url(#kleoLineGrad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* End dot */}
-        <circle cx={last.x} cy={last.y} r="4" fill="#00E5B0" />
-        <circle cx={last.x} cy={last.y} r="7" fill="#00E5B0" opacity="0.3" />
+        {/* Vertical guide line when scrubbing */}
+        {isScrubbing && (
+          <line x1={active.x} y1={padding} x2={active.x} y2={height - padding} stroke="var(--text-mute)" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+        )}
+
+        {/* Active dot */}
+        <circle cx={active.x} cy={active.y} r="4" fill="#00E5B0" />
+        <circle cx={active.x} cy={active.y} r="7" fill="#00E5B0" opacity="0.3" />
       </svg>
     </div>
   );
@@ -582,6 +637,9 @@ function QuickAction({ iconName, color, label, sub, onClick }) {
       onClick={onClick}
       className="pressable"
       style={{
+        flex: '0 0 110px',
+        minWidth: 110,
+        scrollSnapAlign: 'start',
         padding: 12,
         borderRadius: 16,
         background: 'var(--bg-card)',
