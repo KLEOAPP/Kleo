@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from './icons.jsx';
 import MerchantIcon from './MerchantIcon.jsx';
+import BankLogo from './BankLogo.jsx';
 import TopBar from './TopBar.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, relativeDate, fmtTime } from '../utils/storage.js';
@@ -54,8 +55,20 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
         <TopBar onHome={onHome} onBack={() => setSelected(null)} title={acc.name} />
 
         <div style={{ padding: '12px 0' }}>
-          <div className="account-card mb-20" style={{ background: acc.color }}>
-            <div className="spread">
+          <div className="account-card mb-20" style={{ background: acc.color, position: 'relative' }}>
+            <BankLogo
+              institution={acc.institution || acc.name}
+              size={36}
+              radius={8}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'rgba(255,255,255,0.95)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.25)'
+              }}
+            />
+            <div className="spread" style={{ paddingRight: 48 }}>
               <div className="col gap-4">
                 <span style={{ fontSize: 13, opacity: 0.85 }}>{acc.label}</span>
                 {acc.apy && <span style={{ fontSize: 11, opacity: 0.75 }}>APY {acc.apy}%</span>}
@@ -161,7 +174,7 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
             <div className="ios-list mb-16">
               {groups.checking.map(a => (
                 <button key={a.id} className="ios-list-item" onClick={() => setSelected(a.id)}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: a.color, flexShrink: 0 }}></div>
+                  <BankLogo institution={a.institution || a.name} size={40} radius={10} />
                   <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontWeight: 500, fontSize: 15 }}>{a.name}</span>
                     <span className="tiny">{a.label} · ••{a.last4}</span>
@@ -185,10 +198,7 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
                 const goalPct = a.targetAmount ? (a.balance / a.targetAmount) * 100 : null;
                 return (
                   <button key={a.id} className="ios-list-item" onClick={() => setSelected(a.id)} style={{ alignItems: 'flex-start', paddingTop: 14, paddingBottom: 14 }}>
-                    <div style={{
-                      width: 40, height: 40, borderRadius: 10, background: a.color, flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18
-                    }}>{a.icon || '💰'}</div>
+                    <BankLogo institution={a.institution || a.name} size={40} radius={10} />
                     <div className="col gap-4" style={{ flex: 1, minWidth: 0 }}>
                       <div className="spread">
                         <span style={{ fontWeight: 500, fontSize: 15 }}>{a.label}</span>

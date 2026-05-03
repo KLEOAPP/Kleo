@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import MerchantIcon from './MerchantIcon.jsx';
+import BankLogo from './BankLogo.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, relativeDate, fmtTime } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
@@ -159,11 +160,15 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
                             <span style={{
                               fontSize: 11,
                               background: 'var(--bg-elev)',
-                              padding: '2px 6px',
-                              borderRadius: 4,
-                              fontWeight: 500
+                              padding: '2px 6px 2px 2px',
+                              borderRadius: 6,
+                              fontWeight: 500,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4
                             }}>
-                              {acc.name} ••{acc.last4}
+                              <BankLogo institution={acc.institution || acc.name} size={14} radius={3} />
+                              ••{acc.last4}
                             </span>
                           )}
                           <span className="tiny">{fmtTime(t.date)}</span>

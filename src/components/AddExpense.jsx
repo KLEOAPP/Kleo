@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
+import BankLogo from './BankLogo.jsx';
 import { CATEGORIES, sampleReceiptMerchants } from '../data/sampleData.js';
 import { fmtMoney, todayISO } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
@@ -111,7 +112,7 @@ function PlaidFlow({ accounts, onAdd, s }) {
           {accounts.map(a => (
             <div key={a.id} className="card row gap-12 spread">
               <div className="row gap-12">
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: a.color }}></div>
+                <BankLogo institution={a.institution || a.name} size={40} radius={10} />
                 <div className="col gap-4">
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{a.name}</span>
                   <span className="tiny">••{a.last4}</span>
@@ -351,7 +352,7 @@ function PhotoFlow({ accounts, onAdd, s }) {
             onClick={() => setAccountId(a.id)}
           >
             <div className="row gap-12">
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: a.color }}></div>
+              <BankLogo institution={a.institution || a.name} size={32} radius={8} />
               <span style={{ fontWeight: 500, fontSize: 14 }}>{a.name} ••{a.last4}</span>
             </div>
             {accountId === a.id && <Icon name="check" size={18} color="var(--green)" />}
@@ -449,7 +450,7 @@ function ManualFlow({ accounts, onAdd, s }) {
                 onClick={() => setAccountId(a.id)}
               >
                 <div className="row gap-12">
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: a.color }}></div>
+                  <BankLogo institution={a.institution || a.name} size={32} radius={8} />
                   <span style={{ fontWeight: 500, fontSize: 14 }}>{a.name} ••{a.last4}</span>
                 </div>
                 {accountId === a.id && <Icon name="check" size={18} color="var(--green)" />}
