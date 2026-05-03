@@ -3,8 +3,10 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import MerchantIcon from './MerchantIcon.jsx';
 import { fmtMoney, daysInMonth, daysUntil, monthName, fmtTime, fmtDate, nextPaymentDate } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Calendar({ accounts, fixedExpenses, transactions, onBack, onHome }) {
+  const { strings: s, lang } = useI18n();
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return { month: d.getMonth(), year: d.getFullYear() };
@@ -27,7 +29,7 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
         amount: f.amount,
         icon: f.icon,
         color: 'var(--blue)',
-        meta: 'Pago fijo · mensual'
+        meta: s.fixedMonthly
       });
     });
 
@@ -36,28 +38,28 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
         evts.push({
           type: 'cycle',
           day: Math.min(a.cycleCloseDay, daysInMonth(year, month)),
-          name: `Cierre ${a.name}`,
+          name: s.closeName.replace('{name}', a.name),
           amount: Math.abs(a.balance),
           icon: '🔒',
           color: 'var(--orange)',
-          meta: 'Cierre de ciclo · mensual'
+          meta: s.cycleCloseMonthly
         });
       }
       if (a.paymentDueDay) {
         evts.push({
           type: 'payment',
           day: Math.min(a.paymentDueDay, daysInMonth(year, month)),
-          name: `Pago ${a.name}`,
+          name: s.paymentName.replace('{name}', a.name),
           amount: Math.abs(a.balance),
           icon: '💳',
           color: 'var(--danger)',
-          meta: 'Vence pago tarjeta · mensual'
+          meta: s.cardPaymentMonthly
         });
       }
     });
 
     return evts;
-  }, [cursor, fixedExpenses, accounts]);
+  }, [cursor, fixedExpenses, accounts, s]);
 
   const eventsByDay = useMemo(() => {
     const map = {};
@@ -101,7 +103,7 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onBack={onBack} title="Calendario" />
+      <TopBar onHome={onHome} onBack={onBack} title={s.calendar} />
 
       <div style={{ padding: '12px 0' }}>
         {/* Calendario visual */}
@@ -111,7 +113,7 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
               <Icon name="back" size={14} />
             </button>
             <span style={{ fontWeight: 600, fontSize: 16, textTransform: 'capitalize' }}>
-              {monthName(cursor.month, cursor.year)}
+              {new Date(cursor.year, cursor.month).toLocaleDateString(lang === 'en' ? 'en-US' : 'es-PR', { month: 'long', year: 'numeric' })}
             </span>
             <button onClick={() => move(1)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(180deg)' }}>
               <Icon name="back" size={14} />
@@ -119,7 +121,7 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 8 }}>
-            {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, i) => (
+            {s.dayLetters.map((d, i) => (
               <div key={i} className="tiny" style={{ textAlign: 'center', fontWeight: 600 }}>{d}</div>
             ))}
           </div>
@@ -168,20 +170,20 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
           </div>
 
           <div className="row gap-12 mt-16" style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-            <div className="row gap-4"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--danger)' }}></span><span className="tiny">Pago tarjeta</span></div>
-            <div className="row gap-4"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)' }}></span><span className="tiny">Cierre ciclo</span></div>
-            <div className="row gap-4"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--blue)' }}></span><span className="tiny">Pago fijo</span></div>
+            <div className="row gap-4"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--danger)' }}></span><span className="tiny">{s.cardPayment}</span></div>
+            <div className="row gap-4"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)' }}></span><span className="tiny">{s.cycleClose}</span></div>
+            <div className="row gap-4"><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--blue)' }}></span><span className="tiny">{s.fixedPayment}</span></div>
           </div>
         </div>
 
         {/* 3 próximos pagos */}
         <div className="section-header">
-          <span>3 Próximos Pagos</span>
+          <span>{s.next3Payments}</span>
         </div>
         <div className="ios-list mb-20">
           {upcoming.length === 0 && (
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <span className="tiny">Sin pagos próximos este mes</span>
+              <span className="tiny">{s.noUpcoming}</span>
             </div>
           )}
           {upcoming.map((e, i) => {
@@ -197,7 +199,7 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
                 <div className="col gap-2" style={{ flex: 1 }}>
                   <span style={{ fontWeight: 500, fontSize: 15 }}>{e.name}</span>
                   <span className="tiny">
-                    {days === 0 ? 'Vence hoy' : days === 1 ? 'Mañana' : `En ${days} días`} · {e.meta}
+                    {days === 0 ? s.duesToday : days === 1 ? s.tomorrow : s.inNDays.replace('{n}', days)} · {e.meta}
                   </span>
                 </div>
                 <span style={{ fontWeight: 600, fontSize: 15, color: days <= 3 ? e.color : 'var(--text)' }}>
@@ -210,12 +212,12 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
 
         {/* Recientes (pagos ya hechos) */}
         <div className="section-header">
-          <span>Pagos Recientes</span>
+          <span>{s.recentPayments}</span>
         </div>
         <div className="ios-list">
           {recentPaid.length === 0 && (
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <span className="tiny">Aún no se ha registrado ningún pago</span>
+              <span className="tiny">{s.noPaymentsYet}</span>
             </div>
           )}
           {recentPaid.map(t => (
@@ -223,7 +225,7 @@ export default function Calendar({ accounts, fixedExpenses, transactions, onBack
               <MerchantIcon merchant={t.merchant} category={t.category} size={40} />
               <div className="col gap-2" style={{ flex: 1 }}>
                 <span style={{ fontWeight: 500, fontSize: 15 }}>{t.merchant}</span>
-                <span className="tiny">Pagado · {fmtDate(t.date)} · {fmtTime(t.date)}</span>
+                <span className="tiny">{s.paid} · {fmtDate(t.date)} · {fmtTime(t.date)}</span>
               </div>
               <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--green)' }}>
                 ✓ {fmtMoney(Math.abs(t.amount))}

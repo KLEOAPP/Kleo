@@ -3,8 +3,10 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { GOAL_TYPES } from '../data/sampleData.js';
 import { fmtMoney, fmtMoneyShort } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, onHome, onMenu }) {
+  const { strings: s } = useI18n();
   const [showCreate, setShowCreate] = useState(false);
 
   const totalSaved = useMemo(() => goals.reduce((s, g) => s + g.current, 0), [goals]);
@@ -25,6 +27,7 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
   if (showCreate) {
     return (
       <CreateGoal
+        s={s}
         onCancel={() => setShowCreate(false)}
         onCreate={(g) => {
           onCreate(g);
@@ -37,9 +40,9 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onMenu={onMenu} title="Metas" />
+      <TopBar onHome={onHome} onMenu={onMenu} title={s.goals} />
       <div className="spread" style={{ padding: '12px 0' }}>
-        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>Tus objetivos de ahorro</span>
+        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>{s.yourSavingsGoals}</span>
         <button
           style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setShowCreate(true)}
@@ -49,9 +52,9 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
       </div>
 
       <div className="card mb-20" style={{ background: 'linear-gradient(135deg, rgba(0,229,176,0.08), rgba(0,132,255,0.08))', borderColor: 'rgba(0,229,176,0.2)' }}>
-        <span className="label">Total Ahorrado</span>
+        <span className="label">{s.totalSaved}</span>
         <h1 className="h1 mt-8" style={{ fontSize: 36 }}>{fmtMoney(totalSaved)}</h1>
-        <span className="tiny">de {fmtMoney(totalTarget)} en metas</span>
+        <span className="tiny">{s.ofGoals.replace('{amount}', fmtMoney(totalTarget))}</span>
         <div className="progress-track mt-12">
           <div className="progress-fill" style={{ width: `${(totalSaved / totalTarget) * 100}%` }}></div>
         </div>
@@ -93,7 +96,7 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
                   <span style={{ fontWeight: 600 }}>{fmtMoney(g.current)}</span>
                   <span className="tiny"> / {fmtMoney(g.target)}</span>
                 </span>
-                <span className="tiny">Faltan {fmtMoney(remaining)}</span>
+                <span className="tiny">{s.remaining.replace('{amount}', fmtMoney(remaining))}</span>
               </div>
 
               {remaining > 0 && (
@@ -103,10 +106,10 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
                   </div>
                   <div className="col gap-4" style={{ flex: 1 }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>
-                      Ahorra {fmtMoney(sug.weekly)} por semana
+                      {s.savePerWeek.replace('{amount}', fmtMoney(sug.weekly))}
                     </span>
                     <span style={{ fontSize: 12, color: 'var(--text-mute)' }}>
-                      Lograrás tu meta en {sug.weeks} semana{sug.weeks > 1 ? 's' : ''}
+                      {s.achieveInWeeks.replace('{n}', sug.weeks).replace('{s}', sug.weeks > 1 ? 's' : '')}
                     </span>
                   </div>
                 </div>
@@ -117,7 +120,7 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
                 style={{ height: 44, fontSize: 14 }}
                 onClick={() => onAddSavings(g.id, sug.weekly)}
               >
-                + Aportar {fmtMoneyShort(sug.weekly)}
+                {s.contribute.replace('{amount}', fmtMoneyShort(sug.weekly))}
               </button>
             </div>
           );
@@ -127,10 +130,10 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
       {goals.length === 0 && (
         <div className="card col" style={{ alignItems: 'center', padding: 40, gap: 12 }}>
           <Icon name="target" size={48} color="var(--text-dim)" />
-          <span style={{ fontWeight: 600 }}>Sin metas todavía</span>
-          <span className="tiny" style={{ textAlign: 'center' }}>Crea tu primera meta y la IA te ayudará a alcanzarla</span>
+          <span style={{ fontWeight: 600 }}>{s.noGoalsYet}</span>
+          <span className="tiny" style={{ textAlign: 'center' }}>{s.noGoalsDesc}</span>
           <button className="btn-primary mt-16" onClick={() => setShowCreate(true)}>
-            Crear Meta
+            {s.createGoal}
           </button>
         </div>
       )}
@@ -138,7 +141,7 @@ export default function Goals({ goals, fixedExpenses, onAddSavings, onCreate, on
   );
 }
 
-function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
+function CreateGoal({ s, onCancel, onCreate, recommendedEmergency }) {
   const [step, setStep] = useState(1); // 1=tipo, 2=detalles
   const [type, setType] = useState(null);
   const [name, setName] = useState('');
@@ -164,8 +167,8 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
 
       {step === 1 && (
         <>
-          <h2 className="h2 mb-8">¿Qué tipo de meta?</h2>
-          <p className="label mb-20">Elige el tipo y la IA te ayuda a configurarla</p>
+          <h2 className="h2 mb-8">{s.whatGoalType}</h2>
+          <p className="label mb-20">{s.chooseTypeAi}</p>
 
           <div className="col gap-12">
             {Object.entries(GOAL_TYPES).map(([key, t]) => (
@@ -181,13 +184,13 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
                 <div className="col gap-4" style={{ flex: 1 }}>
                   <span style={{ fontWeight: 600, fontSize: 15 }}>{t.label}</span>
                   <span className="tiny">
-                    {key === 'emergency' && `Recomendado: ${fmtMoney(recommendedEmergency)} (6 meses de gastos)`}
-                    {key === 'savings' && 'Ahorra el 20% de tu ingreso mensual'}
-                    {key === 'travel' && 'Vuelos, hotel, comidas, actividades'}
-                    {key === 'car' && 'Pronto pago, seguro, registro'}
-                    {key === 'home' && 'Down payment, closing costs, mudanza'}
-                    {key === 'education' && 'Colegio, certificaciones, libros'}
-                    {key === 'custom' && 'Define tu propia meta'}
+                    {key === 'emergency' && s.recommended6months.replace('{amount}', fmtMoney(recommendedEmergency))}
+                    {key === 'savings' && s.save20pct}
+                    {key === 'travel' && s.travelItems}
+                    {key === 'car' && s.carItems}
+                    {key === 'home' && s.homeItems}
+                    {key === 'education' && s.educationItems}
+                    {key === 'custom' && s.customGoal}
                   </span>
                 </div>
                 <Icon name="back" size={18} color="var(--text-mute)" stroke={2} />
@@ -199,7 +202,7 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
 
       {step === 2 && type && (
         <>
-          <h2 className="h2 mb-8">Detalles de tu meta</h2>
+          <h2 className="h2 mb-8">{s.goalDetails}</h2>
           <p className="label mb-20">{GOAL_TYPES[type].label}</p>
 
           {type === 'emergency' && (
@@ -208,9 +211,9 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
                 <Icon name="sparkle" size={14} color="#0D0D14" />
               </div>
               <div className="col gap-4" style={{ flex: 1 }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Recomendación de Kleo</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{s.kleoRecommendation}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-mute)', lineHeight: 1.5 }}>
-                  Tu meta sugerida es <strong>{fmtMoney(recommendedEmergency)}</strong> = 6 meses de gastos fijos. Es el estándar de oro para emergencias (pérdida de empleo, salud, etc).
+                  {s.emergencyRecommendation.replace('{amount}', fmtMoney(recommendedEmergency))}
                 </span>
               </div>
             </div>
@@ -218,7 +221,7 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
 
           <div className="col gap-16">
             <div className="col gap-6">
-              <span className="label">Nombre</span>
+              <span className="label">{s.goalName}</span>
               <input
                 className="input-field"
                 value={name}
@@ -227,7 +230,7 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
             </div>
 
             <div className="col gap-6">
-              <span className="label">Cantidad Objetivo</span>
+              <span className="label">{s.targetAmount}</span>
               <div className="row" style={{ background: 'var(--bg-input)', borderRadius: 14, border: '1px solid var(--border)', padding: '0 16px', height: 54 }}>
                 <span style={{ fontSize: 18, color: 'var(--text-mute)' }}>$</span>
                 <input
@@ -241,7 +244,7 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
             </div>
 
             <div className="col gap-6">
-              <span className="label">Fecha Límite</span>
+              <span className="label">{s.deadline}</span>
               <input
                 type="date"
                 className="input-field"
@@ -252,12 +255,12 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
             </div>
 
             <div className="col gap-6">
-              <span className="label">Notas (opcional)</span>
+              <span className="label">{s.notesOptional}</span>
               <input
                 className="input-field"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Ej. Vuelo + hotel + comidas"
+                placeholder={s.notesPlaceholder}
               />
             </div>
           </div>
@@ -279,7 +282,7 @@ function CreateGoal({ onCancel, onCreate, recommendedEmergency }) {
               });
             }}
           >
-            Crear Meta
+            {s.createGoal}
           </button>
         </>
       )}

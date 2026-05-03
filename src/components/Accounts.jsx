@@ -4,8 +4,10 @@ import MerchantIcon from './MerchantIcon.jsx';
 import TopBar from './TopBar.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, relativeDate, fmtTime } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Accounts({ accounts, transactions, onHome, onMenu }) {
+  const { strings: s } = useI18n();
   const [selected, setSelected] = useState(null);
 
   // Solo cuentas personales — sin crédito (las tarjetas tienen su propia sección)
@@ -64,7 +66,7 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
 
             <div className="col gap-4">
               <span style={{ fontSize: 12, opacity: 0.85 }}>
-                {isCard ? 'Balance Actual' : isSavings ? 'Ahorrado' : 'Disponible'}
+                {isCard ? s.currentBalance : isSavings ? s.savedAmount : s.available}
               </span>
               <span style={{ fontSize: 30, fontWeight: 700 }}>{fmtMoney(Math.abs(acc.balance))}</span>
 
@@ -74,8 +76,8 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
                     <div style={{ width: `${usedPct}%`, height: '100%', background: 'rgba(255,255,255,0.85)' }}></div>
                   </div>
                   <div className="spread" style={{ marginTop: 4 }}>
-                    <span style={{ fontSize: 11, opacity: 0.85 }}>Disponible {fmtMoney(acc.limit - used)}</span>
-                    <span style={{ fontSize: 11, opacity: 0.85 }}>Límite {fmtMoney(acc.limit)}</span>
+                    <span style={{ fontSize: 11, opacity: 0.85 }}>{s.availableAmount.replace('{amount}', fmtMoney(acc.limit - used))}</span>
+                    <span style={{ fontSize: 11, opacity: 0.85 }}>{s.limit.replace('{amount}', fmtMoney(acc.limit))}</span>
                   </div>
                 </>
               )}
@@ -86,8 +88,8 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
                     <div style={{ width: `${Math.min(100, goalPct)}%`, height: '100%', background: 'rgba(255,255,255,0.85)' }}></div>
                   </div>
                   <div className="spread" style={{ marginTop: 4 }}>
-                    <span style={{ fontSize: 11, opacity: 0.85 }}>{goalPct.toFixed(0)}% de la meta</span>
-                    <span style={{ fontSize: 11, opacity: 0.85 }}>Meta {fmtMoney(acc.targetAmount)}</span>
+                    <span style={{ fontSize: 11, opacity: 0.85 }}>{s.goalPercent.replace('{pct}', goalPct.toFixed(0))}</span>
+                    <span style={{ fontSize: 11, opacity: 0.85 }}>{s.goalTarget.replace('{amount}', fmtMoney(acc.targetAmount))}</span>
                   </div>
                 </>
               )}
@@ -95,12 +97,12 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
           </div>
 
           <div className="section-header">
-            <span>Transacciones · {txs.length}</span>
+            <span>{s.transactions} · {txs.length}</span>
           </div>
           <div className="ios-list">
             {txs.length === 0 && (
               <div style={{ padding: 24, textAlign: 'center' }}>
-                <span className="tiny">Sin movimientos en esta cuenta</span>
+                <span className="tiny">{s.noMovements}</span>
               </div>
             )}
             {txs.map(t => {
@@ -127,23 +129,23 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
   // Vista principal — grupos
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onMenu={onMenu} title="Cuentas Personales" />
+      <TopBar onHome={onHome} onMenu={onMenu} title={s.personalAccounts} />
 
       <div style={{ padding: '12px 0' }}>
         <div className="card mb-20" style={{
           background: 'linear-gradient(135deg, rgba(0,181,137,0.06), rgba(0,122,255,0.06))',
           borderColor: 'transparent'
         }}>
-          <span className="label">Total en Cuentas</span>
+          <span className="label">{s.totalInAccounts}</span>
           <h1 className="h1 mt-4" style={{ fontSize: 32 }}>{fmtMoney(groups.total)}</h1>
-          <span className="tiny">Sin contar tarjetas de crédito</span>
+          <span className="tiny">{s.excludingCredit}</span>
           <div className="row gap-16 mt-12" style={{ flexWrap: 'wrap' }}>
             <div className="col gap-2">
-              <span className="tiny">Cuenta Corriente</span>
+              <span className="tiny">{s.checkingAccount}</span>
               <span style={{ fontWeight: 600, fontSize: 14 }}>{fmtMoney(groups.checkingTotal)}</span>
             </div>
             <div className="col gap-2">
-              <span className="tiny">Ahorros y Metas</span>
+              <span className="tiny">{s.savingsAndGoals}</span>
               <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--green)' }}>{fmtMoney(groups.savingsTotal)}</span>
             </div>
           </div>
@@ -153,7 +155,7 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
         {groups.checking.length > 0 && (
           <>
             <div className="section-header">
-              <span>Cuentas Corrientes</span>
+              <span>{s.checkingAccounts}</span>
               <span className="tiny">{fmtMoney(groups.checkingTotal)}</span>
             </div>
             <div className="ios-list mb-16">
@@ -175,7 +177,7 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
         {groups.savings.length > 0 && (
           <>
             <div className="section-header">
-              <span>Ahorros y Metas</span>
+              <span>{s.savingsAndGoals}</span>
               <span className="tiny">{fmtMoney(groups.savingsTotal)}</span>
             </div>
             <div className="ios-list mb-16">
@@ -201,7 +203,7 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
                               background: 'var(--green)'
                             }}></div>
                           </div>
-                          <span className="tiny">{goalPct.toFixed(0)}% de {fmtMoney(a.targetAmount)}</span>
+                          <span className="tiny">{goalPct.toFixed(0)}% {s.ofTarget.replace('{amount}', fmtMoney(a.targetAmount))}</span>
                         </>
                       )}
                     </div>
@@ -214,11 +216,11 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
 
         <button className="btn-secondary mt-12">
           <Icon name="plus" size={18} />
-          <span>Conectar otra cuenta</span>
+          <span>{s.connectAnotherAccount}</span>
         </button>
 
         <p className="tiny mt-16" style={{ textAlign: 'center', lineHeight: 1.5 }}>
-          ¿Buscas tarjetas de crédito? Están en su propia sección con plan de pago personalizado.
+          {s.lookingForCards}
         </p>
       </div>
     </div>

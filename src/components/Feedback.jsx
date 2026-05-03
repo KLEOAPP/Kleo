@@ -2,18 +2,20 @@ import { useState } from 'react';
 import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { storage } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Feedback({ user, onBack, onHome, onSubmit }) {
+  const { strings: s } = useI18n();
   const [type, setType] = useState(null);
   const [message, setMessage] = useState('');
   const [rating, setRating] = useState(0);
   const [submitted, setSubmitted] = useState(false);
 
   const types = [
-    { id: 'idea', icon: '💡', label: 'Idea o Sugerencia', color: 'var(--blue)', placeholder: 'Tengo una idea para mejorar Kleo…' },
-    { id: 'bug', icon: '🐛', label: 'Algo no funciona', color: 'var(--danger)', placeholder: 'Cuando hago X, pasa Y…' },
-    { id: 'love', icon: '❤️', label: 'Algo que me encanta', color: 'var(--pink)', placeholder: 'Lo que más me gusta es…' },
-    { id: 'other', icon: '💬', label: 'Otra cosa', color: 'var(--purple)', placeholder: 'Cuéntame…' }
+    { id: 'idea', icon: '💡', label: s.idea, color: 'var(--blue)', placeholder: s.ideaPlaceholder },
+    { id: 'bug', icon: '🐛', label: s.bug, color: 'var(--danger)', placeholder: s.bugPlaceholder },
+    { id: 'love', icon: '❤️', label: s.love, color: 'var(--pink)', placeholder: s.lovePlaceholder },
+    { id: 'other', icon: '💬', label: s.other, color: 'var(--purple)', placeholder: s.otherPlaceholder }
   ];
 
   const handleSubmit = () => {
@@ -25,23 +27,18 @@ export default function Feedback({ user, onBack, onHome, onSubmit }) {
       user: user?.email || 'anonymous',
       timestamp: new Date().toISOString()
     };
-    // Guardar localmente para luego sincronizar
     const all = storage.get('feedback', []);
     all.push(entry);
     storage.set('feedback', all);
-
     setSubmitted(true);
     if (onSubmit) onSubmit(entry);
-
-    setTimeout(() => {
-      onBack();
-    }, 1800);
+    setTimeout(() => { onBack(); }, 1800);
   };
 
   if (submitted) {
     return (
       <div className="screen" style={{ paddingTop: 0 }}>
-        <TopBar onHome={onHome} onBack={onBack} title="Gracias" />
+        <TopBar onHome={onHome} onBack={onBack} title={s.thanksTitle} />
         <div className="col" style={{
           alignItems: 'center', justifyContent: 'center',
           flex: 1, gap: 16, padding: 40, textAlign: 'center'
@@ -53,10 +50,8 @@ export default function Feedback({ user, onBack, onHome, onSubmit }) {
           }}>
             <Icon name="check" size={48} color="var(--green)" stroke={3} />
           </div>
-          <h2 className="h2">¡Gracias por tu feedback!</h2>
-          <p style={{ color: 'var(--text-mute)', maxWidth: 280, lineHeight: 1.5 }}>
-            Cada sugerencia nos ayuda a hacer Kleo mejor. Te leo personalmente.
-          </p>
+          <h2 className="h2">{s.thanksFeedback}</h2>
+          <p style={{ color: 'var(--text-mute)', maxWidth: 280, lineHeight: 1.5 }}>{s.thanksDesc}</p>
         </div>
       </div>
     );
@@ -64,18 +59,17 @@ export default function Feedback({ user, onBack, onHome, onSubmit }) {
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onBack={onBack} title="Sugerencias" />
+      <TopBar onHome={onHome} onBack={onBack} title={s.suggestions} />
 
       <div style={{ padding: '12px 0' }}>
         <span style={{ fontSize: 13, color: 'var(--text-mute)', display: 'block', marginBottom: 16 }}>
-          Tu opinión es lo que hace mejor a Kleo
+          {s.yourOpinionMatters}
         </span>
 
-        {/* Selector de tipo */}
         {!type && (
           <>
             <div className="section-header" style={{ margin: '0 0 8px' }}>
-              <span>¿De qué se trata?</span>
+              <span>{s.whatIsItAbout}</span>
             </div>
             <div className="col gap-10">
               {types.map(t => (
@@ -101,7 +95,6 @@ export default function Feedback({ user, onBack, onHome, onSubmit }) {
           </>
         )}
 
-        {/* Formulario */}
         {type && (
           <>
             <div className="row gap-10 mb-16">
@@ -121,15 +114,12 @@ export default function Feedback({ user, onBack, onHome, onSubmit }) {
                 className="tiny"
                 style={{ color: 'var(--blue)', fontWeight: 600 }}
               >
-                Cambiar
+                {s.change}
               </button>
             </div>
 
-            {/* Rating de la app (opcional) */}
             <div className="card mb-16">
-              <span className="label" style={{ display: 'block', marginBottom: 12 }}>
-                ¿Cómo calificarías Kleo en general?
-              </span>
+              <span className="label" style={{ display: 'block', marginBottom: 12 }}>{s.rateKleo}</span>
               <div className="row gap-6" style={{ justifyContent: 'space-between' }}>
                 {[1, 2, 3, 4, 5].map(n => (
                   <button
@@ -150,17 +140,16 @@ export default function Feedback({ user, onBack, onHome, onSubmit }) {
                 ))}
               </div>
               <span className="tiny" style={{ display: 'block', textAlign: 'center', marginTop: 8 }}>
-                {rating === 0 ? 'Toca una estrella' :
-                 rating === 5 ? '¡La amo!' :
-                 rating >= 4 ? 'Está muy bien' :
-                 rating >= 3 ? 'Está OK' :
-                 rating >= 2 ? 'Necesita mejorar' : 'No me gusta'}
+                {rating === 0 ? s.tapStar :
+                 rating === 5 ? s.loveIt :
+                 rating >= 4 ? s.veryGood :
+                 rating >= 3 ? s.itsOk :
+                 rating >= 2 ? s.needsWork : s.dontLike}
               </span>
             </div>
 
-            {/* Mensaje */}
             <div className="col gap-6">
-              <span className="label">Cuéntame</span>
+              <span className="label">{s.tellMe}</span>
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
@@ -187,11 +176,13 @@ export default function Feedback({ user, onBack, onHome, onSubmit }) {
               disabled={!message.trim()}
               onClick={handleSubmit}
             >
-              Enviar Sugerencia
+              {s.sendSuggestion}
             </button>
 
             <p className="tiny mt-12" style={{ textAlign: 'center', lineHeight: 1.5 }}>
-              Tu mensaje es anónimo dentro del equipo.<br/>Solo se usa para mejorar Kleo.
+              {s.feedbackAnonymous.split('\n').map((line, i) => (
+                <span key={i}>{line}{i === 0 ? <br /> : null}</span>
+              ))}
             </p>
           </>
         )}

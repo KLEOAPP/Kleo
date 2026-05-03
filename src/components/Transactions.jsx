@@ -4,8 +4,10 @@ import TopBar from './TopBar.jsx';
 import MerchantIcon from './MerchantIcon.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, relativeDate, fmtTime } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Transactions({ transactions, accounts, onBack, onHome }) {
+  const { strings: s } = useI18n();
   const [filterAccount, setFilterAccount] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [search, setSearch] = useState('');
@@ -44,24 +46,24 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onBack={onBack} title="Transacciones" />
+      <TopBar onHome={onHome} onBack={onBack} title={s.transactionsTitle} />
 
       <div style={{ padding: '12px 0' }}>
         {/* Resumen */}
         <div className="card mb-16" style={{ background: 'var(--bg-elev)', border: 'none' }}>
           <div className="row" style={{ justifyContent: 'space-around' }}>
             <div className="col gap-2" style={{ alignItems: 'center' }}>
-              <span className="tiny">Movimientos</span>
+              <span className="tiny">{s.movements}</span>
               <span style={{ fontWeight: 700, fontSize: 18 }}>{filtered.length}</span>
             </div>
             <div style={{ width: 1, background: 'var(--border)' }}></div>
             <div className="col gap-2" style={{ alignItems: 'center' }}>
-              <span className="tiny">Ingresos</span>
+              <span className="tiny">{s.incomeLabel}</span>
               <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--green)' }}>+{fmtMoney(totalIncome)}</span>
             </div>
             <div style={{ width: 1, background: 'var(--border)' }}></div>
             <div className="col gap-2" style={{ alignItems: 'center' }}>
-              <span className="tiny">Gastos</span>
+              <span className="tiny">{s.expensesLabel}</span>
               <span style={{ fontWeight: 700, fontSize: 18, color: 'var(--danger)' }}>−{fmtMoney(totalSpent)}</span>
             </div>
           </div>
@@ -71,7 +73,7 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <input
             className="input-field"
-            placeholder="Buscar comercio…"
+            placeholder={s.searchMerchant}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ paddingLeft: 36 }}
@@ -93,7 +95,7 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
           <FilterChip
             active={filterAccount === 'all'}
             onClick={() => setFilterAccount('all')}
-            label="Todas las cuentas"
+            label={s.allAccounts}
           />
           {accounts.map(a => (
             <FilterChip
@@ -116,7 +118,7 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
           <FilterChip
             active={filterCategory === 'all'}
             onClick={() => setFilterCategory('all')}
-            label="Todas"
+            label={s.all}
           />
           {usedCategories.map(c => (
             <FilterChip
@@ -132,7 +134,7 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
         {grouped.length === 0 ? (
           <div className="card col" style={{ alignItems: 'center', padding: 40, gap: 8 }}>
             <span style={{ fontSize: 32, opacity: 0.4 }}>📭</span>
-            <span className="tiny">Sin transacciones que coincidan</span>
+            <span className="tiny">{s.noMatching}</span>
           </div>
         ) : (
           grouped.map(([date, txs]) => (

@@ -9,20 +9,21 @@ import {
   fmtShortDate,
   affordableExtraPayment
 } from '../utils/creditAdvisor.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Credit({ accounts, fixedExpenses = [], onBack, onHome }) {
+  const { strings: s } = useI18n();
   const [openFactor, setOpenFactor] = useState(null);
   const [extraPayment, setExtraPayment] = useState(150);
 
   const cards = useMemo(() => accounts.filter(a => a.type === 'credit'), [accounts]);
   const cardPlans = useMemo(() => cards.map(c => ({ card: c, plan: cardActionPlan(c) })), [cards]);
 
-  const totalUsed = cards.reduce((s, c) => s + Math.abs(c.balance), 0);
-  const totalLimit = cards.reduce((s, c) => s + (c.limit || 0), 0);
+  const totalUsed = cards.reduce((sum, c) => sum + Math.abs(c.balance), 0);
+  const totalLimit = cards.reduce((sum, c) => sum + (c.limit || 0), 0);
   const totalUtilization = totalLimit > 0 ? (totalUsed / totalLimit) * 100 : 0;
-  const totalMinPayments = cards.reduce((s, c) => s + (c.minPayment || 0), 0);
+  const totalMinPayments = cards.reduce((sum, c) => sum + (c.minPayment || 0), 0);
 
-  // Score estimado
   const estimatedScore = useMemo(() => {
     let base = 750;
     if (totalUtilization > 30) base -= (totalUtilization - 30) * 4;
@@ -32,10 +33,9 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
   }, [totalUtilization]);
   const range = CREDIT_RANGES.find(r => estimatedScore >= r.min && estimatedScore <= r.max) || CREDIT_RANGES[2];
 
-  const monthlyFixed = fixedExpenses.reduce((s, f) => s + f.amount, 0) || defaultUserFinance.monthlyAvgFixed;
+  const monthlyFixed = fixedExpenses.reduce((sum, f) => sum + f.amount, 0) || defaultUserFinance.monthlyAvgFixed;
   const suggestedExtra = affordableExtraPayment(defaultUserFinance.monthlyIncome, monthlyFixed, totalMinPayments);
 
-  // Tarjeta con APR más alto (mejor para pagar primero - método avalanche)
   const highestApr = useMemo(() => {
     return cards.filter(c => Math.abs(c.balance) > 0).sort((a, b) => (b.apr || 0) - (a.apr || 0))[0];
   }, [cards]);
@@ -43,11 +43,10 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
   const totalDebt = totalUsed;
   const avgApr = useMemo(() => {
     if (cards.length === 0) return 0;
-    const weighted = cards.reduce((s, c) => s + (c.apr || 0) * Math.abs(c.balance), 0);
+    const weighted = cards.reduce((sum, c) => sum + (c.apr || 0) * Math.abs(c.balance), 0);
     return weighted / Math.max(1, totalUsed);
   }, [cards, totalUsed]);
 
-  // Comparación de pago
   const comparison = useMemo(() => {
     if (totalDebt < 100 || !highestApr) return null;
     return payoffComparison(totalDebt, avgApr, totalMinPayments, extraPayment);
@@ -55,16 +54,16 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onBack={onBack} title="Tu Crédito" />
+      <TopBar onHome={onHome} onBack={onBack} title={s.yourCredit} />
       <div style={{ padding: '12px 0 4px' }}>
-        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>Plan de acción personalizado</span>
+        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>{s.personalizedPlan}</span>
       </div>
 
       {/* Score estimado */}
       <div className="card mb-16" style={{ borderColor: range.color + '44' }}>
         <div className="spread mb-8">
-          <span className="label">Score Estimado</span>
-          <span className="tiny">⚠️ Aproximado</span>
+          <span className="label">{s.estimatedScore}</span>
+          <span className="tiny">{s.approximate}</span>
         </div>
         <div className="row gap-12" style={{ alignItems: 'baseline' }}>
           <span style={{ fontSize: 48, fontWeight: 800, color: range.color, lineHeight: 1 }}>{estimatedScore}</span>
@@ -91,30 +90,30 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
         </div>
       </div>
 
-      {/* PLAN DE ACCIÓN POR TARJETA — la pieza importante */}
+      {/* Plan de acción por tarjeta */}
       <div className="section-header">
-        <span>Plan de Acción · Por Tarjeta</span>
+        <span>{s.actionPlan}</span>
       </div>
       <div className="col gap-12 mb-20">
         {cardPlans.map(({ card, plan }) => (
-          <CardActionPlan key={card.id} card={card} plan={plan} />
+          <CardActionPlan key={card.id} card={card} plan={plan} s={s} />
         ))}
       </div>
 
-      {/* CALCULADORA DE PAGO EXTRA si hay deuda significativa */}
+      {/* Calculadora */}
       {comparison && totalDebt > 500 && (
         <>
           <div className="section-header">
-            <span>Calculadora · Pago Extra</span>
+            <span>{s.extraPayCalc}</span>
           </div>
           <div className="card mb-20">
             <div className="col gap-12">
               <div>
-                <span className="label" style={{ display: 'block', marginBottom: 4 }}>
-                  Tu deuda total de crédito
-                </span>
+                <span className="label" style={{ display: 'block', marginBottom: 4 }}>{s.totalCreditDebt}</span>
                 <span style={{ fontSize: 22, fontWeight: 700 }}>{fmtMoney(totalDebt)}</span>
-                <span className="tiny" style={{ display: 'block' }}>APR promedio {avgApr.toFixed(1)}% · Pago mínimo total {fmtMoney(totalMinPayments)}</span>
+                <span className="tiny" style={{ display: 'block' }}>
+                  {s.avgApr.replace('{apr}', avgApr.toFixed(1)).replace('{amount}', fmtMoney(totalMinPayments))}
+                </span>
               </div>
 
               {comparison.minMonths && (
@@ -125,17 +124,17 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
                   padding: 14
                 }}>
                   <div className="spread mb-4">
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>Pagando solo el mínimo</span>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{s.payingMinOnly}</span>
                     <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--danger)' }}>
                       {Math.floor(comparison.minMonths / 12)}a {comparison.minMonths % 12}m
                     </span>
                   </div>
-                  <span className="tiny">Pagas {fmtMoney(comparison.minInterest)} en intereses</span>
+                  <span className="tiny">{s.payInterest.replace('{amount}', fmtMoney(comparison.minInterest))}</span>
                 </div>
               )}
 
               <div className="col gap-8">
-                <span className="label">Si pagas extra cada mes:</span>
+                <span className="label">{s.payExtraMonthly}</span>
                 <div className="row gap-8" style={{ alignItems: 'center' }}>
                   <input
                     type="range"
@@ -154,14 +153,9 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
                   <button
                     onClick={() => setExtraPayment(suggestedExtra)}
                     className="tiny"
-                    style={{
-                      color: 'var(--blue)',
-                      fontWeight: 600,
-                      textAlign: 'left',
-                      padding: 0
-                    }}
+                    style={{ color: 'var(--blue)', fontWeight: 600, textAlign: 'left', padding: 0 }}
                   >
-                    💡 Te sugiero ${suggestedExtra} (50% de tu disponible)
+                    {s.suggested50pct.replace('{amount}', suggestedExtra)}
                   </button>
                 )}
               </div>
@@ -174,36 +168,31 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
                   padding: 14
                 }}>
                   <div className="spread mb-4">
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>Pagando ${(totalMinPayments + extraPayment).toFixed(0)}/mes</span>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{s.payingPerMonth.replace('{amount}', (totalMinPayments + extraPayment).toFixed(0))}</span>
                     <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--green)' }}>
                       {Math.floor(comparison.extraMonths / 12)}a {comparison.extraMonths % 12}m
                     </span>
                   </div>
-                  <span className="tiny">Pagas {fmtMoney(comparison.extraInterest)} en intereses</span>
+                  <span className="tiny">{s.payInterest.replace('{amount}', fmtMoney(comparison.extraInterest))}</span>
                 </div>
               )}
 
               {comparison.interestSaved > 0 && (
-                <div style={{
-                  background: 'var(--gradient)',
-                  borderRadius: 12,
-                  padding: 14,
-                  color: '#fff'
-                }}>
+                <div style={{ background: 'var(--gradient)', borderRadius: 12, padding: 14, color: '#fff' }}>
                   <div className="row gap-8 mb-4">
                     <Icon name="sparkle" size={16} color="#fff" />
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>Ahorras pagando ${extraPayment} extra</span>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{s.savingsPayingExtra.replace('{amount}', extraPayment)}</span>
                   </div>
                   <div className="row gap-12">
                     <div className="col gap-2">
-                      <span style={{ fontSize: 11, opacity: 0.85 }}>Tiempo</span>
+                      <span style={{ fontSize: 11, opacity: 0.85 }}>{s.time}</span>
                       <span style={{ fontSize: 18, fontWeight: 700 }}>
                         {Math.floor(comparison.monthsSaved / 12) > 0 && `${Math.floor(comparison.monthsSaved / 12)}a `}
-                        {comparison.monthsSaved % 12}m menos
+                        {s.lessTime.replace('{time}', `${comparison.monthsSaved % 12}m`)}
                       </span>
                     </div>
                     <div className="col gap-2">
-                      <span style={{ fontSize: 11, opacity: 0.85 }}>Intereses</span>
+                      <span style={{ fontSize: 11, opacity: 0.85 }}>{s.interest}</span>
                       <span style={{ fontSize: 18, fontWeight: 700 }}>{fmtMoney(comparison.interestSaved)}</span>
                     </div>
                   </div>
@@ -216,9 +205,12 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
                     <Icon name="sparkle" size={14} color="#fff" />
                   </div>
                   <div className="col gap-4" style={{ flex: 1 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>Estrategia recomendada (Avalanche)</span>
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{s.avalancheStrategy}</span>
                     <span style={{ fontSize: 12, color: 'var(--text-mute)', lineHeight: 1.5 }}>
-                      Aplica el extra de <strong>${extraPayment}</strong> a <strong>{highestApr.name}</strong> primero (APR {highestApr.apr}%, el más alto). Cuando la termines, mueve ese pago a la siguiente. Te ahorra más intereses que distribuirlo.
+                      {s.avalancheDesc
+                        .replace('{extra}', extraPayment)
+                        .replace('{card}', highestApr.name)
+                        .replace('{apr}', highestApr.apr)}
                     </span>
                   </div>
                 </div>
@@ -230,10 +222,10 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
 
       {/* Resumen utilización total */}
       <div className="section-header">
-        <span>Resumen Total</span>
+        <span>{s.totalSummary}</span>
       </div>
       <div className="card mb-20">
-        <span className="label">Utilización Total</span>
+        <span className="label">{s.totalUtilization}</span>
         <div className="row gap-8" style={{ alignItems: 'baseline', marginTop: 6 }}>
           <span style={{ fontSize: 28, fontWeight: 700 }}>{totalUtilization.toFixed(1)}%</span>
           <span className="tiny">{fmtMoney(totalUsed)} / {fmtMoney(totalLimit)}</span>
@@ -247,18 +239,16 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
           <div style={{ position: 'absolute', left: '30%', top: -2, width: 2, height: 12, background: 'var(--orange)', borderRadius: 1 }}></div>
         </div>
         <div className="row spread mt-8">
-          <span className="tiny" style={{ color: 'var(--green)' }}>● 5% Excelente</span>
-          <span className="tiny" style={{ color: 'var(--orange)' }}>● 30% Máximo OK</span>
+          <span className="tiny" style={{ color: 'var(--green)' }}>{s.excellent5}</span>
+          <span className="tiny" style={{ color: 'var(--orange)' }}>{s.maxOk30}</span>
         </div>
       </div>
 
-      {/* Educación: Factores FICO */}
+      {/* Factores FICO */}
       <div className="section-header">
-        <span>Factores que Afectan tu Score</span>
+        <span>{s.factorsTitle}</span>
       </div>
-      <p className="tiny mb-12" style={{ lineHeight: 1.5 }}>
-        Tu FICO Score se calcula con 5 factores. Toca cada uno para entenderlo.
-      </p>
+      <p className="tiny mb-12" style={{ lineHeight: 1.5 }}>{s.factorsDesc}</p>
 
       <div className="col gap-8 mb-20">
         {CREDIT_FACTORS.map(f => {
@@ -279,7 +269,7 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
                     }}>{f.icon}</div>
                     <div className="col gap-2">
                       <span style={{ fontWeight: 600, fontSize: 14 }}>{f.label}</span>
-                      <span className="tiny" style={{ color: f.color, fontWeight: 700 }}>{f.weight}% de tu score</span>
+                      <span className="tiny" style={{ color: f.color, fontWeight: 700 }}>{f.weight}% {s.ofYourScore}</span>
                     </div>
                   </div>
                   <div style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform .2s' }}>
@@ -297,7 +287,7 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
                     {f.description}
                   </p>
                   <div className="col gap-8 mt-12">
-                    <span className="label">Cómo mejorarlo:</span>
+                    <span className="label">{s.howToImprove}</span>
                     {f.tips.map((tip, i) => (
                       <div key={i} className="row gap-8" style={{ alignItems: 'flex-start' }}>
                         <span style={{ color: f.color, fontSize: 14, marginTop: 1 }}>✓</span>
@@ -315,8 +305,7 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
   );
 }
 
-/* ===== Plan de acción para UNA tarjeta ===== */
-function CardActionPlan({ card, plan }) {
+function CardActionPlan({ card, plan, s }) {
   const [expanded, setExpanded] = useState(plan.urgency === 'urgent' || plan.urgency === 'recommended');
 
   return (
@@ -325,7 +314,6 @@ function CardActionPlan({ card, plan }) {
       overflow: 'hidden',
       borderColor: plan.urgency === 'urgent' ? plan.statusColor : 'var(--border)'
     }}>
-      {/* Header tocable */}
       <button
         onClick={() => setExpanded(!expanded)}
         style={{ width: '100%', padding: 14, textAlign: 'left' }}
@@ -342,11 +330,7 @@ function CardActionPlan({ card, plan }) {
             <span style={{ fontWeight: 700, color: plan.statusColor, fontSize: 16 }}>
               {plan.utilization.toFixed(1)}%
             </span>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: plan.statusColor
-            }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: plan.statusColor }}>
               {plan.status}
             </span>
           </div>
@@ -360,107 +344,103 @@ function CardActionPlan({ card, plan }) {
         </div>
 
         <div className="spread mt-8">
-          <span className="tiny">Balance {fmtMoney(plan.balance)} / Límite {fmtMoney(plan.limit)}</span>
+          <span className="tiny">{s.balance} {fmtMoney(plan.balance)} / {s.limit.replace('{amount}', fmtMoney(plan.limit))}</span>
           <span className="tiny" style={{ color: 'var(--blue)', fontWeight: 600 }}>
-            {expanded ? 'Ocultar plan ▲' : 'Ver plan ▼'}
+            {expanded ? s.hidePlan : s.showPlan}
           </span>
         </div>
       </button>
 
-      {/* Plan detallado */}
       {expanded && (
         <div style={{ borderTop: '1px solid var(--border-soft)', padding: 14 }}>
-          {/* Acción principal: bajar a 5% */}
           {plan.payToReach5 > 0 && (
             <ActionStep
               icon="🎯"
               color="var(--green)"
-              title={`Paga ${fmtMoney(plan.payToReach5)} para crédito EXCELENTE`}
+              title={s.payForExcellent.replace('{amount}', fmtMoney(plan.payToReach5))}
               steps={[
                 {
-                  label: 'CUÁNDO PAGAR',
+                  label: s.whenToPay,
                   value: plan.payByDate
-                    ? `Antes del ${fmtShortDate(plan.payByDate)}`
-                    : 'Antes del cierre',
+                    ? s.beforeDate.replace('{date}', fmtShortDate(plan.payByDate))
+                    : s.beforeClose,
                   sub: plan.daysUntilPayBy !== null
                     ? plan.daysUntilPayBy < 0
-                      ? `Pasó hace ${Math.abs(plan.daysUntilPayBy)} días — el próximo cierre es el ${fmtShortDate(plan.cycleCloseDate)}`
+                      ? s.passedDaysAgo.replace('{n}', Math.abs(plan.daysUntilPayBy)).replace('{date}', fmtShortDate(plan.cycleCloseDate))
                       : plan.daysUntilPayBy === 0
-                      ? '⚠️ HOY es el día'
-                      : `En ${plan.daysUntilPayBy} días`
+                      ? s.todayIsDay
+                      : s.inDays.replace('{n}', plan.daysUntilPayBy)
                     : null
                 },
                 {
-                  label: 'NO USES LA TARJETA',
+                  label: s.dontUseCard,
                   value: plan.payByDate && plan.cycleCloseDate
-                    ? `Del ${fmtShortDate(plan.payByDate)} al ${fmtShortDate(plan.cycleCloseDate)}`
-                    : 'Hasta que cierre el ciclo',
-                  sub: 'Para que el balance reportado sea exactamente lo que dejes después de pagar'
+                    ? s.fromTo.replace('{from}', fmtShortDate(plan.payByDate)).replace('{to}', fmtShortDate(plan.cycleCloseDate))
+                    : s.untilCycleClose,
+                  sub: s.dontUseReason
                 },
                 {
-                  label: 'POR QUÉ',
-                  value: 'El buró de crédito ve solo el balance al cierre del ciclo',
-                  sub: 'No el balance del día del pago. Por eso pagar 2 días antes y no usar funciona.'
+                  label: s.whyLabel,
+                  value: s.whyValue,
+                  sub: s.whySub
                 }
               ]}
             />
           )}
 
-          {/* Acción si está sobre 30% */}
           {plan.utilization >= 30 && plan.payToReach30 > 0 && (
             <ActionStep
               icon="⚠️"
               color="var(--danger)"
-              title={`MÍNIMO paga ${fmtMoney(plan.payToReach30)} para no afectar tu score`}
+              title={s.minPayAtLeast.replace('{amount}', fmtMoney(plan.payToReach30))}
               steps={[
                 {
-                  label: 'URGENTE',
-                  value: 'Pasar de 30% baja tu score notablemente',
-                  sub: 'Si no puedes los $' + plan.payToReach5.toFixed(0) + ' para 5%, al menos haz este pago'
+                  label: s.urgentLabel,
+                  value: s.urgentOver30,
+                  sub: s.urgentIfCant.replace('{amount}', plan.payToReach5.toFixed(0))
                 }
               ]}
             />
           )}
 
-          {/* Pago mínimo (siempre obligatorio) */}
           {plan.paymentDueDate && card.minPayment && (
             <ActionStep
               icon="💳"
               color={plan.daysUntilDue <= 5 ? 'var(--danger)' : 'var(--blue)'}
-              title={`Pago mínimo: ${fmtMoney(card.minPayment)}`}
+              title={s.minPayment.replace('{amount}', fmtMoney(card.minPayment))}
               steps={[
                 {
-                  label: 'VENCE',
+                  label: s.dueLabel,
                   value: fmtShortDate(plan.paymentDueDate),
                   sub: plan.daysUntilDue === 0
-                    ? '⚠️ HOY'
+                    ? s.todayExcl
                     : plan.daysUntilDue === 1
-                    ? '⚠️ MAÑANA'
+                    ? s.tomorrowExcl
                     : plan.daysUntilDue <= 5
-                    ? `En ${plan.daysUntilDue} días — recordatorio activo`
-                    : `En ${plan.daysUntilDue} días`
+                    ? s.reminderActive.replace('{n}', plan.daysUntilDue)
+                    : s.inDays.replace('{n}', plan.daysUntilDue)
                 },
                 {
-                  label: 'AVISO',
-                  value: 'Te recordaré 2 días antes y el día del vencimiento',
-                  sub: 'NUNCA pagues tarde. Un atraso de 30+ días puede bajar tu score 60-110 puntos.'
+                  label: s.warningLabel,
+                  value: s.warningValue,
+                  sub: s.warningSub
                 }
               ]}
             />
           )}
 
-          {/* Si está en EXCELENTE */}
           {plan.utilization < 5 && (
             <div className="ai-alert">
               <div className="ai-icon">
                 <Icon name="check" size={14} color="#fff" stroke={3} />
               </div>
               <div className="col gap-4" style={{ flex: 1 }}>
-                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--green)' }}>
-                  ✓ Esta tarjeta está PERFECTA
-                </span>
+                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--green)' }}>{s.cardPerfect}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-mute)', lineHeight: 1.5 }}>
-                  Mantén bajo 5% al cierre del día {card.cycleCloseDay} y seguirás en zona excelente. Próximo pago mínimo {fmtMoney(card.minPayment)} el {fmtShortDate(plan.paymentDueDate)}.
+                  {s.cardPerfectDesc
+                    .replace('{day}', card.cycleCloseDay)
+                    .replace('{amount}', fmtMoney(card.minPayment))
+                    .replace('{date}', fmtShortDate(plan.paymentDueDate))}
                 </span>
               </div>
             </div>
@@ -484,7 +464,7 @@ function ActionStep({ icon, color, title, steps }) {
         padding: 12,
         marginLeft: 26
       }}>
-        {steps.map((s, i) => (
+        {steps.map((step, i) => (
           <div key={i} style={{
             paddingBottom: i < steps.length - 1 ? 10 : 0,
             marginBottom: i < steps.length - 1 ? 10 : 0,
@@ -495,9 +475,9 @@ function ActionStep({ icon, color, title, steps }) {
               fontWeight: 700,
               color: 'var(--text-mute)',
               letterSpacing: '0.05em'
-            }}>{s.label}</span>
-            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{s.value}</div>
-            {s.sub && <div className="tiny" style={{ marginTop: 2, lineHeight: 1.4 }}>{s.sub}</div>}
+            }}>{step.label}</span>
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{step.value}</div>
+            {step.sub && <div className="tiny" style={{ marginTop: 2, lineHeight: 1.4 }}>{step.sub}</div>}
           </div>
         ))}
       </div>

@@ -3,8 +3,10 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, fmtMoneyShort } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Analysis({ transactions, onHome, onMenu }) {
+  const { strings: s } = useI18n();
   const [view, setView] = useState('week');
 
   const stats = useMemo(() => {
@@ -15,16 +17,15 @@ export default function Analysis({ transactions, onHome, onMenu }) {
 
     const thisMonth = transactions
       .filter(t => new Date(t.date) >= monthStart && t.amount < 0 && t.category !== 'transferencia')
-      .reduce((s, t) => s + Math.abs(t.amount), 0);
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     const lastMonth = transactions
       .filter(t => {
         const d = new Date(t.date);
         return d >= lastMonthStart && d <= lastMonthEnd && t.amount < 0 && t.category !== 'transferencia';
       })
-      .reduce((s, t) => s + Math.abs(t.amount), 0);
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-    // approx last month from limited sample data
     const approxLast = lastMonth || thisMonth * 1.18;
     const diff = thisMonth - approxLast;
     const pctChange = approxLast > 0 ? (diff / approxLast) * 100 : 0;
@@ -57,7 +58,7 @@ export default function Analysis({ transactions, onHome, onMenu }) {
       .forEach(t => {
         totals[t.category] = (totals[t.category] || 0) + Math.abs(t.amount);
       });
-    const sum = Object.values(totals).reduce((s, v) => s + v, 0);
+    const sum = Object.values(totals).reduce((acc, v) => acc + v, 0);
     return Object.entries(totals)
       .map(([cat, amount]) => ({
         cat,
@@ -76,42 +77,45 @@ export default function Analysis({ transactions, onHome, onMenu }) {
     if (top) {
       recs.push({
         icon: '✨',
-        title: `Tu mayor gasto es en ${top.label}`,
-        body: `${fmtMoney(top.amount)} este mes (${top.pct.toFixed(0)}%). Si lo reduces 15%, ahorrarías ${fmtMoney(top.amount * 0.15)}/mes.`
+        title: s.topSpending.replace('{label}', top.label),
+        body: s.topSpendingDesc
+          .replace('{amount}', fmtMoney(top.amount))
+          .replace('{pct}', top.pct.toFixed(0))
+          .replace('{savings}', fmtMoney(top.amount * 0.15))
       });
     }
     if (stats.pctChange > 0) {
       recs.push({
         icon: '⚠️',
-        title: 'Estás gastando más que el mes pasado',
-        body: `${stats.pctChange.toFixed(1)}% más. Revisa tus categorías para identificar dónde ajustar.`
+        title: s.spendingMore,
+        body: s.spendingMoreDesc.replace('{pct}', stats.pctChange.toFixed(1))
       });
     } else {
       recs.push({
         icon: '🎯',
-        title: '¡Vas mejor que el mes pasado!',
-        body: `Has gastado ${fmtMoney(Math.abs(stats.diff))} menos. Considera mover esa diferencia a tus ahorros.`
+        title: s.spendingLess,
+        body: s.spendingLessDesc.replace('{amount}', fmtMoney(Math.abs(stats.diff)))
       });
     }
     const cafe = categoryData.find(c => c.cat === 'cafe');
     if (cafe && cafe.amount > 25) {
       recs.push({
         icon: '☕',
-        title: 'Hábito identificado: Café',
-        body: `Llevas ${fmtMoney(cafe.amount)} en café. Una cafetera en casa se paga sola en 2 meses.`
+        title: s.coffeeHabit,
+        body: s.coffeeHabitDesc.replace('{amount}', fmtMoney(cafe.amount))
       });
     }
     return recs;
-  }, [categoryData, stats]);
+  }, [categoryData, stats, s]);
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onMenu={onMenu} title="Análisis" />
+      <TopBar onHome={onHome} onMenu={onMenu} title={s.analysis} />
       <div style={{ padding: '12px 0' }}></div>
 
       {/* Comparativa mes vs mes */}
       <div className="card mb-20" style={{ background: 'linear-gradient(135deg, rgba(0,229,176,0.06) 0%, rgba(0,132,255,0.06) 100%)', borderColor: 'rgba(0,229,176,0.15)' }}>
-        <span className="label">Gasto este mes</span>
+        <span className="label">{s.spendingThisMonth}</span>
         <h1 className="h1 mt-8" style={{ fontSize: 38 }}>{fmtMoney(stats.thisMonth)}</h1>
         <div className="row gap-8 mt-12">
           <div className="row gap-4" style={{
@@ -125,21 +129,21 @@ export default function Analysis({ transactions, onHome, onMenu }) {
             <Icon name={stats.pctChange > 0 ? 'trending-up' : 'trending-down'} size={14} />
             <span>{Math.abs(stats.pctChange).toFixed(1)}%</span>
           </div>
-          <span className="tiny">vs mes pasado ({fmtMoney(stats.lastMonth)})</span>
+          <span className="tiny">{s.vsLastMonth.replace('{amount}', fmtMoney(stats.lastMonth))}</span>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="tabs mb-16">
-        <button className={`tab ${view === 'week' ? 'active' : ''}`} onClick={() => setView('week')}>Semanas</button>
-        <button className={`tab ${view === 'category' ? 'active' : ''}`} onClick={() => setView('category')}>Categorías</button>
+        <button className={`tab ${view === 'week' ? 'active' : ''}`} onClick={() => setView('week')}>{s.weeks}</button>
+        <button className={`tab ${view === 'category' ? 'active' : ''}`} onClick={() => setView('category')}>{s.categories}</button>
       </div>
 
       {view === 'week' && (
         <div className="card">
           <div className="spread mb-16">
-            <h3 className="h3">Por Semana</h3>
-            <span className="tiny">Últimas 4 semanas</span>
+            <h3 className="h3">{s.byWeek}</h3>
+            <span className="tiny">{s.last4Weeks}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', height: 180, gap: 12, padding: '8px 0' }}>
             {weeklyData.map((val, i) => (
@@ -161,9 +165,8 @@ export default function Analysis({ transactions, onHome, onMenu }) {
 
       {view === 'category' && (
         <div className="card">
-          <h3 className="h3 mb-16">Por Categoría</h3>
+          <h3 className="h3 mb-16">{s.byCategory}</h3>
 
-          {/* Donut visual */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
             <DonutChart data={categoryData} />
           </div>
@@ -189,7 +192,7 @@ export default function Analysis({ transactions, onHome, onMenu }) {
       <div className="mt-24">
         <div className="row gap-8 mb-12">
           <Icon name="sparkle" size={18} color="var(--green)" />
-          <h3 className="h3">Recomendaciones de Kleo IA</h3>
+          <h3 className="h3">{s.kleoAiRecommendations}</h3>
         </div>
         <div className="col gap-12">
           {recommendations.map((r, i) => (

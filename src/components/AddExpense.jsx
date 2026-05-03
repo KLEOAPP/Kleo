@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
 import { CATEGORIES, sampleReceiptMerchants } from '../data/sampleData.js';
 import { fmtMoney, todayISO } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function AddExpense({ accounts, onAdd, onClose }) {
+  const { strings: s } = useI18n();
   const [method, setMethod] = useState(null);
 
   return (
@@ -14,8 +16,8 @@ export default function AddExpense({ accounts, onAdd, onClose }) {
 
       {!method && (
         <>
-          <h2 className="h2 mb-8">Agregar Gasto</h2>
-          <p className="label mb-24">Elige cómo quieres registrarlo</p>
+          <h2 className="h2 mb-8">{s.addExpense}</h2>
+          <p className="label mb-24">{s.chooseMethod}</p>
 
           <div className="method-grid">
             <button className="method-card" onClick={() => setMethod('plaid')}>
@@ -23,8 +25,8 @@ export default function AddExpense({ accounts, onAdd, onClose }) {
                 <Icon name="link" size={22} />
               </div>
               <div className="col gap-4">
-                <span style={{ fontWeight: 600, fontSize: 15 }}>Automático</span>
-                <span className="tiny">Plaid · Tarjetas y banco</span>
+                <span style={{ fontWeight: 600, fontSize: 15 }}>{s.automatic}</span>
+                <span className="tiny">{s.automaticDesc}</span>
               </div>
             </button>
 
@@ -33,8 +35,8 @@ export default function AddExpense({ accounts, onAdd, onClose }) {
                 <Icon name="phone" size={22} />
               </div>
               <div className="col gap-4">
-                <span style={{ fontWeight: 600, fontSize: 15 }}>ATH Móvil</span>
-                <span className="tiny">Detección automática</span>
+                <span style={{ fontWeight: 600, fontSize: 15 }}>{s.athMovil}</span>
+                <span className="tiny">{s.athDetection}</span>
               </div>
             </button>
 
@@ -43,8 +45,8 @@ export default function AddExpense({ accounts, onAdd, onClose }) {
                 <Icon name="camera" size={22} />
               </div>
               <div className="col gap-4">
-                <span style={{ fontWeight: 600, fontSize: 15 }}>Foto Recibo</span>
-                <span className="tiny">IA lee y registra</span>
+                <span style={{ fontWeight: 600, fontSize: 15 }}>{s.photoReceipt}</span>
+                <span className="tiny">{s.photoAiReads}</span>
               </div>
             </button>
 
@@ -53,8 +55,8 @@ export default function AddExpense({ accounts, onAdd, onClose }) {
                 <Icon name="edit" size={22} />
               </div>
               <div className="col gap-4">
-                <span style={{ fontWeight: 600, fontSize: 15 }}>Manual</span>
-                <span className="tiny">Escríbelo tú</span>
+                <span style={{ fontWeight: 600, fontSize: 15 }}>{s.manual}</span>
+                <span className="tiny">{s.manualWrite}</span>
               </div>
             </button>
           </div>
@@ -64,25 +66,22 @@ export default function AddExpense({ accounts, onAdd, onClose }) {
               <Icon name="sparkle" size={16} color="#0D0D14" />
             </div>
             <div className="col gap-4" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Tip de Kleo IA</span>
-              <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.4 }}>
-                Conecta Plaid una vez y olvídate. Tus gastos se categorizan solos.
-              </span>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.kleoTip}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.4 }}>{s.plaidTip}</span>
             </div>
           </div>
         </>
       )}
 
-      {method === 'plaid' && <PlaidFlow accounts={accounts} onAdd={onAdd} />}
-      {method === 'ath' && <AthFlow accounts={accounts} onAdd={onAdd} />}
-      {method === 'photo' && <PhotoFlow accounts={accounts} onAdd={onAdd} />}
-      {method === 'manual' && <ManualFlow accounts={accounts} onAdd={onAdd} />}
+      {method === 'plaid' && <PlaidFlow accounts={accounts} onAdd={onAdd} s={s} />}
+      {method === 'ath' && <AthFlow accounts={accounts} onAdd={onAdd} s={s} />}
+      {method === 'photo' && <PhotoFlow accounts={accounts} onAdd={onAdd} s={s} />}
+      {method === 'manual' && <ManualFlow accounts={accounts} onAdd={onAdd} s={s} />}
     </div>
   );
 }
 
-/* ----- Plaid (Automático) ----- */
-function PlaidFlow({ accounts, onAdd }) {
+function PlaidFlow({ accounts, onAdd, s }) {
   const [stage, setStage] = useState('connect');
   const [progress, setProgress] = useState(0);
 
@@ -105,8 +104,8 @@ function PlaidFlow({ accounts, onAdd }) {
   if (stage === 'connect') {
     return (
       <>
-        <h2 className="h2 mb-8">Conexión Automática</h2>
-        <p className="label mb-24">Plaid se sincroniza con tus cuentas y categoriza tus gastos por ti</p>
+        <h2 className="h2 mb-8">{s.autoConnection}</h2>
+        <p className="label mb-24">{s.autoConnectionDesc}</p>
 
         <div className="col gap-12">
           {accounts.map(a => (
@@ -120,14 +119,14 @@ function PlaidFlow({ accounts, onAdd }) {
               </div>
               <div className="row gap-6" style={{ color: 'var(--green)' }}>
                 <Icon name="check" size={16} color="var(--green)" />
-                <span className="tiny" style={{ color: 'var(--green)' }}>Conectado</span>
+                <span className="tiny" style={{ color: 'var(--green)' }}>{s.connected}</span>
               </div>
             </div>
           ))}
         </div>
 
         <button className="btn-primary mt-24" onClick={() => setStage('syncing')}>
-          Sincronizar Ahora
+          {s.syncNow}
         </button>
       </>
     );
@@ -138,8 +137,8 @@ function PlaidFlow({ accounts, onAdd }) {
       <div className="col" style={{ alignItems: 'center', justifyContent: 'center', flex: 1, gap: 24 }}>
         <div style={{ width: 100, height: 100, borderRadius: '50%', border: '3px solid var(--bg-elev)', borderTopColor: 'var(--green)', animation: 'spin 1s linear infinite' }}></div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <h3 className="h3">Sincronizando…</h3>
-        <span className="label">{progress}% · Buscando transacciones nuevas</span>
+        <h3 className="h3">{s.syncing}</h3>
+        <span className="label">{progress}% · {s.searchingTransactions}</span>
       </div>
     );
   }
@@ -149,16 +148,13 @@ function PlaidFlow({ accounts, onAdd }) {
       <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(0,229,176,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Icon name="check" size={48} color="var(--green)" stroke={3} />
       </div>
-      <h3 className="h3">Sincronizado</h3>
-      <p className="label" style={{ textAlign: 'center', maxWidth: 280 }}>
-        12 transacciones nuevas detectadas y categorizadas automáticamente.
-      </p>
+      <h3 className="h3">{s.synced}</h3>
+      <p className="label" style={{ textAlign: 'center', maxWidth: 280 }}>{s.syncResult}</p>
     </div>
   );
 }
 
-/* ----- ATH Móvil ----- */
-function AthFlow({ accounts, onAdd }) {
+function AthFlow({ accounts, onAdd, s }) {
   const [stage, setStage] = useState('detecting');
   const [selectedCat, setSelectedCat] = useState(null);
 
@@ -169,12 +165,7 @@ function AthFlow({ accounts, onAdd }) {
     }
   }, [stage]);
 
-  const detected = {
-    amount: 35.00,
-    person: 'Jorge Méndez',
-    date: 'Hace 2 minutos'
-  };
-
+  const detected = { amount: 35.00, person: 'Jorge Méndez', date: 'Hace 2 minutos' };
   const quickCats = ['comida', 'transferencia', 'transporte', 'compras', 'entretenimiento', 'otro'];
 
   if (stage === 'detecting') {
@@ -186,21 +177,21 @@ function AthFlow({ accounts, onAdd }) {
             <Icon name="phone" size={28} color="#FF6B9D" />
           </div>
         </div>
-        <h3 className="h3">Detectando ATH Móvil…</h3>
-        <span className="label">Plaid revisando transferencias recientes</span>
+        <h3 className="h3">{s.detectingAth}</h3>
+        <span className="label">{s.detectingAthDesc}</span>
       </div>
     );
   }
 
   return (
     <>
-      <h2 className="h2 mb-8">ATH Móvil Detectado</h2>
-      <p className="label mb-16">Acabamos de detectar esta transferencia. ¿De qué fue?</p>
+      <h2 className="h2 mb-8">{s.athDetected}</h2>
+      <p className="label mb-16">{s.athDetectedDesc}</p>
 
       <div className="card mb-20">
         <div className="spread">
           <div className="col gap-4">
-            <span className="tiny">Transferencia a</span>
+            <span className="tiny">{s.transferTo}</span>
             <span style={{ fontWeight: 600, fontSize: 16 }}>{detected.person}</span>
             <span className="tiny">{detected.date}</span>
           </div>
@@ -208,7 +199,7 @@ function AthFlow({ accounts, onAdd }) {
         </div>
       </div>
 
-      <span className="label mb-8" style={{ display: 'block' }}>Categoría</span>
+      <span className="label mb-8" style={{ display: 'block' }}>{s.category}</span>
       <div className="chip-grid">
         {quickCats.map(c => {
           const cat = CATEGORIES[c];
@@ -237,14 +228,13 @@ function AthFlow({ accounts, onAdd }) {
           method: 'ath'
         })}
       >
-        Guardar Gasto
+        {s.saveExpense}
       </button>
     </>
   );
 }
 
-/* ----- Foto Recibo ----- */
-function PhotoFlow({ accounts, onAdd }) {
+function PhotoFlow({ accounts, onAdd, s }) {
   const [stage, setStage] = useState('capture');
   const [parsed, setParsed] = useState(null);
   const [accountId, setAccountId] = useState(accounts[0].id);
@@ -261,32 +251,25 @@ function PhotoFlow({ accounts, onAdd }) {
   if (stage === 'capture') {
     return (
       <>
-        <h2 className="h2 mb-8">Escanear Recibo</h2>
-        <p className="label mb-24">La IA leerá el monto, comercio y categoría por ti</p>
+        <h2 className="h2 mb-8">{s.scanReceipt}</h2>
+        <p className="label mb-24">{s.scanReceiptDesc}</p>
 
         <div onClick={startScan} style={{
-          width: '100%',
-          aspectRatio: '4/5',
-          borderRadius: 22,
-          background: 'var(--bg-card)',
-          border: '2px dashed var(--border)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 16,
-          cursor: 'pointer'
+          width: '100%', aspectRatio: '4/5', borderRadius: 22,
+          background: 'var(--bg-card)', border: '2px dashed var(--border)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: 16, cursor: 'pointer'
         }}>
           <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(167, 139, 250, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="camera" size={36} color="#A78BFA" />
           </div>
-          <span style={{ fontWeight: 600, fontSize: 16 }}>Toca para tomar foto</span>
-          <span className="tiny">o subir desde galería</span>
+          <span style={{ fontWeight: 600, fontSize: 16 }}>{s.tapToPhoto}</span>
+          <span className="tiny">{s.orFromGallery}</span>
         </div>
 
         <button className="btn-primary mt-20" onClick={startScan}>
           <Icon name="camera" size={20} color="#0D0D14" />
-          <span>Abrir Cámara</span>
+          <span>{s.openCamera}</span>
         </button>
       </>
     );
@@ -310,46 +293,37 @@ function PhotoFlow({ accounts, onAdd }) {
             IVU      4.55<br/>
           </div>
           <div style={{
-            position: 'absolute',
-            left: 0, right: 0, height: 3,
-            background: 'var(--green)',
-            boxShadow: '0 0 12px var(--green)',
-            top: '50%',
-            animation: 'scanline 1.4s ease-in-out infinite'
+            position: 'absolute', left: 0, right: 0, height: 3,
+            background: 'var(--green)', boxShadow: '0 0 12px var(--green)',
+            top: '50%', animation: 'scanline 1.4s ease-in-out infinite'
           }}></div>
-          <style>{`
-            @keyframes scanline {
-              0% { top: 0%; }
-              50% { top: 95%; }
-              100% { top: 0%; }
-            }
-          `}</style>
+          <style>{`@keyframes scanline { 0% { top: 0%; } 50% { top: 95%; } 100% { top: 0%; } }`}</style>
         </div>
-        <h3 className="h3">Leyendo recibo con IA…</h3>
-        <span className="label">Identificando comercio, monto y artículos</span>
+        <h3 className="h3">{s.readingReceipt}</h3>
+        <span className="label">{s.identifyingMerchant}</span>
       </div>
     );
   }
 
   return (
     <>
-      <h2 className="h2 mb-8">Recibo Escaneado</h2>
-      <p className="label mb-20">Confirma los datos extraídos</p>
+      <h2 className="h2 mb-8">{s.scannedReceipt}</h2>
+      <p className="label mb-20">{s.confirmExtracted}</p>
 
       <div className="card mb-16">
         <div className="col gap-16">
           <div className="spread">
-            <span className="label">Comercio</span>
+            <span className="label">{s.merchant}</span>
             <span style={{ fontWeight: 600 }}>{parsed.merchant}</span>
           </div>
           <div className="divider"></div>
           <div className="spread">
-            <span className="label">Total</span>
+            <span className="label">{s.total}</span>
             <span style={{ fontWeight: 700, fontSize: 20 }}>{fmtMoney(parsed.amount)}</span>
           </div>
           <div className="divider"></div>
           <div className="spread">
-            <span className="label">Categoría</span>
+            <span className="label">{s.category}</span>
             <div className="row gap-6">
               <span>{CATEGORIES[parsed.category].icon}</span>
               <span style={{ fontWeight: 600 }}>{CATEGORIES[parsed.category].label}</span>
@@ -357,23 +331,20 @@ function PhotoFlow({ accounts, onAdd }) {
           </div>
           <div className="divider"></div>
           <div className="col gap-6">
-            <span className="label">Artículos detectados</span>
-            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>
-              {parsed.items.join(' · ')}
-            </div>
+            <span className="label">{s.detectedItems}</span>
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{parsed.items.join(' · ')}</div>
           </div>
         </div>
       </div>
 
-      <span className="label mb-8" style={{ display: 'block' }}>Cargar a</span>
+      <span className="label mb-8" style={{ display: 'block' }}>{s.chargeTo}</span>
       <div className="col gap-8">
         {accounts.map(a => (
           <button
             key={a.id}
             className="row gap-12 spread"
             style={{
-              padding: '14px 16px',
-              borderRadius: 14,
+              padding: '14px 16px', borderRadius: 14,
               background: 'var(--bg-card)',
               border: `1px solid ${accountId === a.id ? 'var(--green)' : 'var(--border)'}`
             }}
@@ -399,14 +370,13 @@ function PhotoFlow({ accounts, onAdd }) {
           method: 'photo'
         })}
       >
-        Guardar Gasto
+        {s.saveExpense}
       </button>
     </>
   );
 }
 
-/* ----- Manual ----- */
-function ManualFlow({ accounts, onAdd }) {
+function ManualFlow({ accounts, onAdd, s }) {
   const [amount, setAmount] = useState('');
   const [merchant, setMerchant] = useState('');
   const [category, setCategory] = useState('comida');
@@ -416,18 +386,15 @@ function ManualFlow({ accounts, onAdd }) {
 
   return (
     <>
-      <h2 className="h2 mb-8">Gasto Manual</h2>
-      <p className="label mb-24">Llena los campos y guarda</p>
+      <h2 className="h2 mb-8">{s.manualExpense}</h2>
+      <p className="label mb-24">{s.fillAndSave}</p>
 
       <div className="col gap-16">
         <div className="col gap-6">
-          <span className="label">Monto</span>
+          <span className="label">{s.amount}</span>
           <div className="row" style={{
-            background: 'var(--bg-input)',
-            borderRadius: 14,
-            border: '1px solid var(--border)',
-            padding: '0 16px',
-            height: 64
+            background: 'var(--bg-input)', borderRadius: 14,
+            border: '1px solid var(--border)', padding: '0 16px', height: 64
           }}>
             <span style={{ fontSize: 28, color: 'var(--text-mute)' }}>$</span>
             <input
@@ -442,17 +409,17 @@ function ManualFlow({ accounts, onAdd }) {
         </div>
 
         <div className="col gap-6">
-          <span className="label">Comercio</span>
+          <span className="label">{s.merchantLabel}</span>
           <input
             className="input-field"
             value={merchant}
             onChange={e => setMerchant(e.target.value)}
-            placeholder="Ej. El Mesón, Walmart…"
+            placeholder={s.merchantPlaceholder}
           />
         </div>
 
         <div className="col gap-6">
-          <span className="label">Categoría</span>
+          <span className="label">{s.category}</span>
           <div className="chip-grid">
             {Object.entries(CATEGORIES).filter(([k]) => k !== 'ingreso').slice(0, 9).map(([key, cat]) => (
               <button
@@ -468,15 +435,14 @@ function ManualFlow({ accounts, onAdd }) {
         </div>
 
         <div className="col gap-6">
-          <span className="label">Cuenta</span>
+          <span className="label">{s.accountLabel}</span>
           <div className="col gap-8">
             {accounts.map(a => (
               <button
                 key={a.id}
                 className="row gap-12 spread"
                 style={{
-                  padding: '14px 16px',
-                  borderRadius: 14,
+                  padding: '14px 16px', borderRadius: 14,
                   background: 'var(--bg-card)',
                   border: `1px solid ${accountId === a.id ? 'var(--green)' : 'var(--border)'}`
                 }}
@@ -505,7 +471,7 @@ function ManualFlow({ accounts, onAdd }) {
           method: 'manual'
         })}
       >
-        Guardar Gasto
+        {s.saveExpense}
       </button>
     </>
   );

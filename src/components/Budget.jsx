@@ -3,8 +3,10 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, fmtDate, fmtTime } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Budget({ household, fixedExpenses, transactions, onBack, onHome, onUpdateHousehold, onConfirmShared }) {
+  const { strings: s } = useI18n();
   const [tab, setTab] = useState('mes');
   const [editingMember, setEditingMember] = useState(false);
 
@@ -16,23 +18,22 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
     return new Date(d.getFullYear(), d.getMonth(), 1);
   }, []);
 
-  // Suma todos los gastos del mes (fijos + variables)
   const monthExpenses = useMemo(() => {
     return transactions
       .filter(t => new Date(t.date) >= monthStart && t.amount < 0 && t.category !== 'transferencia');
   }, [transactions, monthStart]);
 
   const totalMonth = useMemo(() => {
-    const fixed = fixedExpenses.reduce((s, f) => s + f.amount, 0);
-    const variable = monthExpenses.reduce((s, t) => s + Math.abs(t.amount), 0);
+    const fixed = fixedExpenses.reduce((sum, f) => sum + f.amount, 0);
+    const variable = monthExpenses.reduce((sum, t) => sum + Math.abs(t.amount), 0);
     return fixed + variable;
   }, [fixedExpenses, monthExpenses]);
 
   const sharedExpenses = useMemo(() => {
     const fixed = fixedExpenses.filter(f => f.shared);
     const variable = monthExpenses.filter(t => t.shared);
-    const fixedTotal = fixed.reduce((s, f) => s + f.amount, 0);
-    const variableTotal = variable.reduce((s, t) => s + Math.abs(t.amount), 0);
+    const fixedTotal = fixed.reduce((sum, f) => sum + f.amount, 0);
+    const variableTotal = variable.reduce((sum, t) => sum + Math.abs(t.amount), 0);
     return {
       total: fixedTotal + variableTotal,
       fixed,
@@ -43,12 +44,11 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
   }, [fixedExpenses, monthExpenses, me, partner]);
 
   const myExpenses = useMemo(() => {
-    const fixed = fixedExpenses.filter(f => !f.shared).reduce((s, f) => s + f.amount, 0);
-    const variable = monthExpenses.filter(t => !t.shared).reduce((s, t) => s + Math.abs(t.amount), 0);
+    const fixed = fixedExpenses.filter(f => !f.shared).reduce((sum, f) => sum + f.amount, 0);
+    const variable = monthExpenses.filter(t => !t.shared).reduce((sum, t) => sum + Math.abs(t.amount), 0);
     return fixed + variable;
   }, [fixedExpenses, monthExpenses]);
 
-  // Tabla por categoría con gastos compartidos vs propios
   const tableData = useMemo(() => {
     const byCat = {};
     [...fixedExpenses.map(f => ({ ...f, isFixed: true })), ...monthExpenses.map(t => ({
@@ -68,9 +68,9 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onBack={onBack} title="Presupuesto" />
+      <TopBar onHome={onHome} onBack={onBack} title={s.budget} />
       <div className="spread" style={{ padding: '12px 0' }}>
-        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>Compartido con tu hogar</span>
+        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>{s.sharedWithHome}</span>
         <button
           onClick={() => setEditingMember(true)}
           style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -83,8 +83,8 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
       {household.enabled && partner && (
         <div className="card mb-16" style={{ background: 'linear-gradient(135deg, rgba(0,229,176,0.08), rgba(0,132,255,0.08))', borderColor: 'rgba(0,229,176,0.2)' }}>
           <div className="spread mb-12">
-            <span className="label">Hogar Compartido</span>
-            <span className="tiny" style={{ color: 'var(--green)' }}>● Activo</span>
+            <span className="label">{s.sharedHome}</span>
+            <span className="tiny" style={{ color: 'var(--green)' }}>{s.active}</span>
           </div>
           <div className="row gap-16" style={{ alignItems: 'center' }}>
             <div className="col" style={{ alignItems: 'center', gap: 6 }}>
@@ -113,7 +113,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
             </div>
           </div>
           <div className="tiny mt-12" style={{ textAlign: 'center', lineHeight: 1.5 }}>
-            División {household.splitMethod === 'income' ? 'proporcional al ingreso' : 'igual'} · Toca el lápiz para cambiar
+            {s.splitDesc.replace('{method}', household.splitMethod === 'income' ? s.splitProportional : s.splitEqual)}
           </div>
         </div>
       )}
@@ -123,7 +123,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
         <div className="mb-16">
           <div className="row gap-8 mb-12">
             <Icon name="sparkle" size={18} color="var(--green)" />
-            <h3 className="h3">IA: Necesito que confirmes</h3>
+            <h3 className="h3">{s.aiNeedConfirm}</h3>
           </div>
           <div className="col gap-12">
             {household.pendingConfirmations.map(p => (
@@ -134,7 +134,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
                     <span className="tiny">{p.date} · {fmtMoney(p.amount)}</span>
                   </div>
                   <span className="tiny" style={{ background: 'rgba(0,229,176,0.15)', color: 'var(--green)', padding: '4px 8px', borderRadius: 6, fontWeight: 600 }}>
-                    Sugerido: {p.suggestedShared ? 'Compartido' : 'Personal'}
+                    {p.suggestedShared ? s.suggestedShared : s.suggestedPersonal}
                   </span>
                 </div>
                 <p className="tiny" style={{ marginBottom: 12, lineHeight: 1.4 }}>💭 {p.reason}</p>
@@ -144,7 +144,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
                     style={{ height: 40, fontSize: 13, flex: 1 }}
                     onClick={() => onConfirmShared(p.id, !p.suggestedShared)}
                   >
-                    {p.suggestedShared ? 'Es Personal' : 'Compartirlo'}
+                    {p.suggestedShared ? s.isPersonal : s.shareIt}
                   </button>
                   <button
                     className="btn-primary"
@@ -152,7 +152,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
                     onClick={() => onConfirmShared(p.id, p.suggestedShared)}
                   >
                     <Icon name="check" size={14} color="#0D0D14" />
-                    <span>Confirmar</span>
+                    <span>{s.confirm}</span>
                   </button>
                 </div>
               </div>
@@ -163,29 +163,29 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
 
       {/* Tabs */}
       <div className="tabs mb-16">
-        <button className={`tab ${tab === 'mes' ? 'active' : ''}`} onClick={() => setTab('mes')}>Resumen</button>
-        <button className={`tab ${tab === 'tabla' ? 'active' : ''}`} onClick={() => setTab('tabla')}>Tabla</button>
-        <button className={`tab ${tab === 'split' ? 'active' : ''}`} onClick={() => setTab('split')}>Liquidación</button>
+        <button className={`tab ${tab === 'mes' ? 'active' : ''}`} onClick={() => setTab('mes')}>{s.summary}</button>
+        <button className={`tab ${tab === 'tabla' ? 'active' : ''}`} onClick={() => setTab('tabla')}>{s.table}</button>
+        <button className={`tab ${tab === 'split' ? 'active' : ''}`} onClick={() => setTab('split')}>{s.settlement}</button>
       </div>
 
       {tab === 'mes' && (
         <div className="col gap-16">
           <div className="card">
-            <span className="label">Total del mes</span>
+            <span className="label">{s.totalMonth}</span>
             <h1 className="h1 mt-4" style={{ fontSize: 36 }}>{fmtMoney(totalMonth)}</h1>
             <div className="divider mt-12 mb-12"></div>
             <div className="col gap-12">
               <div className="spread">
                 <div className="row gap-8">
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--green)' }}></span>
-                  <span style={{ fontSize: 14 }}>Compartidos</span>
+                  <span style={{ fontSize: 14 }}>{s.shared}</span>
                 </div>
                 <span style={{ fontWeight: 600 }}>{fmtMoney(sharedExpenses.total)}</span>
               </div>
               <div className="spread">
                 <div className="row gap-8">
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--blue)' }}></span>
-                  <span style={{ fontSize: 14 }}>Solo míos</span>
+                  <span style={{ fontSize: 14 }}>{s.onlyMine}</span>
                 </div>
                 <span style={{ fontWeight: 600 }}>{fmtMoney(myExpenses)}</span>
               </div>
@@ -209,10 +209,8 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
               <Icon name="sparkle" size={14} color="#0D0D14" />
             </div>
             <div className="col gap-4" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Detección automática activa</span>
-              <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 }}>
-                La IA aprendió tus patrones: hipoteca y servicios = compartidos, gasolina y café = personales. Te avisa solo cuando duda.
-              </span>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.autoDetection}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 }}>{s.autoDetectionDesc}</span>
             </div>
           </div>
         </div>
@@ -230,9 +228,9 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
             color: 'var(--text-mute)',
             textTransform: 'uppercase'
           }}>
-            <span>Categoría</span>
-            <span style={{ textAlign: 'right' }}>Compartido</span>
-            <span style={{ textAlign: 'right' }}>Personal</span>
+            <span>{s.categoryLabel}</span>
+            <span style={{ textAlign: 'right' }}>{s.sharedLabel}</span>
+            <span style={{ textAlign: 'right' }}>{s.personalLabel}</span>
           </div>
           {tableData.map((row, i) => (
             <div key={row.cat} style={{
@@ -246,7 +244,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
                 <span style={{ fontSize: 18 }}>{row.icon}</span>
                 <div className="col gap-2">
                   <span style={{ fontSize: 14, fontWeight: 500 }}>{row.label}</span>
-                  <span className="tiny">{row.items.length} items</span>
+                  <span className="tiny">{row.items.length} {s.items}</span>
                 </div>
               </div>
               <span style={{ textAlign: 'right', fontWeight: 600, fontSize: 14, color: row.shared > 0 ? 'var(--green)' : 'var(--text-dim)' }}>
@@ -265,7 +263,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
             borderTop: '1px solid var(--border)',
             fontWeight: 700
           }}>
-            <span>Total</span>
+            <span>{s.total}</span>
             <span style={{ textAlign: 'right', color: 'var(--green)' }}>{fmtMoney(sharedExpenses.total)}</span>
             <span style={{ textAlign: 'right', color: 'var(--blue)' }}>{fmtMoney(myExpenses)}</span>
           </div>
@@ -275,7 +273,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
       {tab === 'split' && partner && (
         <div className="col gap-16">
           <div className="card">
-            <h3 className="h3 mb-16">División del mes</h3>
+            <h3 className="h3 mb-16">{s.monthDivision}</h3>
             <div className="col gap-16">
               <div className="spread">
                 <div className="row gap-12">
@@ -287,7 +285,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
                   }}>{me.avatar}</div>
                   <div className="col gap-4">
                     <span style={{ fontWeight: 600 }}>{me.name}</span>
-                    <span className="tiny">Tu parte ({(me.incomeRatio * 100).toFixed(0)}%)</span>
+                    <span className="tiny">{s.yourPart.replace('{pct}', (me.incomeRatio * 100).toFixed(0))}</span>
                   </div>
                 </div>
                 <span style={{ fontWeight: 700, fontSize: 18 }}>{fmtMoney(sharedExpenses.myShare)}</span>
@@ -303,7 +301,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
                   }}>{partner.avatar}</div>
                   <div className="col gap-4">
                     <span style={{ fontWeight: 600 }}>{partner.name}</span>
-                    <span className="tiny">Su parte ({(partner.incomeRatio * 100).toFixed(0)}%)</span>
+                    <span className="tiny">{s.theirPart.replace('{pct}', (partner.incomeRatio * 100).toFixed(0))}</span>
                   </div>
                 </div>
                 <span style={{ fontWeight: 700, fontSize: 18 }}>{fmtMoney(sharedExpenses.partnerShare)}</span>
@@ -313,7 +311,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
 
           <button className="btn-primary">
             <Icon name="phone" size={18} color="#0D0D14" />
-            <span>Cobrar {fmtMoney(sharedExpenses.partnerShare)} por ATH</span>
+            <span>{s.collectAth.replace('{amount}', fmtMoney(sharedExpenses.partnerShare))}</span>
           </button>
 
           <div className="ai-alert">
@@ -321,9 +319,12 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
               <Icon name="sparkle" size={14} color="#0D0D14" />
             </div>
             <div className="col gap-4" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>División proporcional al ingreso</span>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.proportionalSplit}</span>
               <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 }}>
-                Como tú aportas el {(me.incomeRatio * 100).toFixed(0)}% del ingreso del hogar y {partner.name} el {(partner.incomeRatio * 100).toFixed(0)}%, los gastos compartidos se dividen igual. Justo y proporcional.
+                {s.proportionalDesc
+                  .replace('{myPct}', (me.incomeRatio * 100).toFixed(0))
+                  .replace('{name}', partner.name)
+                  .replace('{theirPct}', (partner.incomeRatio * 100).toFixed(0))}
               </span>
             </div>
           </div>
@@ -333,19 +334,17 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
       {!household.enabled && (
         <div className="card col" style={{ alignItems: 'center', padding: 32, gap: 12 }}>
           <span style={{ fontSize: 40 }}>👥</span>
-          <span style={{ fontWeight: 600 }}>Compartir gastos con alguien</span>
-          <span className="tiny" style={{ textAlign: 'center' }}>
-            Si vives con tu pareja, familia o roommate, activa hogar compartido. La IA divide automáticamente.
-          </span>
+          <span style={{ fontWeight: 600 }}>{s.shareExpenses}</span>
+          <span className="tiny" style={{ textAlign: 'center' }}>{s.shareExpensesDesc}</span>
           <button className="btn-primary mt-16" onClick={() => onUpdateHousehold({ ...household, enabled: true })}>
-            Activar Hogar Compartido
+            {s.activateShared}
           </button>
         </div>
       )}
 
-      {/* Modal edición miembro */}
       {editingMember && (
         <EditHousehold
+          s={s}
           household={household}
           onSave={(h) => {
             onUpdateHousehold(h);
@@ -358,7 +357,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
   );
 }
 
-function EditHousehold({ household, onSave, onClose }) {
+function EditHousehold({ s, household, onSave, onClose }) {
   const [members, setMembers] = useState(household.members);
   const [splitMethod, setSplitMethod] = useState(household.splitMethod);
   const [enabled, setEnabled] = useState(household.enabled);
@@ -376,6 +375,12 @@ function EditHousehold({ household, onSave, onClose }) {
     });
   };
 
+  const splitOptions = [
+    { id: 'income', label: s.proportionalToIncome, desc: s.proportionalToIncomeDesc },
+    { id: 'equal', label: s.halfAndHalf, desc: s.halfAndHalfDesc },
+    { id: 'custom', label: s.custom, desc: s.customDesc }
+  ];
+
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
@@ -387,13 +392,13 @@ function EditHousehold({ household, onSave, onClose }) {
         animation: 'fadeUp .3s ease'
       }} onClick={e => e.stopPropagation()}>
         <div style={{ width: 40, height: 4, background: 'var(--border)', borderRadius: 2, margin: '0 auto 16px' }}></div>
-        <h2 className="h2 mb-16">Configurar Hogar</h2>
+        <h2 className="h2 mb-16">{s.configureHome}</h2>
 
         <div className="card mb-16">
           <div className="spread">
             <div className="col gap-4">
-              <span style={{ fontWeight: 600 }}>Compartir gastos</span>
-              <span className="tiny">Activa cuando vives con alguien</span>
+              <span style={{ fontWeight: 600 }}>{s.shareExpensesToggle}</span>
+              <span className="tiny">{s.shareExpensesToggleDesc}</span>
             </div>
             <button
               onClick={() => setEnabled(!enabled)}
@@ -414,7 +419,7 @@ function EditHousehold({ household, onSave, onClose }) {
 
         {enabled && (
           <>
-            <h3 className="h3 mb-12">Miembros</h3>
+            <h3 className="h3 mb-12">{s.members}</h3>
             {members.map(m => (
               <div key={m.id} className="card mb-12">
                 <div className="row gap-12 mb-12">
@@ -432,7 +437,7 @@ function EditHousehold({ household, onSave, onClose }) {
                   />
                 </div>
                 <span className="label" style={{ display: 'block', marginBottom: 6 }}>
-                  Ratio de ingreso: {(m.incomeRatio * 100).toFixed(0)}%
+                  {s.incomeRatio.replace('{pct}', (m.incomeRatio * 100).toFixed(0))}
                 </span>
                 <input
                   type="range"
@@ -444,13 +449,9 @@ function EditHousehold({ household, onSave, onClose }) {
               </div>
             ))}
 
-            <h3 className="h3 mb-12 mt-16">Método de división</h3>
+            <h3 className="h3 mb-12 mt-16">{s.splitMethod}</h3>
             <div className="col gap-8">
-              {[
-                { id: 'income', label: 'Proporcional al ingreso', desc: 'Quien gana más, paga más (recomendado)' },
-                { id: 'equal', label: 'Mitad y mitad', desc: 'Dividir 50/50 sin importar ingreso' },
-                { id: 'custom', label: 'Personalizado', desc: 'Tú decides el % de cada uno' }
-              ].map(opt => (
+              {splitOptions.map(opt => (
                 <button
                   key={opt.id}
                   className="row gap-12 spread"
@@ -477,7 +478,7 @@ function EditHousehold({ household, onSave, onClose }) {
           className="btn-primary mt-24"
           onClick={() => onSave({ ...household, enabled, members, splitMethod })}
         >
-          Guardar
+          {s.save}
         </button>
       </div>
     </div>

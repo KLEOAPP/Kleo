@@ -3,8 +3,10 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, fmtMoneyShort, monthName } from '../utils/storage.js';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Reports({ transactions, fixedExpenses, onBack, onHome }) {
+  const { strings: s, lang } = useI18n();
   const [period, setPeriod] = useState('month'); // month | quarter
 
   const reports = useMemo(() => {
@@ -38,8 +40,8 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
         const finalIncome = income || (i > 0 ? 2850 * 2 : income);
 
         periodReports.push({
-          label: monthName(monthDate.getMonth(), monthDate.getFullYear()),
-          shortLabel: monthDate.toLocaleDateString('es-PR', { month: 'short' }),
+          label: monthDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-PR', { month: 'long', year: 'numeric' }),
+          shortLabel: monthDate.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-PR', { month: 'short' }),
           spending: total,
           income: finalIncome,
           savings: finalIncome - total,
@@ -112,15 +114,15 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      <TopBar onHome={onHome} onBack={onBack} title="Reportes" />
+      <TopBar onHome={onHome} onBack={onBack} title={s.reports} />
       <div style={{ padding: '12px 0 4px' }}>
-        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>Mensual y trimestral con comparativas</span>
+        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>{s.monthlyQuarterly}</span>
       </div>
 
       {/* Tabs */}
       <div className="tabs mb-20">
-        <button className={`tab ${period === 'month' ? 'active' : ''}`} onClick={() => setPeriod('month')}>Mensual</button>
-        <button className={`tab ${period === 'quarter' ? 'active' : ''}`} onClick={() => setPeriod('quarter')}>Trimestral</button>
+        <button className={`tab ${period === 'month' ? 'active' : ''}`} onClick={() => setPeriod('month')}>{s.monthly}</button>
+        <button className={`tab ${period === 'quarter' ? 'active' : ''}`} onClick={() => setPeriod('quarter')}>{s.quarterly}</button>
       </div>
 
       {/* Comparativo principal */}
@@ -129,18 +131,18 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
         borderColor: 'rgba(0,229,176,0.15)'
       }}>
         <div className="spread mb-8">
-          <span className="label">{period === 'month' ? 'Este mes' : 'Este trimestre'}</span>
+          <span className="label">{period === 'month' ? s.thisMonth : s.thisQuarter}</span>
           <span className="tiny" style={{ textTransform: 'capitalize' }}>{current.label}</span>
         </div>
         <h1 className="h1" style={{ fontSize: 38 }}>{fmtMoney(current.spending)}</h1>
 
         <div className="row gap-16 mt-12">
           <div className="col gap-2">
-            <span className="tiny">Ingresos</span>
+            <span className="tiny">{s.income}</span>
             <span style={{ fontWeight: 600, color: 'var(--green)' }}>+{fmtMoney(current.income)}</span>
           </div>
           <div className="col gap-2">
-            <span className="tiny">Ahorrado</span>
+            <span className="tiny">{s.saved}</span>
             <span style={{
               fontWeight: 600,
               color: current.savings > 0 ? 'var(--green)' : 'var(--danger)'
@@ -171,8 +173,8 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
       {/* Bar chart histórico */}
       <div className="card mb-20">
         <div className="spread mb-16">
-          <h3 className="h3">Tendencia</h3>
-          <span className="tiny">{period === 'month' ? '6 meses' : '4 trimestres'}</span>
+          <h3 className="h3">{s.trend}</h3>
+          <span className="tiny">{period === 'month' ? s.sixMonths : s.fourQuarters}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', height: 180, gap: 10, padding: '8px 0' }}>
           {[...reports].reverse().map((r, i) => (
@@ -196,7 +198,7 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
       {/* Cambios por categoría */}
       {topCategoryChange && topCategoryChange.length > 0 && (
         <div className="mb-20">
-          <h3 className="h3 mb-12">Mayores Cambios vs {previous?.shortLabel}</h3>
+          <h3 className="h3 mb-12">{s.biggestChanges.replace('{period}', previous?.shortLabel || '')}</h3>
           <div className="col gap-8">
             {topCategoryChange.map(c => {
               const cat = CATEGORIES[c.cat] || CATEGORIES.otro;
@@ -237,10 +239,10 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
           color: 'var(--text-mute)',
           textTransform: 'uppercase'
         }}>
-          <span>Período</span>
-          <span style={{ textAlign: 'right' }}>Ingreso</span>
-          <span style={{ textAlign: 'right' }}>Gasto</span>
-          <span style={{ textAlign: 'right' }}>Ahorro</span>
+          <span>{s.period}</span>
+          <span style={{ textAlign: 'right' }}>{s.income}</span>
+          <span style={{ textAlign: 'right' }}>{s.expenses}</span>
+          <span style={{ textAlign: 'right' }}>{s.savings}</span>
         </div>
         {reports.map((r, i) => (
           <div key={i} style={{
@@ -273,13 +275,13 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
           <Icon name="sparkle" size={14} color="#0D0D14" />
         </div>
         <div className="col gap-4" style={{ flex: 1 }}>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Resumen del período</span>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>{s.periodSummary}</span>
           <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 }}>
             {change > 5
-              ? `Gastaste ${Math.abs(change).toFixed(1)}% más que ${previous?.shortLabel}. Revisa tus categorías para identificar dónde se fue.`
+              ? s.spentMoreReport.replace('{pct}', Math.abs(change).toFixed(1)).replace('{period}', previous?.shortLabel || '')
               : change < -5
-              ? `¡Gastaste ${Math.abs(change).toFixed(1)}% menos que ${previous?.shortLabel}! Considera mover esa diferencia (${fmtMoney(previous.spending - current.spending)}) a tus metas.`
-              : `Gasto similar al período anterior. Estable es bueno, pero revisa si puedes reducir alguna categoría.`}
+              ? s.spentLessReport.replace('{pct}', Math.abs(change).toFixed(1)).replace('{period}', previous?.shortLabel || '').replace('{amount}', fmtMoney(previous.spending - current.spending))
+              : s.stableReport}
           </span>
         </div>
       </div>
@@ -287,7 +289,7 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
       {/* Botón de descarga (mock) */}
       <button className="btn-secondary mt-8">
         <Icon name="edit" size={18} />
-        <span>Exportar PDF</span>
+        <span>{s.exportPdf}</span>
       </button>
     </div>
   );
