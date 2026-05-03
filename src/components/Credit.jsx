@@ -314,9 +314,9 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
             <input
               type="range"
               min="0"
-              max={Math.max(500, suggestedExtra * 2)}
+              max={Math.max(100, Math.ceil(selectedDebt / 25) * 25)}
               step="25"
-              value={extraPayment}
+              value={Math.min(extraPayment, Math.max(100, Math.ceil(selectedDebt / 25) * 25))}
               onChange={e => setExtraPayment(Number(e.target.value))}
               style={{ width: '100%', accentColor: '#A855F7', marginTop: 12 }}
             />
@@ -324,9 +324,15 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
             <div className="col gap-6 mt-12">
               <span className="tiny" style={{ fontSize: 11, fontWeight: 600 }}>{s.quickAmount}</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {[25, 50, 100, 200, suggestedExtra > 0 ? suggestedExtra : 300]
-                  .filter((v, i, arr) => v > 0 && arr.indexOf(v) === i)
-                  .map(v => (
+                {(() => {
+                  // Presets dinámicos basados en la deuda — 5%, 10%, 25%, 50% de la deuda + sugerencia
+                  const round = v => Math.max(25, Math.round(v / 25) * 25);
+                  const dynamic = selectedDebt > 0
+                    ? [round(selectedDebt * 0.05), round(selectedDebt * 0.10), round(selectedDebt * 0.25), round(selectedDebt * 0.50)]
+                    : [25, 50, 100, 200];
+                  if (suggestedExtra > 0) dynamic.push(round(suggestedExtra));
+                  return dynamic.filter((v, i, arr) => v > 0 && arr.indexOf(v) === i).slice(0, 5);
+                })().map(v => (
                     <button
                       key={v}
                       onClick={() => setExtraPayment(v)}
