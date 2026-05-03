@@ -88,10 +88,54 @@ export function depositDaysInMonth(schedule, year, month) {
 }
 
 /**
- * Genera todos los eventos del mes a partir de las fuentes de datos del usuario.
- * Cada evento tiene { id, type, day, name, amount, color, urgency, locked, ...meta }.
+ * Detecta si un evento ya fue pagado mirando las transacciones reales del cliente.
+ * Empareja por monto cercano (±10%) + ventana de fechas (±7d) + heurística por tipo.
  */
-export function buildMonthEvents({ year, month, fixedExpenses = [], accounts = [], transactions = [], goals = [], manualEvents = [], paidIds = [] }) {
+function detectPaidEvent(event, eventDate, transactions) {
+  if (!transactions || transactions.length === 0) return null;
+  const windowDays = event.type === 'subscription' ? 4 : 7;
+  const startMs = eventDate.getTime() - windowDays * 86400000;
+  const endMs = eventDate.getTime() + windowDays * 86400000;
+
+  for (const t of transactions) {
+    const td = new Date(t.date).getTime();
+    if (td < startMs || td > endMs) continue;
+
+    // Para pagos/gastos: la transacción debe ser saliente; para metas: entrante
+    const amt = Math.abs(t.amount);
+    const isOutflow = t.amount < 0;
+    const isInflow = t.amount > 0;
+    if (event.type === 'goal' && !isInflow) continue;
+    if (event.type !== 'goal' && !isOutflow) continue;
+
+    // Tolerancia de monto (±10%, pero al menos $1)
+    const tol = Math.max(1, event.amount * 0.10);
+    if (Math.abs(amt - event.amount) > tol) continue;
+
+    // Filtros adicionales por tipo
+    if (event.type === 'subscription' && event.merchant) {
+      const tag = event.merchant.toLowerCase().split(/\s+/)[0];
+      if (!(t.merchant || '').toLowerCase().includes(tag)) continue;
+    }
+    if (event.type === 'fixed' && event.name) {
+      const firstWord = event.name.toLowerCase().split(/\s+/)[0];
+      const merchantLow = (t.merchant || '').toLowerCase();
+      if (!merchantLow.includes(firstWord) && t.category !== 'servicios' && t.category !== 'hogar') continue;
+    }
+    if (event.type === 'payment' && event.cardId) {
+      // Aceptamos cualquier salida de la cuenta corriente con monto similar; difícil de validar 100%
+    }
+
+    return { paidDate: new Date(t.date), txId: t.id, txMerchant: t.merchant };
+  }
+  return null;
+}
+
+/**
+ * Genera todos los eventos del mes a partir de las fuentes de datos del usuario.
+ * Cada evento tiene { id, type, day, name, amount, color, urgency, locked, paid, ...meta }.
+ */
+export function buildMonthEvents({ year, month, fixedExpenses = [], accounts = [], transactions = [], goals = [], manualEvents = [] }) {
   const events = [];
   const dim = daysInMonth(year, month);
   const today = new Date();
@@ -247,8 +291,15 @@ export function buildMonthEvents({ year, month, fixedExpenses = [], accounts = [
     }
   });
 
-  // Marcar pagados según paidIds
-  return events.map(e => ({ ...e, paid: paidIds.includes(e.id) }));
+  // Marcar pagados automáticamente con base en transacciones reales
+  return events.map(e => {
+    if (e.type === 'alert') return { ...e, paid: false };
+    const eventDate = new Date(year, month, e.day);
+    const detected = detectPaidEvent(e, eventDate, transactions);
+    return detected
+      ? { ...e, paid: true, paidDate: detected.paidDate, paidVia: detected.txMerchant }
+      : { ...e, paid: false };
+  });
 }
 
 /** Cuenta eventos por día y devuelve un mapa { [day]: events[] } */

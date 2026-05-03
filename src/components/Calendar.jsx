@@ -3,7 +3,7 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import BankLogo from './BankLogo.jsx';
 import MerchantIcon from './MerchantIcon.jsx';
-import { fmtMoney, fmtMoneyShort, daysInMonth, fmtDate } from '../utils/storage.js';
+import { fmtMoney, fmtMoneyShort, daysInMonth } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
 import { buildMonthEvents, eventsByDay, detectSubscriptions } from '../utils/calendarEvents.js';
 
@@ -26,20 +26,13 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
   const [selectedDay, setSelectedDay] = useState(null);
   const [showAddManual, setShowAddManual] = useState(false);
 
-  // Persistencia simple en localStorage para eventos manuales y pagados
+  // Eventos manuales del usuario (persisten en localStorage)
   const [manualEvents, setManualEvents] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kleo_manual_events') || '[]'); } catch { return []; }
   });
-  const [paidIds, setPaidIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kleo_paid_events') || '[]'); } catch { return []; }
-  });
-
   useEffect(() => {
     localStorage.setItem('kleo_manual_events', JSON.stringify(manualEvents));
   }, [manualEvents]);
-  useEffect(() => {
-    localStorage.setItem('kleo_paid_events', JSON.stringify(paidIds));
-  }, [paidIds]);
 
   const today = new Date();
   const isCurrentMonth = today.getMonth() === cursor.month && today.getFullYear() === cursor.year;
@@ -47,9 +40,9 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
   const events = useMemo(
     () => buildMonthEvents({
       year: cursor.year, month: cursor.month,
-      fixedExpenses, accounts, transactions, goals, manualEvents, paidIds
+      fixedExpenses, accounts, transactions, goals, manualEvents
     }),
-    [cursor, fixedExpenses, accounts, transactions, goals, manualEvents, paidIds]
+    [cursor, fixedExpenses, accounts, transactions, goals, manualEvents]
   );
   const eventsMap = useMemo(() => eventsByDay(events), [events]);
 
@@ -67,12 +60,24 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
     setSelectedDay(null);
   };
 
-  // Resumen para módulos rápidos
+  // ===== Pagos de esta semana (solo mes actual) =====
+  const weekPayments = useMemo(() => {
+    if (!isCurrentMonth) return { events: [], total: 0, paidTotal: 0, pendingTotal: 0 };
+    const start = today.getDate();
+    const end = start + 7;
+    const list = events
+      .filter(e =>
+        (e.type === 'fixed' || e.type === 'payment' || e.type === 'subscription' || e.type === 'goal') &&
+        e.day >= start && e.day <= end
+      )
+      .sort((a, b) => a.day - b.day);
+    const total = list.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const paidTotal = list.filter(e => e.paid).reduce((sum, e) => sum + (e.amount || 0), 0);
+    const pendingTotal = total - paidTotal;
+    return { events: list, total, paidTotal, pendingTotal };
+  }, [events, isCurrentMonth]);
+
   const summary = useMemo(() => {
-    const week = isCurrentMonth ? events.filter(e =>
-      (e.type === 'fixed' || e.type === 'payment' || e.type === 'subscription') &&
-      e.day >= today.getDate() && e.day - today.getDate() <= 7 && !e.paid
-    ).length : 0;
     const subsCount = detectSubscriptions(transactions).length;
     const goalsBehind = goals.filter(g => {
       if (!g.schedule?.nextDate) return false;
@@ -80,14 +85,24 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
       return nd < today && (g.current || 0) < g.target;
     }).length;
     const alerts = events.filter(e => e.type === 'alert').length;
-    return { week, subsCount, goalsBehind, alerts };
-  }, [events, transactions, goals, isCurrentMonth, today]);
+    return { subsCount, goalsBehind, alerts };
+  }, [events, transactions, goals]);
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
       <TopBar onHome={onHome} onBack={onBack} title={s.calendar} />
 
       <div style={{ padding: '12px 0' }}>
+        {/* ===== Resumen "Pagos esta semana" (arriba) ===== */}
+        {isCurrentMonth && weekPayments.events.length > 0 && (
+          <WeekSummary
+            data={weekPayments}
+            accounts={accounts}
+            s={s}
+            onPickEvent={(e) => setSelectedDay(e.day)}
+          />
+        )}
+
         {/* ===== Calendario principal ===== */}
         <div className="card mb-16" style={{ padding: 16, borderRadius: 22 }}>
           <div className="spread mb-16">
@@ -102,23 +117,21 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
             </button>
           </div>
 
-          {/* Encabezados */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 6 }}>
             {s.dayLetters.map((d, i) => (
               <div key={i} className="tiny" style={{ textAlign: 'center', fontWeight: 700, fontSize: 10, opacity: 0.6 }}>{d}</div>
             ))}
           </div>
 
-          {/* Grid de días */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
             {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={'pad' + i}></div>)}
             {Array.from({ length: dim }).map((_, i) => {
               const day = i + 1;
               const dayEvts = eventsMap[day] || [];
               const isToday = isCurrentMonth && day === today.getDate();
-              const isSelected = selectedDay === day;
               const dominant = dayEvts[0];
               const dominantColor = dominant?.color;
+              const allPaid = dayEvts.length > 0 && dayEvts.every(e => e.paid || e.type === 'alert');
 
               return (
                 <button
@@ -127,14 +140,13 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
                   style={{
                     aspectRatio: '1',
                     borderRadius: 10,
-                    background: isSelected ? 'var(--pill-grad)'
-                      : isToday ? 'rgba(168, 85, 247, 0.15)'
+                    background: isToday ? 'rgba(168, 85, 247, 0.15)'
                       : dayEvts.length === 0 ? 'transparent'
                       : 'var(--bg-elev)',
-                    border: isToday && !isSelected ? '1.5px solid var(--purple)' : 'none',
-                    color: isSelected ? '#fff' : 'var(--text)',
+                    border: isToday ? '1.5px solid var(--purple)' : 'none',
+                    color: 'var(--text)',
                     fontSize: 12,
-                    fontWeight: isToday || isSelected ? 700 : 500,
+                    fontWeight: isToday ? 700 : 500,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -143,22 +155,33 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
                     position: 'relative',
                     overflow: 'hidden',
                     minHeight: 56,
-                    transition: 'background .15s'
+                    transition: 'background .15s',
+                    opacity: allPaid ? 0.65 : 1
                   }}
                 >
                   <span style={{ fontSize: 12, lineHeight: 1, opacity: dayEvts.length === 0 ? 0.5 : 1 }}>{day}</span>
 
-                  {/* Mini logo + label */}
                   {dominant && (
-                    <div className="col" style={{ alignItems: 'center', gap: 1, marginTop: 3 }}>
+                    <div className="col" style={{ alignItems: 'center', gap: 1, marginTop: 3, position: 'relative' }}>
                       <DayEventGlyph event={dominant} small />
+                      {dominant.paid && (
+                        <span style={{
+                          position: 'absolute', top: -3, right: -5,
+                          width: 10, height: 10, borderRadius: '50%',
+                          background: 'var(--green)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          border: '1.5px solid var(--bg-card)'
+                        }}>
+                          <Icon name="check" size={6} color="#0D0D14" stroke={4} />
+                        </span>
+                      )}
                       {dayEvts.length > 1 && (
                         <span style={{
                           fontSize: 8, fontWeight: 700,
                           padding: '0 3px',
                           borderRadius: 3,
-                          background: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--bg-card)',
-                          color: isSelected ? '#fff' : 'var(--text-mute)',
+                          background: 'var(--bg-card)',
+                          color: 'var(--text-mute)',
                           marginTop: 1
                         }}>
                           +{dayEvts.length - 1}
@@ -167,12 +190,13 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
                     </div>
                   )}
 
-                  {/* Indicador color en franja */}
                   {dominantColor && dayEvts.length > 0 && (
                     <div style={{
                       position: 'absolute', bottom: 0, left: 6, right: 6,
-                      height: 2, background: dominantColor, borderRadius: 1,
-                      opacity: isSelected ? 0.8 : 0.9
+                      height: 2,
+                      background: allPaid ? 'var(--green)' : dominantColor,
+                      borderRadius: 1,
+                      opacity: 0.9
                     }} />
                   )}
                 </button>
@@ -180,7 +204,6 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
             })}
           </div>
 
-          {/* Leyenda */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 14, justifyContent: 'center' }}>
             <LegendDot color="#FF4D6D" label={s.calLegendUrgent} />
             <LegendDot color="#FFD60A" label={s.calLegendUpcoming} />
@@ -190,42 +213,13 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
           </div>
         </div>
 
-        {/* ===== Detalle del día seleccionado ===== */}
-        {selectedDay && (
-          <DayDetail
-            day={selectedDay}
-            month={cursor.month}
-            year={cursor.year}
-            events={eventsMap[selectedDay] || []}
-            accounts={accounts}
-            s={s}
-            lang={lang}
-            onClose={() => setSelectedDay(null)}
-            onMarkPaid={(eventId) => {
-              setPaidIds(prev => prev.includes(eventId) ? prev.filter(id => id !== eventId) : [...prev, eventId]);
-            }}
-            onDelete={(eventId) => {
-              if (eventId.startsWith('manual')) {
-                setManualEvents(prev => prev.filter(e => e.id !== eventId));
-              }
-            }}
-          />
-        )}
-
-        {/* ===== Accesos rápidos ===== */}
+        {/* ===== Accesos rápidos restantes ===== */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 10,
           marginBottom: 16
         }}>
-          <QuickModule
-            icon="💳"
-            color="#FF4D6D"
-            title={s.calQuickPayments}
-            value={summary.week}
-            sub={s.calQuickPaymentsCount.replace('{n}', summary.week)}
-          />
           <QuickModule
             icon="🔁"
             color="#A855F7"
@@ -273,6 +267,25 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
         </button>
       </div>
 
+      {/* ===== Overlay del detalle del día ===== */}
+      {selectedDay && (
+        <DayDetailOverlay
+          day={selectedDay}
+          month={cursor.month}
+          year={cursor.year}
+          events={eventsMap[selectedDay] || []}
+          accounts={accounts}
+          s={s}
+          lang={lang}
+          onClose={() => setSelectedDay(null)}
+          onDelete={(eventId) => {
+            if (eventId.startsWith('manual')) {
+              setManualEvents(prev => prev.filter(e => e.id !== eventId));
+            }
+          }}
+        />
+      )}
+
       {/* Modal: agregar manual */}
       {showAddManual && (
         <ManualEventModal
@@ -293,11 +306,113 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
 
 /* ============================ Sub-componentes ============================ */
 
+function WeekSummary({ data, accounts, s, onPickEvent }) {
+  return (
+    <div className="card mb-16" style={{
+      padding: 16,
+      borderRadius: 22,
+      background: 'linear-gradient(135deg, rgba(255, 77, 109, 0.10), rgba(168, 85, 247, 0.10))',
+      border: '1px solid rgba(255, 77, 109, 0.25)'
+    }}>
+      <div className="spread mb-12">
+        <div className="col gap-2">
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            💳 {s.calQuickPayments} · {s.calQuickPaymentsCount.replace('{n}', data.events.length)}
+          </span>
+          <span style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {fmtMoney(data.total)}
+          </span>
+        </div>
+        <div className="col" style={{ alignItems: 'flex-end', gap: 4 }}>
+          {data.paidTotal > 0 && (
+            <div className="row gap-4" style={{ alignItems: 'center' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)' }}>
+                {fmtMoneyShort(data.paidTotal)} pagado
+              </span>
+            </div>
+          )}
+          {data.pendingTotal > 0 && (
+            <div className="row gap-4" style={{ alignItems: 'center' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)' }}>
+                {fmtMoneyShort(data.pendingTotal)} pendiente
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Barra dual paid / pending */}
+      {data.total > 0 && (
+        <div style={{
+          height: 6, borderRadius: 999, overflow: 'hidden',
+          background: 'rgba(255, 149, 0, 0.25)',
+          position: 'relative', marginBottom: 12
+        }}>
+          <div style={{
+            width: `${(data.paidTotal / data.total) * 100}%`,
+            height: '100%', background: 'var(--green)',
+            transition: 'width .3s'
+          }} />
+        </div>
+      )}
+
+      {/* Lista compacta de eventos */}
+      <div className="col gap-6">
+        {data.events.slice(0, 5).map(e => (
+          <button
+            key={e.id}
+            onClick={() => onPickEvent(e)}
+            className="row gap-10 spread"
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              borderRadius: 10,
+              background: 'var(--bg-card)',
+              border: `1px solid ${e.color}33`,
+              opacity: e.paid ? 0.6 : 1,
+              alignItems: 'center'
+            }}
+          >
+            <DayEventGlyph event={e} small />
+            <div className="col gap-1" style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+              <span style={{
+                fontSize: 13, fontWeight: 700,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                textDecoration: e.paid ? 'line-through' : 'none'
+              }}>
+                {e.name}
+              </span>
+              <span className="tiny" style={{ fontSize: 10 }}>
+                Día {e.day} · {TYPE_LABEL(e.type, s)}
+              </span>
+            </div>
+            <div className="col" style={{ alignItems: 'flex-end', gap: 1 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: e.paid ? 'var(--green)' : 'var(--text)' }}>
+                {fmtMoney(e.amount)}
+              </span>
+              {e.paid && (
+                <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--green)' }}>✓ pagado</span>
+              )}
+            </div>
+          </button>
+        ))}
+        {data.events.length > 5 && (
+          <span className="tiny" style={{ textAlign: 'center', fontSize: 11, fontWeight: 600 }}>
+            + {data.events.length - 5} más
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DayEventGlyph({ event, small }) {
-  const size = small ? 16 : 32;
-  // Usar BankLogo para tarjetas de crédito (cycle/payment), MerchantIcon para suscripciones, emoji para el resto
+  const size = small ? 22 : 36;
+  const radius = small ? 5 : 10;
   if (event.type === 'cycle' || event.type === 'payment') {
-    return <BankLogo institution={event.institution} size={size} radius={4} />;
+    return <BankLogo institution={event.institution} size={size} radius={radius} />;
   }
   if (event.type === 'subscription') {
     return <MerchantIcon merchant={event.merchant} category={event.category} size={size} />;
@@ -305,10 +420,11 @@ function DayEventGlyph({ event, small }) {
   if (event.icon) {
     return (
       <div style={{
-        width: size, height: size, borderRadius: 4,
+        width: size, height: size, borderRadius: radius,
         background: event.color + '33',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size * 0.55
+        fontSize: size * 0.55,
+        flexShrink: 0
       }}>
         {event.icon}
       </div>
@@ -316,8 +432,8 @@ function DayEventGlyph({ event, small }) {
   }
   return (
     <div style={{
-      width: size, height: size, borderRadius: 4,
-      background: event.color
+      width: size, height: size, borderRadius: radius,
+      background: event.color, flexShrink: 0
     }} />
   );
 }
@@ -342,59 +458,86 @@ function QuickModule({ icon, color, title, value, sub }) {
         width: 70, height: 70, borderRadius: '50%',
         background: color, opacity: 0.15, pointerEvents: 'none'
       }} />
-      <div className="row gap-8" style={{ alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mute)' }}>{title}</span>
+      <div className="row gap-6" style={{ alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 16 }}>{icon}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-mute)' }}>{title}</span>
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color }}>{value}</div>
-      <span className="tiny" style={{ fontSize: 11 }}>{sub}</span>
+      <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color }}>{value}</div>
+      <span className="tiny" style={{ fontSize: 10 }}>{sub}</span>
     </div>
   );
 }
 
-function DayDetail({ day, month, year, events, accounts, s, lang, onClose, onMarkPaid, onDelete }) {
+function DayDetailOverlay({ day, month, year, events, accounts, s, lang, onClose, onDelete }) {
   const date = new Date(year, month, day);
   const dateStr = date.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-PR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="card mb-16" style={{ padding: 14, borderRadius: 18 }}>
-      <div className="spread mb-12">
-        <div className="col gap-2">
-          <span style={{ fontSize: 11, color: 'var(--text-mute)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {s.calDayDetail}
-          </span>
-          <span style={{ fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>{dateStr}</span>
-        </div>
-        <button
-          onClick={onClose}
-          style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon name="x" size={14} />
-        </button>
-      </div>
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+        zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        backdropFilter: 'blur(6px)'
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="app-shell"
+        style={{
+          background: 'var(--bg)',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          borderRadius: '24px 24px 0 0',
+          padding: 20,
+          paddingBottom: 32,
+          animation: 'fadeUp .3s ease',
+          border: '1px solid var(--border)'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div style={{ width: 36, height: 5, background: 'var(--border)', borderRadius: 3, margin: '0 auto 16px' }} />
 
-      {events.length === 0 ? (
-        <p className="tiny" style={{ textAlign: 'center', padding: 16 }}>{s.calNoEventsDay}</p>
-      ) : (
-        <div className="col gap-10">
-          {events.map(e => (
-            <DayEventCard
-              key={e.id}
-              event={e}
-              accounts={accounts}
-              s={s}
-              onMarkPaid={() => onMarkPaid(e.id)}
-              onDelete={() => onDelete(e.id)}
-            />
-          ))}
+        <div className="spread mb-16">
+          <div className="col gap-2">
+            <span style={{ fontSize: 11, color: 'var(--text-mute)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {s.calDayDetail}
+            </span>
+            <span style={{ fontWeight: 800, fontSize: 18, textTransform: 'capitalize' }}>{dateStr}</span>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="x" size={16} />
+          </button>
         </div>
-      )}
+
+        {events.length === 0 ? (
+          <div className="col" style={{ alignItems: 'center', padding: 40, gap: 12 }}>
+            <span style={{ fontSize: 40, opacity: 0.4 }}>📭</span>
+            <p className="tiny" style={{ textAlign: 'center' }}>{s.calNoEventsDay}</p>
+          </div>
+        ) : (
+          <div className="col gap-12">
+            {events.map(e => (
+              <DayEventCard
+                key={e.id}
+                event={e}
+                accounts={accounts}
+                s={s}
+                lang={lang}
+                onDelete={() => onDelete(e.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function DayEventCard({ event: e, accounts, s, onMarkPaid, onDelete }) {
-  const card = e.cardId ? accounts.find(a => a.id === e.cardId) : null;
+function DayEventCard({ event: e, accounts, s, lang, onDelete }) {
   const status = e.paid ? 'paid' : e.urgency === 'past' ? 'overdue' : e.urgency === 'today' ? 'today' : 'scheduled';
   const statusLabel =
     status === 'paid' ? s.calStatusPaid :
@@ -409,11 +552,11 @@ function DayEventCard({ event: e, accounts, s, onMarkPaid, onDelete }) {
 
   return (
     <div style={{
-      padding: 12,
-      borderRadius: 12,
-      background: 'var(--bg-elev)',
-      border: `1px solid ${e.color}33`,
-      opacity: e.paid ? 0.65 : 1
+      padding: 14,
+      borderRadius: 14,
+      background: 'var(--bg-card)',
+      border: `1px solid ${e.color}44`,
+      opacity: e.paid ? 0.85 : 1
     }}>
       <div className="row gap-12" style={{ alignItems: 'flex-start' }}>
         <DayEventGlyph event={e} />
@@ -423,32 +566,37 @@ function DayEventCard({ event: e, accounts, s, onMarkPaid, onDelete }) {
               {TYPE_LABEL(e.type, s)}
             </span>
             <div className="row gap-4" style={{
-              padding: '2px 8px', borderRadius: 999,
+              padding: '3px 8px', borderRadius: 999,
               background: statusColor + '22',
               alignItems: 'center'
             }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: statusColor }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: statusColor }}>{statusLabel}</span>
+              <span style={{ fontSize: 10, fontWeight: 800, color: statusColor }}>{statusLabel}</span>
             </div>
           </div>
-          <span style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{e.name}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2 }}>{e.name}</span>
           {e.amount > 0 && (
-            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>
+            <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginTop: 2 }}>
               {fmtMoney(e.amount)}
             </span>
           )}
+          {e.paid && e.paidDate && (
+            <span className="tiny" style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>
+              ✓ Detectado el {new Date(e.paidDate).toLocaleDateString(lang === 'en' ? 'en-US' : 'es-PR', { day: 'numeric', month: 'short' })}
+              {e.paidVia ? ` · ${e.paidVia}` : ''}
+            </span>
+          )}
           {e.message && (
-            <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4, marginTop: 2 }}>{e.message}</span>
+            <span className="tiny" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4 }}>{e.message}</span>
           )}
         </div>
       </div>
 
-      {/* Avisos de bloqueo */}
       {e.locked && e.lockedReason === 'bank-set' && (
         <div className="tiny mt-8" style={{
           background: 'rgba(10, 132, 255, 0.1)',
           color: 'var(--blue)',
-          padding: '6px 10px',
+          padding: '8px 12px',
           borderRadius: 8,
           fontSize: 11,
           fontWeight: 600
@@ -457,53 +605,23 @@ function DayEventCard({ event: e, accounts, s, onMarkPaid, onDelete }) {
         </div>
       )}
 
-      {/* Acciones */}
-      {!e.paid && e.type !== 'alert' && (
-        <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+      {!e.paid && e.manual && (
+        <div className="row gap-6 mt-10">
           <button
-            onClick={onMarkPaid}
+            onClick={onDelete}
             className="row gap-4"
             style={{
-              flex: 1, minWidth: 130,
-              padding: '8px 10px', borderRadius: 8,
-              background: 'var(--green)',
-              color: '#0D0D14',
+              padding: '8px 12px', borderRadius: 8,
+              background: 'var(--bg-elev)',
+              color: 'var(--danger)',
               fontSize: 12, fontWeight: 700,
-              justifyContent: 'center'
+              border: '1px solid var(--border)'
             }}
           >
-            <Icon name="check" size={12} color="#0D0D14" stroke={3} />
-            <span>{s.calMarkPaid}</span>
+            <Icon name="x" size={12} color="var(--danger)" />
+            <span>Eliminar</span>
           </button>
-          {!e.locked && e.manual && (
-            <button
-              onClick={onDelete}
-              style={{
-                padding: '8px 10px', borderRadius: 8,
-                background: 'var(--bg-card)',
-                color: 'var(--danger)',
-                fontSize: 12, fontWeight: 700,
-                border: '1px solid var(--border)'
-              }}
-            >
-              <Icon name="x" size={12} color="var(--danger)" />
-            </button>
-          )}
         </div>
-      )}
-      {e.paid && (
-        <button
-          onClick={onMarkPaid}
-          className="tiny mt-8"
-          style={{
-            width: '100%',
-            padding: '8px 10px', borderRadius: 8,
-            background: 'var(--bg-card)', color: 'var(--text-mute)',
-            fontSize: 11, fontWeight: 600
-          }}
-        >
-          ↺ Deshacer
-        </button>
       )}
     </div>
   );
