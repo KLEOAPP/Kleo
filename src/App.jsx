@@ -413,15 +413,26 @@ function AppInner() {
   };
 
   const handleGoalCreate = async (goal) => {
+    const withMeta = { startedAt: new Date().toISOString(), ...goal };
     if (useSupabase && user?.id) {
       try {
-        const newGoal = await dbCreateGoal(user.id, goal);
+        const newGoal = await dbCreateGoal(user.id, withMeta);
         setGoals(prev => [...prev, newGoal]);
       } catch (err) { console.error(err); return; }
     } else {
-      setGoals(prev => [...prev, { id: 'g_' + Date.now(), ...goal }]);
+      setGoals(prev => [...prev, { id: 'g_' + Date.now(), ...withMeta }]);
     }
     showToast('Meta creada');
+  };
+
+  const handleGoalUpdate = (goalId, updates) => {
+    setGoals(prev => prev.map(g => g.id === goalId ? { ...g, ...updates } : g));
+    showToast('Meta actualizada');
+  };
+
+  const handleGoalDelete = (goalId) => {
+    setGoals(prev => prev.filter(g => g.id !== goalId));
+    showToast('Meta eliminada');
   };
 
   const handleBankConnected = async () => {
@@ -612,9 +623,13 @@ function AppInner() {
               {tab === 'goals' && (
                 <Goals
                   goals={goals}
+                  accounts={accounts}
+                  transactions={transactions}
                   fixedExpenses={fixedExpenses}
                   onAddSavings={handleGoalContribute}
                   onCreate={handleGoalCreate}
+                  onUpdate={handleGoalUpdate}
+                  onDelete={handleGoalDelete}
                   onHome={goHome}
                   onMenu={() => setShowMenu(true)}
                 />
