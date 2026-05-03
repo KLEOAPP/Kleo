@@ -500,7 +500,18 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
       <div className="section-header">
         <span>{s.factorsTitle}</span>
       </div>
-      <p className="tiny mb-12" style={{ lineHeight: 1.5 }}>{s.factorsDesc}</p>
+      <p className="tiny mb-8" style={{ lineHeight: 1.5 }}>{s.factorsDesc}</p>
+      <div className="card mb-12" style={{
+        padding: 12,
+        background: 'rgba(168, 85, 247, 0.08)',
+        border: '1px solid rgba(168, 85, 247, 0.2)',
+        borderRadius: 12
+      }}>
+        <p className="tiny" style={{ fontSize: 11, lineHeight: 1.5 }}>
+          <span style={{ fontWeight: 700 }}>📊 </span>
+          {s.factorsRangeNote}
+        </p>
+      </div>
 
       <div className="col gap-8 mb-20">
         {CREDIT_FACTORS.map(f => {
@@ -521,7 +532,21 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
                     }}>{f.icon}</div>
                     <div className="col gap-2">
                       <span style={{ fontWeight: 600, fontSize: 14 }}>{f.label}</span>
-                      <span className="tiny" style={{ color: f.color, fontWeight: 700 }}>{f.weight}% {s.ofYourScore}</span>
+                      <div className="row gap-6" style={{ alignItems: 'baseline' }}>
+                        <span className="tiny" style={{ color: f.color, fontWeight: 700 }}>
+                          {f.weight}% {s.ofYourScore}
+                        </span>
+                        <span className="tiny" style={{
+                          color: f.color,
+                          fontWeight: 700,
+                          background: f.color + '22',
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          fontSize: 10
+                        }}>
+                          {s.pointsOfScore.replace('{pts}', Math.round(f.weight * 5.5))}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform .2s' }}>

@@ -277,6 +277,8 @@ export default {
   factorsTitle: 'Factors Affecting Your Score',
   factorsDesc: 'Your FICO Score is calculated with 5 factors. Tap each one to understand it.',
   ofYourScore: '% of your score',
+  pointsOfScore: '~{pts} pts',
+  factorsRangeNote: 'FICO ranges from 300 to 850 (a 550-point range). Each factor represents an approximate maximum of points:',
   howToImprove: 'How to improve:',
   hideShowPlan: '{action} plan',
   hidePlan: 'Hide plan ▲',
