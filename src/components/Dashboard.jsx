@@ -197,28 +197,6 @@ export default function Dashboard({
     return Math.max(50, Math.round(Math.abs(diff) * 0.12));
   }, [monthIncome, monthSpending]);
 
-  // Synthetic net worth history per period
-  const chartData = useMemo(() => {
-    const points = period === 'day' ? 12 : period === 'week' ? 14 : period === 'month' ? 30 : period === '3m' ? 12 : period === '6m' ? 24 : 12;
-    const seed = patrimony.net || 46000;
-    const base = seed * 0.78;
-    const arr = [];
-    for (let i = 0; i < points; i++) {
-      const t = i / (points - 1);
-      // smooth growth + noise
-      const noise = Math.sin(i * 1.7) * (seed * 0.015) + Math.cos(i * 0.9) * (seed * 0.008);
-      arr.push(base + (seed - base) * t + noise);
-    }
-    arr[arr.length - 1] = seed;
-    return arr;
-  }, [period, patrimony.net]);
-
-  const change = useMemo(() => {
-    const first = chartData[0];
-    const last = chartData[chartData.length - 1];
-    return first > 0 ? ((last - first) / first) * 100 : 0;
-  }, [chartData]);
-
   // Sections grid (rich cards with metric + sub)
   const totalGoals = goals?.reduce((acc, g) => acc + g.current, 0) || 0;
   const txThisMonth = useMemo(() => {
