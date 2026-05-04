@@ -35,7 +35,8 @@
       "Bash(curl -X POST https://kleopr.com/api/push/ai-tips -H \"Content-Type: application/json\" -d \"{}\")",
       "Bash(git checkout *)",
       "Bash(grep -n \"    </div>$\\\\|^  \\);$\\\\|^}\" src/components/Dashboard.jsx)",
-      "Bash(grep -n \"^  \\);$\\\\|^    </div>$\\\\|^      </div>$\" src/components/Dashboard.jsx)"
+      "Bash(grep -n \"^  \\);$\\\\|^    </div>$\\\\|^      </div>$\" src/components/Dashboard.jsx)",
+      "Bash(xargs grep *)"
     ]
   }
 }
