@@ -307,6 +307,8 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
 /* ============================ Sub-componentes ============================ */
 
 function WeekSummary({ data, accounts, s, onPickEvent }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleEvents = expanded ? data.events : data.events.slice(0, 5);
   return (
     <div className="card mb-16" style={{
       padding: 16,
@@ -360,7 +362,7 @@ function WeekSummary({ data, accounts, s, onPickEvent }) {
 
       {/* Lista compacta de eventos */}
       <div className="col gap-6">
-        {data.events.slice(0, 5).map(e => (
+        {visibleEvents.map(e => (
           <button
             key={e.id}
             onClick={() => onPickEvent(e)}
@@ -399,9 +401,24 @@ function WeekSummary({ data, accounts, s, onPickEvent }) {
           </button>
         ))}
         {data.events.length > 5 && (
-          <span className="tiny" style={{ textAlign: 'center', fontSize: 11, fontWeight: 600 }}>
-            + {data.events.length - 5} más
-          </span>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="row gap-4"
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              borderRadius: 10,
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              fontSize: 12, fontWeight: 700,
+              color: 'var(--blue)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: 4
+            }}
+          >
+            <span>{expanded ? '▴ Ver menos' : `▾ Ver ${data.events.length - 5} más`}</span>
+          </button>
         )}
       </div>
     </div>
