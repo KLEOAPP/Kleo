@@ -33,7 +33,9 @@
       "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🚨 Hoy vence Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"Paga \\\\$845 para mantener tu 5%% de uso. No te quites, ya casi lo logras!\\\\\"}\")",
       "Bash(curl -X POST https://kleopr.com/api/push/send -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"🛑 No uses Chase Visa\\\\\",\\\\\"body\\\\\":\\\\\"El ciclo cierra el dia 15. Ya hiciste lo dificil, no la uses y dale! Tu bolsillo te lo agradece.\\\\\"}\")",
       "Bash(curl -X POST https://kleopr.com/api/push/ai-tips -H \"Content-Type: application/json\" -d \"{}\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(grep -n \"    </div>$\\\\|^  \\);$\\\\|^}\" src/components/Dashboard.jsx)",
+      "Bash(grep -n \"^  \\);$\\\\|^    </div>$\\\\|^      </div>$\" src/components/Dashboard.jsx)"
     ]
   }
 }
