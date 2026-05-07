@@ -572,6 +572,16 @@ function AppInner() {
             onSubmit={() => showToast('¡Gracias por tu sugerencia!')}
           />
         )}
+        {section === 'kleoai' && (
+          <KleoAi
+            transactions={transactions}
+            accounts={accounts}
+            goals={goals}
+            fixedExpenses={fixedExpenses}
+            onHome={goHome}
+            onMenu={() => setShowMenu(true)}
+          />
+        )}
       </>
     );
   };
@@ -610,7 +620,7 @@ function AppInner() {
                   onNotifications={() => { setShowNotifications(true); setUnreadCount(0); }}
                   unreadCount={unreadCount}
                   onAddExpense={() => setShowAdd(true)}
-                  onOpenKleoAi={() => setTab('kleoai')}
+                  onOpenKleoAi={() => setSection('kleoai')}
                 />
               )}
               {tab === 'accounts' && (
@@ -635,16 +645,6 @@ function AppInner() {
                   onMenu={() => setShowMenu(true)}
                 />
               )}
-              {tab === 'kleoai' && (
-                <KleoAi
-                  transactions={transactions}
-                  accounts={accounts}
-                  goals={goals}
-                  fixedExpenses={fixedExpenses}
-                  onHome={goHome}
-                  onMenu={() => setShowMenu(true)}
-                />
-              )}
             </>
           )}
 
@@ -661,7 +661,16 @@ function AppInner() {
         <MoreMenu
           user={user}
           onClose={() => setShowMenu(false)}
-          onNavigate={(s) => { setShowMenu(false); setSection(s); }}
+          onNavigate={(id) => {
+            setShowMenu(false);
+            // 'accounts' y 'goals' son tabs; el resto son secciones
+            if (id === 'accounts' || id === 'goals') {
+              setSection(null);
+              setTab(id);
+            } else {
+              setSection(id);
+            }
+          }}
           onLogout={handleLogout}
           onHome={goHome}
           onFeedback={() => setSection('feedback')}

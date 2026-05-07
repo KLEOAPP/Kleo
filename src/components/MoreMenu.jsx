@@ -40,6 +40,9 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
   };
 
   const sections = [
+    { id: 'kleoai', icon: '🤖', title: s.kleoAiHeader, subtitle: s.kleoAiSubtitle, color: '#A855F7' },
+    { id: 'accounts', icon: '🏦', title: s.sAccounts, subtitle: s.sCheckSavings, color: 'var(--section-accounts)' },
+    { id: 'goals', icon: '🎯', title: s.goals, subtitle: s.yourSavingsGoals, color: 'var(--section-goals)' },
     { id: 'credit', icon: '💳', title: s.menuCredit, subtitle: s.menuCreditDesc, color: 'var(--section-credit)' },
     { id: 'analysis', icon: '📈', title: s.menuAnalysis, subtitle: s.menuAnalysisDesc, color: 'var(--section-analysis)' },
     { id: 'budget', icon: '💰', title: s.menuBudget, subtitle: s.menuBudgetDesc, color: 'var(--section-budget)' },
