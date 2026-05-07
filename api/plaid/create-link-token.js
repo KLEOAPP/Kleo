@@ -17,23 +17,42 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Diagnóstico mínimo
+  if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
+    return res.status(500).json({
+      error: 'Plaid no configurado',
+      detail: 'Faltan PLAID_CLIENT_ID o PLAID_SECRET en las variables de entorno.',
+      env: process.env.PLAID_ENV || 'sandbox'
+    });
+  }
+
   try {
     const { userId } = req.body;
 
-    const redirectUri = process.env.PLAID_REDIRECT_URI || 'https://kleopr.com';
-
-    const response = await plaid.linkTokenCreate({
+    const baseConfig = {
       user: { client_user_id: userId || 'demo-user' },
       client_name: 'Kleo',
       products: ['transactions'],
       country_codes: ['US'],
-      language: 'es',
-      redirect_uri: redirectUri
-    });
+      language: 'es'
+    };
+
+    // redirect_uri solo si está explícitamente configurado y registrado en Plaid
+    if (process.env.PLAID_REDIRECT_URI) {
+      baseConfig.redirect_uri = process.env.PLAID_REDIRECT_URI;
+    }
+
+    const response = await plaid.linkTokenCreate(baseConfig);
 
     res.json({ link_token: response.data.link_token });
   } catch (err) {
-    console.error('Plaid create-link-token error:', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.error_message || 'Error creating link token' });
+    const plaidErr = err.response?.data;
+    console.error('Plaid create-link-token error:', plaidErr || err.message);
+    res.status(500).json({
+      error: plaidErr?.error_message || err.message || 'Error creating link token',
+      error_code: plaidErr?.error_code,
+      error_type: plaidErr?.error_type,
+      env: process.env.PLAID_ENV || 'sandbox'
+    });
   }
 }

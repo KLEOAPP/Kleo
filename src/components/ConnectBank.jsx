@@ -29,9 +29,11 @@ export default function ConnectBank({ userId, onConnected, onClose }) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [result, setResult] = useState(null);
+  const [errorDetail, setErrorDetail] = useState(null);
 
   const getLinkToken = useCallback(async () => {
     setLoading(true);
+    setErrorDetail(null);
     try {
       const res = await fetch('/api/plaid/create-link-token', {
         method: 'POST',
@@ -42,10 +44,12 @@ export default function ConnectBank({ userId, onConnected, onClose }) {
       if (data.link_token) {
         setLinkToken(data.link_token);
       } else {
+        setErrorDetail(data);
         setStatus('error');
       }
     } catch (err) {
       console.error(err);
+      setErrorDetail({ error: err.message });
       setStatus('error');
     }
     setLoading(false);
@@ -112,8 +116,27 @@ export default function ConnectBank({ userId, onConnected, onClose }) {
           </button>
         ) : status === 'error' ? (
           <div className="col gap-12">
-            <p style={{ color: 'var(--danger)', textAlign: 'center', fontSize: 14 }}>{s.bankError}</p>
-            <button className="btn-primary" onClick={() => { setStatus(null); setLinkToken(null); }} style={{ width: '100%' }}>
+            <p style={{ color: 'var(--danger)', textAlign: 'center', fontSize: 14, fontWeight: 600 }}>{s.bankError}</p>
+            {errorDetail && (
+              <div style={{
+                background: 'rgba(255, 77, 109, 0.10)',
+                border: '1px solid rgba(255, 77, 109, 0.3)',
+                padding: 12,
+                borderRadius: 10,
+                fontSize: 11,
+                lineHeight: 1.5,
+                color: 'var(--text-mute)',
+                fontFamily: 'monospace',
+                wordBreak: 'break-word'
+              }}>
+                {errorDetail.error_code && <div><strong>Code:</strong> {errorDetail.error_code}</div>}
+                {errorDetail.error_type && <div><strong>Type:</strong> {errorDetail.error_type}</div>}
+                {errorDetail.env && <div><strong>Env:</strong> {errorDetail.env}</div>}
+                <div><strong>Error:</strong> {errorDetail.error}</div>
+                {errorDetail.detail && <div style={{ marginTop: 4 }}>{errorDetail.detail}</div>}
+              </div>
+            )}
+            <button className="btn-primary" onClick={() => { setStatus(null); setLinkToken(null); setErrorDetail(null); }} style={{ width: '100%' }}>
               {s.retry}
             </button>
           </div>

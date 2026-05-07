@@ -44,16 +44,20 @@ export default function Dashboard({
   const creditLimit = creditCards.reduce((acc, c) => acc + (c.limit || 0), 0);
   const creditUtilization = creditLimit > 0 ? (creditUsed / creditLimit) * 100 : 0;
 
+  const hasCreditCards = creditCards.length > 0;
+  const hasAccounts = accounts.length > 0;
+
   const score = useMemo(() => {
+    if (!hasCreditCards) return null;
     let base = 750;
     if (creditUtilization > 30) base -= (creditUtilization - 30) * 4;
     else if (creditUtilization < 5) base += 70;
     else if (creditUtilization < 10) base += 40;
     return Math.max(580, Math.min(890, Math.round(base)));
-  }, [creditUtilization]);
+  }, [creditUtilization, hasCreditCards]);
 
-  const scoreLabel = score >= 800 ? s.excellentScore : score >= 740 ? s.goodScore : score >= 670 ? s.fairScore : s.poorScore;
-  const scoreColor = score >= 800 ? '#00E5B0' : score >= 740 ? '#34C759' : score >= 670 ? '#FF9500' : '#FF3B30';
+  const scoreLabel = score === null ? '—' : score >= 800 ? s.excellentScore : score >= 740 ? s.goodScore : score >= 670 ? s.fairScore : s.poorScore;
+  const scoreColor = score === null ? 'var(--text-mute)' : score >= 800 ? '#00E5B0' : score >= 740 ? '#34C759' : score >= 670 ? '#FF9500' : '#FF3B30';
 
   // ====== NUEVO: cálculo "Disponible esta semana" ======
   // Eventos del mes + próximos 7 días
@@ -237,22 +241,22 @@ export default function Dashboard({
   const sectionCards = [
     {
       id: 'credit', emoji: '💳', title: s.sCredit,
-      metric: `${creditUtilization.toFixed(0)}%`,
-      sub: s.sScore.replace('{score}', score),
+      metric: hasCreditCards ? `${creditUtilization.toFixed(0)}%` : '—',
+      sub: hasCreditCards ? s.sScore.replace('{score}', score) : 'Sin tarjetas',
       gradient: 'linear-gradient(135deg, #00B589, #007A5C)',
       onClick: () => onOpenSection('credit')
     },
     {
       id: 'accounts', emoji: '🏦', title: s.sAccounts,
-      metric: fmtMoneyShort(patrimony.checking + patrimony.savings),
-      sub: s.sCheckSavings,
+      metric: hasAccounts ? fmtMoneyShort(patrimony.checking + patrimony.savings) : '—',
+      sub: hasAccounts ? s.sCheckSavings : 'Sin cuentas',
       gradient: 'linear-gradient(135deg, #5856D6, #3634A3)',
       onClick: () => onSwitchTab('accounts')
     },
     {
       id: 'goals', emoji: '🎯', title: s.sGoals,
-      metric: fmtMoneyShort(totalGoals),
-      sub: s.sSaved,
+      metric: goals?.length ? fmtMoneyShort(totalGoals) : '—',
+      sub: goals?.length ? s.sSaved : 'Sin metas',
       gradient: 'linear-gradient(135deg, #FF9500, #B86600)',
       onClick: () => onSwitchTab('goals')
     },
@@ -341,33 +345,37 @@ export default function Dashboard({
             marginTop: 4,
             marginBottom: 8,
             position: 'relative',
-            background: 'linear-gradient(135deg, #00E5B0, #A855F7)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
+            background: hasAccounts ? 'linear-gradient(135deg, #00E5B0, #A855F7)' : 'transparent',
+            WebkitBackgroundClip: hasAccounts ? 'text' : 'unset',
+            WebkitTextFillColor: hasAccounts ? 'transparent' : 'var(--text-mute)',
+            backgroundClip: hasAccounts ? 'text' : 'unset'
           }}>
-            {fmtMoney(availableThisWeek)}
+            {hasAccounts ? fmtMoney(availableThisWeek) : '—'}
           </h1>
 
           <p className="tiny" style={{ fontSize: 12, lineHeight: 1.45, marginBottom: 12, position: 'relative' }}>
-            {s.availableSubtext}
+            {hasAccounts
+              ? s.availableSubtext
+              : 'Conecta tu banco para ver cuánto puedes gastar libremente esta semana.'}
           </p>
 
-          {/* Pill de seguridad */}
-          <div className="row gap-6" style={{
-            background: 'rgba(0, 229, 176, 0.18)',
-            border: '1px solid rgba(0, 229, 176, 0.35)',
-            padding: '6px 12px',
-            borderRadius: 999,
-            alignItems: 'center',
-            display: 'inline-flex',
-            position: 'relative'
-          }}>
-            <Icon name="shield" size={12} color="#00E5B0" />
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#00E5B0' }}>
-              {s.safeForXDays.replace('{n}', daysSafe || 12)}
-            </span>
-          </div>
+          {/* Pill de seguridad — solo cuando hay cuentas conectadas */}
+          {hasAccounts && (
+            <div className="row gap-6" style={{
+              background: 'rgba(0, 229, 176, 0.18)',
+              border: '1px solid rgba(0, 229, 176, 0.35)',
+              padding: '6px 12px',
+              borderRadius: 999,
+              alignItems: 'center',
+              display: 'inline-flex',
+              position: 'relative'
+            }}>
+              <Icon name="shield" size={12} color="#00E5B0" />
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#00E5B0' }}>
+                {s.safeForXDays.replace('{n}', daysSafe)}
+              </span>
+            </div>
+          )}
 
           <button
             onClick={() => setShowHowCalc(true)}
@@ -573,14 +581,16 @@ export default function Dashboard({
             </span>
             <div className="col gap-2">
               <span style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                {score}
+                {score === null ? '—' : score}
               </span>
               <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor }}>{scoreLabel}</span>
             </div>
             <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4, marginTop: 'auto' }}>
-              {s.financialHealth} {s.isInState.split('{state}')[0]}
-              <span style={{ color: scoreColor, fontWeight: 700 }}>{scoreLabel.toLowerCase()}</span>
-              {s.isInState.split('{state}')[1]}
+              {hasCreditCards
+                ? <>{s.financialHealth} {s.isInState.split('{state}')[0]}
+                    <span style={{ color: scoreColor, fontWeight: 700 }}>{scoreLabel.toLowerCase()}</span>
+                    {s.isInState.split('{state}')[1]}</>
+                : 'Conecta una tarjeta de crédito para ver tu score.'}
             </span>
           </button>
 
