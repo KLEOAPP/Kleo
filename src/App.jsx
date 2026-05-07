@@ -199,15 +199,11 @@ function AppInner() {
         fetchGoals()
       ]);
 
-      if (accts.length === 0) {
-        await seedDemoData(userId);
-        const [a2, t2, f2, g2] = await Promise.all([
-          fetchAccounts(), fetchTransactions(), fetchFixedExpenses(), fetchGoals()
-        ]);
-        setAccounts(a2); setTransactions(t2); setFixedExpenses(f2); setGoals(g2);
-      } else {
-        setAccounts(accts); setTransactions(txs); setFixedExpenses(fixed); setGoals(gls);
-      }
+      // Sin seed de demo: el usuario empieza limpio y conecta su banco real con Plaid
+      setAccounts(accts);
+      setTransactions(txs);
+      setFixedExpenses(fixed);
+      setGoals(gls);
     } catch (err) {
       console.error('Supabase load error:', err);
       showToast('Error cargando datos');

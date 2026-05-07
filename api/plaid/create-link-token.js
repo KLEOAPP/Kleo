@@ -20,15 +20,15 @@ export default async function handler(req, res) {
   try {
     const { userId } = req.body;
 
+    const redirectUri = process.env.PLAID_REDIRECT_URI || 'https://kleopr.com';
+
     const response = await plaid.linkTokenCreate({
-      user: {
-        client_user_id: userId || 'demo-user',
-        phone_number_verified_time: '2024-01-01T00:00:00Z',
-      },
+      user: { client_user_id: userId || 'demo-user' },
       client_name: 'Kleo',
       products: ['transactions'],
       country_codes: ['US'],
       language: 'es',
+      redirect_uri: redirectUri
     });
 
     res.json({ link_token: response.data.link_token });

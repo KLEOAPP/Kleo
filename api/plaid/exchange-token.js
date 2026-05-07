@@ -31,6 +31,21 @@ export default async function handler(req, res) {
 
     const accountsResponse = await plaid.accountsGet({ access_token: accessToken });
     const accounts = accountsResponse.data.accounts;
+    const institutionId = accountsResponse.data.item?.institution_id;
+
+    // Resolver el nombre legible del banco (e.g., "Chase", "Banco Popular")
+    let institutionName = 'Banco';
+    if (institutionId) {
+      try {
+        const instResp = await plaid.institutionsGetById({
+          institution_id: institutionId,
+          country_codes: ['US']
+        });
+        institutionName = instResp.data.institution?.name || institutionName;
+      } catch (e) {
+        console.warn('Could not resolve institution name:', e.response?.data || e.message);
+      }
+    }
 
     for (const acct of accounts) {
       const type = acct.type === 'depository'
@@ -42,7 +57,7 @@ export default async function handler(req, res) {
         name: acct.name,
         type,
         label: acct.official_name || acct.name,
-        institution: accountsResponse.data.item?.institution_id || 'bank',
+        institution: institutionName,
         last4: acct.mask,
         balance: acct.balances.current * (type === 'credit' ? -1 : 1),
         credit_limit: acct.balances.limit || null,
