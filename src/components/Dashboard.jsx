@@ -13,6 +13,7 @@ export default function Dashboard({
 }) {
   const { strings: s } = useI18n();
   const [showHowCalc, setShowHowCalc] = useState(false);
+  const [showPlanOverlay, setShowPlanOverlay] = useState(false);
 
   /* ---------------- Derived data ---------------- */
   const patrimony = useMemo(() => {
@@ -123,6 +124,7 @@ export default function Dashboard({
         kind: 'credit',
         text: `Paga ${fmtMoney(payAmount)} a ${card.c.institution || card.c.name} antes del cierre para mantener tu utilización en ${newUtil.toFixed(1)}%.`,
         institution: card.c.institution || card.c.name,
+        amount: payAmount,
         action: () => onOpenSection('credit')
       };
     }
@@ -135,6 +137,8 @@ export default function Dashboard({
       return {
         kind: 'bill',
         text: `Paga ${fmtMoney(urgent.amount)} de ${urgent.name} ${dStr}.`,
+        amount: urgent.amount,
+        billName: urgent.name,
         action: () => onOpenSection('calendar')
       };
     }
@@ -148,6 +152,8 @@ export default function Dashboard({
       return {
         kind: 'goal',
         text: `Aporta ${fmtMoney(behind.schedule.amount)} a tu meta "${behind.name}" — el depósito está atrasado.`,
+        amount: behind.schedule.amount,
+        goalName: behind.name,
         action: () => onSwitchTab('goals')
       };
     }
@@ -413,92 +419,70 @@ export default function Dashboard({
           </button>
         )}
 
-        {/* ============ FILA HORIZONTAL · 3 TARJETAS FUNCIONALES ============ */}
+        {/* ============ TU RESUMEN — header arriba ============ */}
+        <div className="section-header" style={{ marginTop: 4, marginBottom: 12 }}>
+          <span>{s.yourSummary}</span>
+        </div>
+
+        {/* ============ FILA 1 · 3 TARJETAS VERTICALES (caben en pantalla) ============ */}
         <div
           style={{
-            display: 'flex',
-            gap: 12,
-            overflowX: 'auto',
-            scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch',
-            margin: '0 -16px 20px',
-            padding: '0 16px 8px'
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: 8,
+            marginBottom: 12
           }}
         >
           {/* Card 1 — Acción recomendada hoy */}
-          <FunctionalCard
-            tone="action"
-            scrollSnap
-            iconSlot={
-              <div style={{
-                width: 32, height: 32, borderRadius: 10,
-                background: todayAction ? 'var(--brand-grad)' : 'var(--green)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Icon name="sparkle" size={16} color="#fff" />
-              </div>
-            }
-            label={s.todayAction}
+          <VerticalCard
+            iconSlot={<span style={{ fontSize: 22 }}>✨</span>}
+            tinyLabel={s.todayAction}
             background={todayAction
-              ? 'linear-gradient(135deg, rgba(255, 45, 111, 0.12), rgba(168, 85, 247, 0.10))'
-              : 'rgba(0, 229, 176, 0.08)'}
+              ? 'linear-gradient(160deg, rgba(255, 45, 111, 0.14), rgba(168, 85, 247, 0.10))'
+              : 'rgba(0, 229, 176, 0.10)'}
             borderColor={todayAction ? 'rgba(255, 45, 111, 0.3)' : 'rgba(0, 229, 176, 0.3)'}
             body={
               todayAction
-                ? <p style={{ fontSize: 13, lineHeight: 1.5, fontWeight: 600 }}>{todayAction.text}</p>
+                ? <span style={{
+                    fontSize: 12, fontWeight: 700, lineHeight: 1.35,
+                    display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }}>{todayAction.text}</span>
                 : <>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)', marginBottom: 4 }}>
-                      {s.todayActionAllGood}
-                    </p>
-                    <p className="tiny" style={{ fontSize: 11, lineHeight: 1.4 }}>{s.todayActionAllGoodDesc}</p>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--green)' }}>{s.todayActionAllGood}</span>
+                    <span style={{ fontSize: 10, lineHeight: 1.3, color: 'var(--text-mute)', marginTop: 2 }}>{s.todayActionAllGoodDesc}</span>
                   </>
             }
             button={todayAction ? {
               label: s.followPlan,
-              onClick: todayAction.action,
+              onClick: () => setShowPlanOverlay(true),
               style: {
                 background: 'var(--brand-grad)',
                 color: '#fff',
-                boxShadow: '0 4px 14px rgba(168, 85, 247, 0.3)'
+                boxShadow: '0 3px 10px rgba(168, 85, 247, 0.35)'
               }
             } : null}
           />
 
           {/* Card 2 — Esta semana */}
-          <FunctionalCard
-            scrollSnap
-            iconSlot={
-              <div style={{
-                width: 32, height: 32, borderRadius: 10,
-                background: 'rgba(10, 132, 255, 0.18)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Icon name="calendar" size={16} color="#0A84FF" />
-              </div>
-            }
-            label={s.weekTitle}
+          <VerticalCard
+            iconSlot={<span style={{ fontSize: 22 }}>📅</span>}
+            tinyLabel={s.weekTitle}
             body={
-              <>
-                <p style={{ fontSize: 13, lineHeight: 1.5, fontWeight: 600, marginBottom: 10 }}>
-                  {s.weekSummaryLine
-                    .replace('{payments}', weekCounts.payments)
-                    .replace('{ps}', weekCounts.payments === 1 ? '' : 's')
-                    .replace('{ps2}', weekCounts.cycles === 1 ? '' : 's')
-                    .replace('{subs}', weekCounts.subs)
-                    .replace('{ss}', weekCounts.subs === 1 ? '' : 'es')
-                    .replace('{cycles}', weekCounts.cycles)
-                    .replace('{cs}', weekCounts.cycles === 1 ? '' : 's')}
-                </p>
-                <div className="row gap-4" style={{ flexWrap: 'wrap' }}>
-                  <WeekChip color="#FF4D6D" icon="💳" label={`${weekCounts.payments} pagos`} />
-                  <WeekChip color="#A855F7" icon="🔁" label={`${weekCounts.subs} subs`} />
-                  <WeekChip color="#0A84FF" icon="🔒" label={`${weekCounts.cycles} cierres`} />
+              <div className="col gap-4">
+                <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1, color: '#0A84FF' }}>
+                  {weekCounts.payments + weekCounts.subs + weekCounts.cycles}
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--text-mute)', fontWeight: 600 }}>eventos</span>
+                <div className="col gap-2" style={{ marginTop: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#FF4D6D' }}>💳 {weekCounts.payments} pagos</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#A855F7' }}>🔁 {weekCounts.subs} subs</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#0A84FF' }}>🔒 {weekCounts.cycles} cierres</span>
                 </div>
-              </>
+              </div>
             }
             button={{
               label: s.viewCalendarBtn,
-              icon: 'calendar',
               onClick: () => onOpenSection('calendar'),
               style: {
                 background: 'var(--bg-elev)',
@@ -509,44 +493,39 @@ export default function Dashboard({
           />
 
           {/* Card 3 — Riesgo de la semana */}
-          <FunctionalCard
-            scrollSnap
+          <VerticalCard
             iconSlot={
-              <div style={{
-                width: 32, height: 32, borderRadius: 10,
-                background: riskInfo.color + '33',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <span style={{ fontSize: 18 }}>
-                  {riskInfo.level === 'low' ? '☀️' : riskInfo.level === 'medium' ? '⛅' : '⛈'}
-                </span>
-              </div>
-            }
-            label={
-              <span>
-                {s.riskTitle}
-                <span style={{ marginLeft: 6, color: riskInfo.color }}>
-                  · {riskInfo.level === 'low' ? 'BAJO' : riskInfo.level === 'medium' ? 'MEDIO' : 'ALTO'}
-                </span>
+              <span style={{ fontSize: 22 }}>
+                {riskInfo.level === 'low' ? '☀️' : riskInfo.level === 'medium' ? '⛅' : '⛈'}
               </span>
             }
-            background={`linear-gradient(135deg, ${riskInfo.color}1A, ${riskInfo.color}08)`}
+            tinyLabel={s.riskTitle}
+            background={`linear-gradient(160deg, ${riskInfo.color}1F, ${riskInfo.color}08)`}
             borderColor={`${riskInfo.color}44`}
             body={
-              <>
-                <div className="row gap-4 mb-8" style={{ alignItems: 'center' }}>
+              <div className="col gap-4">
+                <span style={{
+                  fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1,
+                  color: riskInfo.color
+                }}>
+                  {riskInfo.level === 'low' ? 'BAJO' : riskInfo.level === 'medium' ? 'MEDIO' : 'ALTO'}
+                </span>
+                <div className="row gap-3" style={{ alignItems: 'center', marginTop: 2 }}>
                   <RiskBar color="#00E5B0" filled={true} />
                   <RiskBar color="#FF9500" filled={riskInfo.level === 'medium' || riskInfo.level === 'high'} />
                   <RiskBar color="#FF4D6D" filled={riskInfo.level === 'high'} />
                 </div>
-                <p style={{ fontSize: 13, lineHeight: 1.5, fontWeight: 600 }}>{riskInfo.msg}</p>
-              </>
+                <span style={{
+                  fontSize: 11, lineHeight: 1.35, marginTop: 4,
+                  display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                }}>
+                  {riskInfo.msg}
+                </span>
+              </div>
             }
             button={{
               label: s.viewRisks,
-              icon: 'info',
-              iconColor: riskInfo.color,
-              onClick: () => onOpenSection('calendar'),
+              onClick: () => onOpenKleoAi ? onOpenKleoAi() : onOpenSection('kleoai'),
               style: {
                 background: 'var(--bg-elev)',
                 color: 'var(--text)',
@@ -556,10 +535,7 @@ export default function Dashboard({
           />
         </div>
 
-        {/* ============ SECCIÓN RESUMEN — 2 TARJETAS CENTRADAS ============ */}
-        <div className="section-header" style={{ marginTop: 4, marginBottom: 12 }}>
-          <span>{s.yourSummary}</span>
-        </div>
+        {/* ============ FILA 2 · KLEO SCORE + CONSEJOS DE KLEO IA ============ */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
@@ -665,6 +641,18 @@ export default function Dashboard({
           ))}
         </div>
       </div>
+
+      {/* Overlay: Plan de la acción del día */}
+      {showPlanOverlay && todayAction && (
+        <ActionPlanOverlay
+          s={s}
+          action={todayAction}
+          availableThisWeek={availableThisWeek}
+          creditCards={creditCards}
+          onClose={() => setShowPlanOverlay(false)}
+          onOpenKleoAi={onOpenKleoAi}
+        />
+      )}
 
       {/* Overlay: ¿Cómo se calcula? */}
       {showHowCalc && (
@@ -959,6 +947,57 @@ function QuickAction({ iconName, color, label, sub, onClick }) {
   );
 }
 
+/** Tarjeta vertical compacta — fija en grid, sin scroll horizontal. */
+function VerticalCard({ iconSlot, tinyLabel, body, button, background, borderColor }) {
+  return (
+    <div
+      style={{
+        padding: 10,
+        borderRadius: 14,
+        background: background || 'var(--bg-card)',
+        border: `1px solid ${borderColor || 'var(--border-soft)'}`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        minHeight: 200,
+        minWidth: 0
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center' }}>{iconSlot}</div>
+      <span style={{
+        fontSize: 9, fontWeight: 800, color: 'var(--text-mute)',
+        textTransform: 'uppercase', letterSpacing: '0.04em',
+        lineHeight: 1.2,
+        whiteSpace: 'normal', overflow: 'hidden'
+      }}>
+        {tinyLabel}
+      </span>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minHeight: 0 }}>
+        {body}
+      </div>
+      {button && (
+        <button
+          onClick={button.onClick}
+          style={{
+            width: '100%',
+            padding: '7px 6px',
+            borderRadius: 8,
+            fontWeight: 800,
+            fontSize: 11,
+            marginTop: 'auto',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            ...button.style
+          }}
+        >
+          {button.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Tarjeta funcional reutilizable: header (icon + label) + body + botón pegado abajo. */
 function FunctionalCard({ iconSlot, label, body, button, background, borderColor, scrollSnap }) {
   return (
@@ -1038,6 +1077,197 @@ function RiskBar({ color, filled }) {
       boxShadow: filled ? `0 0 8px ${color}66` : 'none',
       transition: 'background .2s'
     }} />
+  );
+}
+
+/** Overlay que explica el por qué / con qué / cómo de la acción del día. */
+function ActionPlanOverlay({ s, action, availableThisWeek, creditCards, onClose, onOpenKleoAi }) {
+  if (!action) return null;
+
+  // Resolver "Por qué" según kind
+  const reason =
+    action.kind === 'credit' ? s.planReasonCredit :
+    action.kind === 'bill' ? s.planReasonBill :
+    action.kind === 'goal' ? s.planReasonGoal :
+    s.planReasonBill;
+
+  // Resolver "Con qué"
+  const fmtAvail = '$' + (availableThisWeek || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  let withWhat;
+  if (action.kind === 'credit') {
+    withWhat = s.planWithCash.replace('{amount}', fmtAvail);
+  } else if (action.kind === 'goal') {
+    withWhat = s.planWithGoal;
+  } else {
+    withWhat = s.planWithCash.replace('{amount}', fmtAvail);
+  }
+
+  // Resolver "Cómo" — pasos
+  const steps = (() => {
+    if (action.kind === 'credit') {
+      const card = creditCards.find(c => (c.institution || c.name) === action.institution) || creditCards[0];
+      const cardLabel = card ? `${card.institution || card.name}` : action.institution || 'tu tarjeta';
+      const last4 = card?.last4 || '••••';
+      const day = card?.cycleCloseDay || '—';
+      const amount = action.amount ? '$' + Math.round(action.amount).toLocaleString('en-US') : 'el monto';
+      return [
+        s.planHowCreditStep1,
+        s.planHowCreditStep2.replace('{amount}', amount).replace('{institution}', cardLabel).replace('{last4}', last4),
+        s.planHowCreditStep3.replace('{day}', day)
+      ];
+    }
+    if (action.kind === 'goal') {
+      const amount = action.amount ? '$' + Math.round(action.amount).toLocaleString('en-US') : 'tu cuota';
+      return [
+        s.planHowGoalStep1,
+        s.planHowGoalStep2.replace('{amount}', amount),
+        s.planHowGoalStep3
+      ];
+    }
+    const amount = action.amount ? '$' + Math.round(action.amount).toLocaleString('en-US') : 'el monto';
+    return [
+      s.planHowBillStep1,
+      s.planHowBillStep2.replace('{amount}', amount),
+      s.planHowBillStep3
+    ];
+  })();
+
+  const tip =
+    action.kind === 'credit' ? s.planTipCredit :
+    action.kind === 'goal' ? s.planTipGoal :
+    s.planTipBill;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+        zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        backdropFilter: 'blur(6px)'
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="app-shell"
+        style={{
+          background: 'var(--bg)', maxHeight: '88vh', overflowY: 'auto',
+          borderRadius: '24px 24px 0 0', padding: 20, paddingBottom: 32,
+          animation: 'fadeUp .3s ease',
+          border: '1px solid var(--border)'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ width: 36, height: 5, background: 'var(--border)', borderRadius: 3, margin: '0 auto 16px' }} />
+
+        <div className="row gap-12 mb-16" style={{ alignItems: 'flex-start' }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12,
+            background: 'var(--brand-grad)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 4px 14px rgba(168, 85, 247, 0.3)'
+          }}>
+            <Icon name="sparkle" size={22} color="#fff" />
+          </div>
+          <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {s.todayAction}
+            </span>
+            <span style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.4 }}>{action.text}</span>
+          </div>
+        </div>
+
+        {/* Por qué */}
+        <PlanSection icon="🤔" title={s.planOverlayWhy} color="#A855F7">
+          <p style={{ fontSize: 13, lineHeight: 1.55 }}>{reason}</p>
+        </PlanSection>
+
+        {/* Con qué */}
+        <PlanSection icon="💵" title={s.planOverlayWith} color="#00E5B0">
+          <p style={{ fontSize: 13, lineHeight: 1.55 }}>{withWhat}</p>
+        </PlanSection>
+
+        {/* Cómo */}
+        <PlanSection icon="🎯" title={s.planOverlayHow} color="#FF9500">
+          <div className="col gap-8">
+            {steps.map((step, i) => (
+              <div key={i} className="row gap-10" style={{ alignItems: 'flex-start' }}>
+                <span style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: 'var(--pill-grad)', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 800, flexShrink: 0
+                }}>{i + 1}</span>
+                <span style={{ fontSize: 13, lineHeight: 1.5, flex: 1 }}>{step}</span>
+              </div>
+            ))}
+          </div>
+        </PlanSection>
+
+        {/* Tip */}
+        <div className="card" style={{
+          padding: 12, borderRadius: 12, marginBottom: 12,
+          background: 'rgba(255, 149, 0, 0.10)',
+          border: '1px solid rgba(255, 149, 0, 0.3)'
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.5 }}>{tip}</span>
+        </div>
+
+        {/* CTA secundaria: ver análisis completo */}
+        {onOpenKleoAi && (
+          <button
+            onClick={() => { onClose(); onOpenKleoAi(); }}
+            className="row gap-6"
+            style={{
+              width: '100%',
+              padding: '11px 14px',
+              borderRadius: 10,
+              background: 'transparent',
+              color: '#A855F7',
+              fontWeight: 700,
+              fontSize: 13,
+              justifyContent: 'center',
+              border: '1px solid rgba(168, 85, 247, 0.4)',
+              marginBottom: 8
+            }}
+          >
+            <Icon name="sparkle" size={14} color="#A855F7" />
+            <span>{s.planOverlayMoreInKleoAi}</span>
+          </button>
+        )}
+
+        <button
+          onClick={onClose}
+          className="btn-primary"
+          style={{
+            width: '100%',
+            background: 'var(--brand-grad)',
+            color: '#fff',
+            fontWeight: 800
+          }}
+        >
+          {s.planOverlayClose}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PlanSection({ icon, title, color, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div className="row gap-8 mb-6" style={{ alignItems: 'center' }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 8,
+          background: color + '22',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 14
+        }}>{icon}</div>
+        <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {title}
+        </span>
+      </div>
+      <div style={{ paddingLeft: 4 }}>{children}</div>
+    </div>
   );
 }
 
