@@ -236,7 +236,10 @@ export default function Dashboard({
     const fixedShared = fixedExpenses.filter(f => f.shared).reduce((acc, f) => acc + f.amount, 0);
     return fixedShared * (me?.incomeRatio || 0.5);
   }, [household, fixedExpenses]);
-  const monthChangePct = monthIncome > 0 ? Math.round(((monthSpending - monthIncome * 0.85) / (monthIncome * 0.85)) * 100) : -12;
+  const hasMonthData = monthIncome > 0 || monthSpending > 0;
+  const monthChangePct = monthIncome > 0
+    ? Math.round(((monthSpending - monthIncome * 0.85) / (monthIncome * 0.85)) * 100)
+    : null;
 
   const sectionCards = [
     {
@@ -269,22 +272,22 @@ export default function Dashboard({
     },
     {
       id: 'calendar', emoji: '📅', title: s.sCalendar,
-      metric: upcomingCount,
-      sub: s.sThisWeek,
+      metric: upcomingCount || '—',
+      sub: upcomingCount ? s.sThisWeek : 'Sin pagos',
       gradient: 'linear-gradient(135deg, #34C759, #1C8B3F)',
       onClick: () => onOpenSection('calendar')
     },
     {
       id: 'analysis', emoji: '📈', title: s.sAnalysis,
-      metric: `${monthChangePct >= 0 ? '+' : ''}${monthChangePct}%`,
-      sub: s.sVsLastMonth,
+      metric: monthChangePct === null ? '—' : `${monthChangePct >= 0 ? '+' : ''}${monthChangePct}%`,
+      sub: hasMonthData ? s.sVsLastMonth : 'Sin data',
       gradient: 'linear-gradient(135deg, #AF52DE, #6F2D9A)',
       onClick: () => onOpenSection('analysis')
     },
     {
       id: 'transactions', emoji: '🧾', title: s.sTransactions,
-      metric: txThisMonth,
-      sub: s.sThisMonth,
+      metric: txThisMonth || '—',
+      sub: txThisMonth ? s.sThisMonth : 'Sin movimientos',
       gradient: 'linear-gradient(135deg, #007AFF, #003D80)',
       onClick: () => onOpenSection('transactions')
     },

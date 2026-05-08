@@ -237,17 +237,14 @@ export const defaultUserFinance = {
 };
 
 // Hogar / pareja con quien se comparten gastos
+// Hogar compartido vacío por defecto. El usuario lo configura desde Presupuesto.
 export const defaultHousehold = {
-  enabled: true,
+  enabled: false,
   members: [
-    { id: 'me', name: 'Carlos', avatar: 'CR', incomeRatio: 0.55, isMe: true },
-    { id: 'partner', name: 'María', avatar: 'MR', incomeRatio: 0.45, isMe: false }
+    { id: 'me', name: 'Yo', avatar: 'YO', incomeRatio: 1, isMe: true }
   ],
-  splitMethod: 'income', // 'equal', 'income', 'custom'
-  pendingConfirmations: [
-    { id: 'pc1', merchant: 'Costco Carolina', amount: 156.32, date: '2026-04-27', suggestedShared: true, reason: 'Compras grandes históricamente compartidas' },
-    { id: 'pc2', merchant: 'Texaco Bayamón', amount: 67.40, date: '2026-04-27', suggestedShared: false, reason: 'Gasolina típicamente individual' }
-  ]
+  splitMethod: 'income',
+  pendingConfirmations: []
 };
 
 // sample merchants for receipt OCR mock
