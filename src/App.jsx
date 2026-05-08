@@ -81,7 +81,10 @@ function AppInner() {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [useSupabase, setUseSupabase] = useState(USE_SUPABASE);
-  const [showConnectBank, setShowConnectBank] = useState(false);
+  const [showConnectBank, setShowConnectBank] = useState(() => {
+    // Si volvemos de OAuth de Plaid, abrir la pantalla automáticamente
+    return typeof window !== 'undefined' && window.location.href.includes('?oauth_state_id=');
+  });
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingNotification, setPendingNotification] = useState(null);
@@ -91,6 +94,21 @@ function AppInner() {
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [goals, setGoals] = useState([]);
   const [household, setHousehold] = useState(defaultHousehold);
+
+  // === Sesión con ventana de idle (30 min) ===
+  // Mientras la app esté abierta no bloqueamos. Si el usuario sale y vuelve
+  // dentro de 30 min, no le pedimos PIN/FaceID otra vez. Esto también deja
+  // que el redirect de OAuth (Plaid) regrese sin romper la sesión.
+  const IDLE_MS = 30 * 60 * 1000;
+  const markUnlocked = () => {
+    try { localStorage.setItem('kleo_last_unlock', String(Date.now())); } catch {}
+  };
+  const isWithinIdleWindow = () => {
+    try {
+      const last = parseInt(localStorage.getItem('kleo_last_unlock') || '0', 10);
+      return last && (Date.now() - last) < IDLE_MS;
+    } catch { return false; }
+  };
 
   // Contar notificaciones no leídas + detectar apertura desde notificación
   useEffect(() => {
@@ -228,7 +246,8 @@ function AppInner() {
         } catch (err) {
           console.error('Error loading supabase data:', err);
         }
-        if (hasPin(authUser.id)) setStage(STAGE.FACE_ID);
+        if (isWithinIdleWindow()) setStage(STAGE.AUTHENTICATED);
+        else if (hasPin(authUser.id)) setStage(STAGE.FACE_ID);
         else setStage(STAGE.PIN_SETUP);
         setLoading(false);
         return;
@@ -251,7 +270,8 @@ function AppInner() {
         } catch (err) {
           console.error('Error loading supabase data:', err);
         }
-        if (hasPin(authUser.id)) setStage(STAGE.FACE_ID);
+        if (isWithinIdleWindow()) setStage(STAGE.AUTHENTICATED);
+        else if (hasPin(authUser.id)) setStage(STAGE.FACE_ID);
         else setStage(STAGE.PIN_SETUP);
         setLoading(false);
       } else {
@@ -271,7 +291,8 @@ function AppInner() {
       setUser(saved);
       loadLocalData(saved.email);
       const userData = storage.get(`user_${saved.email}`);
-      if (userData?.pin) setStage(STAGE.FACE_ID);
+      if (isWithinIdleWindow()) setStage(STAGE.AUTHENTICATED);
+      else if (userData?.pin) setStage(STAGE.FACE_ID);
       else setStage(STAGE.PIN_SETUP);
     } else {
       setStage(STAGE.WELCOME);
@@ -334,17 +355,18 @@ function AppInner() {
     if (bioSupported) {
       await registerBiometric(bioId);
     }
+    markUnlocked();
     setStage(STAGE.AUTHENTICATED);
   };
 
   const handleVerifyPin = async (pin) => {
     if (useSupabase && user?.id) {
       const ok = await verifyPin(user.id, pin);
-      if (ok) { setStage(STAGE.AUTHENTICATED); return true; }
+      if (ok) { markUnlocked(); setStage(STAGE.AUTHENTICATED); return true; }
       return false;
     } else {
       const data = storage.get(`user_${user.email}`);
-      if (data?.pin === pin) { setStage(STAGE.AUTHENTICATED); return true; }
+      if (data?.pin === pin) { markUnlocked(); setStage(STAGE.AUTHENTICATED); return true; }
       return false;
     }
   };
@@ -354,6 +376,7 @@ function AppInner() {
       try { await dbSignOut(); } catch {}
     }
     storage.remove('user');
+    try { localStorage.removeItem('kleo_last_unlock'); } catch {}
     setUser(null);
     setAccounts([]);
     setTransactions([]);
@@ -482,7 +505,7 @@ function AppInner() {
         <FaceIdScreen
           userName={user?.name}
           userId={user?.id || user?.email || 'default'}
-          onSuccess={() => setStage(STAGE.AUTHENTICATED)}
+          onSuccess={() => { markUnlocked(); setStage(STAGE.AUTHENTICATED); }}
           onUsePin={() => setStage(STAGE.PIN_VERIFY)}
         />
       </div>
@@ -497,7 +520,7 @@ function AppInner() {
           mode="verify"
           verifyAsync={handleVerifyPin}
           userName={user?.name}
-          onComplete={() => setStage(STAGE.AUTHENTICATED)}
+          onComplete={() => { markUnlocked(); setStage(STAGE.AUTHENTICATED); }}
         />
       </div>
     );
@@ -625,6 +648,7 @@ function AppInner() {
                   transactions={transactions}
                   onHome={goHome}
                   onMenu={() => setShowMenu(true)}
+                  onConnectBank={() => setShowConnectBank(true)}
                 />
               )}
               {tab === 'goals' && (

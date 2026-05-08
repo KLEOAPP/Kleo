@@ -1,20 +1,36 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
 import { Icon } from './icons.jsx';
 import { useI18n } from '../i18n/index.jsx';
 
-function PlaidLinkButton({ linkToken, onSuccess, loading, s }) {
+const OAUTH_RESUME_KEY = 'kleo_plaid_oauth_link_token';
+
+function PlaidLinkButton({ linkToken, onSuccess, loading, s, autoOpen, receivedRedirectUri }) {
   const { open, ready } = usePlaidLink({
     token: linkToken,
+    receivedRedirectUri,
     onSuccess: (public_token, metadata) => {
+      try { localStorage.removeItem(OAUTH_RESUME_KEY); } catch {}
       onSuccess(public_token, metadata);
     },
+    onExit: () => {
+      try { localStorage.removeItem(OAUTH_RESUME_KEY); } catch {}
+    }
   });
+
+  // Auto-abrir si volvemos de OAuth redirect con un link token guardado
+  useEffect(() => {
+    if (autoOpen && ready) open();
+  }, [autoOpen, ready, open]);
 
   return (
     <button
       className="btn-primary"
-      onClick={() => open()}
+      onClick={() => {
+        // Guardar el link_token antes de abrir, para poder reanudar tras OAuth redirect
+        try { localStorage.setItem(OAUTH_RESUME_KEY, linkToken); } catch {}
+        open();
+      }}
       disabled={!ready || loading}
       style={{ width: '100%' }}
     >
@@ -30,6 +46,23 @@ export default function ConnectBank({ userId, onConnected, onClose }) {
   const [status, setStatus] = useState(null);
   const [result, setResult] = useState(null);
   const [errorDetail, setErrorDetail] = useState(null);
+
+  // Detectar si volvemos de un OAuth redirect (Chase, Capital One, Wells, etc.)
+  const isOAuthResume = typeof window !== 'undefined' &&
+    window.location.href.includes('?oauth_state_id=');
+  const [resumeToken, setResumeToken] = useState(null);
+
+  useEffect(() => {
+    if (isOAuthResume) {
+      try {
+        const saved = localStorage.getItem(OAUTH_RESUME_KEY);
+        if (saved) {
+          setResumeToken(saved);
+          setLinkToken(saved);
+        }
+      } catch {}
+    }
+  }, [isOAuthResume]);
 
   const getLinkToken = useCallback(async () => {
     setLoading(true);
@@ -141,7 +174,14 @@ export default function ConnectBank({ userId, onConnected, onClose }) {
             </button>
           </div>
         ) : linkToken ? (
-          <PlaidLinkButton linkToken={linkToken} onSuccess={handleSuccess} loading={loading} s={s} />
+          <PlaidLinkButton
+            linkToken={linkToken}
+            onSuccess={handleSuccess}
+            loading={loading}
+            s={s}
+            autoOpen={!!resumeToken}
+            receivedRedirectUri={resumeToken ? window.location.href : undefined}
+          />
         ) : (
           <button
             className="btn-primary"

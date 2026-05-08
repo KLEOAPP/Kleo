@@ -7,7 +7,7 @@ import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, relativeDate, fmtTime } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
 
-export default function Accounts({ accounts, transactions, onHome, onMenu }) {
+export default function Accounts({ accounts, transactions, onHome, onMenu, onConnectBank }) {
   const { strings: s } = useI18n();
   const [selected, setSelected] = useState(null);
 
@@ -224,7 +224,11 @@ export default function Accounts({ accounts, transactions, onHome, onMenu }) {
           </>
         )}
 
-        <button className="btn-secondary mt-12">
+        <button
+          className="btn-secondary mt-12"
+          onClick={onConnectBank}
+          disabled={!onConnectBank}
+        >
           <Icon name="plus" size={18} />
           <span>{s.connectAnotherAccount}</span>
         </button>
