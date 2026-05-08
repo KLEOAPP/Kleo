@@ -13,6 +13,7 @@ const config = new Configuration({
 
 const plaid = new PlaidApi(config);
 
+const usingServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
@@ -99,11 +100,15 @@ export default async function handler(req, res) {
 
       if (upsertErr) {
         console.error('Supabase accounts upsert error:', upsertErr);
+        const isRLS = upsertErr.message?.includes('row-level security');
         return res.status(500).json({
           error: 'No se pudo guardar la cuenta en la base de datos',
           stage: 'save-accounts',
           detail: upsertErr.message,
-          hint: 'Revisa que la tabla accounts tenga las columnas plaid_account_id (UNIQUE), plaid_access_token, credit_limit, institution.'
+          using_service_role: usingServiceRole,
+          hint: isRLS
+            ? 'El endpoint está usando la ANON_KEY y RLS lo bloquea. Asegúrate que SUPABASE_SERVICE_ROLE_KEY esté configurada en Vercel y haz un redeploy. (using_service_role debe ser true.)'
+            : 'Revisa que la tabla accounts tenga las columnas plaid_account_id (UNIQUE), plaid_access_token, credit_limit, institution.'
         });
       }
     }
