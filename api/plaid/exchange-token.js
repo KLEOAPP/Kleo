@@ -19,24 +19,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 );
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+const HISTORY_DAYS = 180; // 6 meses
 
-  // Diagnóstico
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
   if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
-    return res.status(500).json({
-      error: 'Plaid no configurado',
-      detail: 'Faltan PLAID_CLIENT_ID o PLAID_SECRET.',
-      env: process.env.PLAID_ENV
-    });
+    return res.status(500).json({ error: 'Plaid no configurado', detail: 'Faltan PLAID_CLIENT_ID o PLAID_SECRET.', env: process.env.PLAID_ENV });
   }
   if (!process.env.VITE_SUPABASE_URL) {
-    return res.status(500).json({
-      error: 'Supabase no configurado',
-      detail: 'Falta VITE_SUPABASE_URL.'
-    });
+    return res.status(500).json({ error: 'Supabase no configurado', detail: 'Falta VITE_SUPABASE_URL.' });
   }
 
   let stage = 'init';
@@ -54,10 +46,10 @@ export default async function handler(req, res) {
     // === 2. Accounts ===
     stage = 'accounts';
     const accountsResponse = await plaid.accountsGet({ access_token: accessToken });
-    const accounts = accountsResponse.data.accounts;
+    const plaidAccounts = accountsResponse.data.accounts;
     const institutionId = accountsResponse.data.item?.institution_id;
 
-    // === 3. Institución (best effort) ===
+    // === 3. Institución ===
     stage = 'institution';
     let institutionName = 'Banco';
     if (institutionId) {
@@ -72,14 +64,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // === 4. Guardar accounts ===
+    // === 4. Guardar accounts y mapear plaid_account_id → uuid interno ===
     stage = 'save-accounts';
-    for (const acct of accounts) {
+    const accountIdMap = {}; // plaid_account_id → supabase uuid
+    for (const acct of plaidAccounts) {
       const type = acct.type === 'depository'
         ? (acct.subtype === 'savings' ? 'savings' : 'checking')
         : acct.type === 'credit' ? 'credit' : 'checking';
 
-      const { error: upsertErr } = await supabase.from('accounts').upsert({
+      const { data: saved, error: upsertErr } = await supabase.from('accounts').upsert({
         user_id: userId,
         name: acct.name,
         type,
@@ -96,10 +89,9 @@ export default async function handler(req, res) {
           ? 'linear-gradient(135deg, #34C759 0%, #1C8B3F 100%)'
           : 'linear-gradient(135deg, #007AFF 0%, #003D80 100%)',
         is_active: true
-      }, { onConflict: 'plaid_account_id' });
+      }, { onConflict: 'plaid_account_id' }).select('id, plaid_account_id').single();
 
       if (upsertErr) {
-        console.error('Supabase accounts upsert error:', upsertErr);
         const isRLS = upsertErr.message?.includes('row-level security');
         return res.status(500).json({
           error: 'No se pudo guardar la cuenta en la base de datos',
@@ -107,38 +99,45 @@ export default async function handler(req, res) {
           detail: upsertErr.message,
           using_service_role: usingServiceRole,
           hint: isRLS
-            ? 'El endpoint está usando la ANON_KEY y RLS lo bloquea. Asegúrate que SUPABASE_SERVICE_ROLE_KEY esté configurada en Vercel y haz un redeploy. (using_service_role debe ser true.)'
-            : 'Revisa que la tabla accounts tenga las columnas plaid_account_id (UNIQUE), plaid_access_token, credit_limit, institution.'
+            ? 'El endpoint está usando ANON_KEY y RLS lo bloquea. Asegúrate que SUPABASE_SERVICE_ROLE_KEY esté en Vercel y haz redeploy.'
+            : 'Revisa columnas: plaid_account_id (UNIQUE), plaid_access_token, credit_limit, institution.'
         });
       }
+
+      if (saved) accountIdMap[saved.plaid_account_id] = saved.id;
     }
 
-    // === 5. Transactions (con tolerancia a PRODUCT_NOT_READY) ===
+    // === 5. Fetch 180 días de transacciones (con paginación) ===
     stage = 'transactions';
     let transactionsImported = 0;
     let transactionsPending = false;
+    let allTxs = [];
 
     try {
       const now = new Date();
-      const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
-      const startDate = thirtyDaysAgo.toISOString().split('T')[0];
+      const startDate = new Date(now - HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = now.toISOString().split('T')[0];
 
-      const txResponse = await plaid.transactionsGet({
-        access_token: accessToken,
-        start_date: startDate,
-        end_date: endDate,
-        options: { count: 100 }
-      });
+      let total = null;
+      let offset = 0;
+      const pageSize = 500;
 
-      for (const tx of txResponse.data.transactions) {
-        const { data: matchedAccounts } = await supabase
-          .from('accounts')
-          .select('id')
-          .eq('plaid_account_id', tx.account_id)
-          .limit(1);
+      while (total === null || offset < total) {
+        const txResponse = await plaid.transactionsGet({
+          access_token: accessToken,
+          start_date: startDate,
+          end_date: endDate,
+          options: { count: pageSize, offset }
+        });
+        total = txResponse.data.total_transactions;
+        allTxs = allTxs.concat(txResponse.data.transactions);
+        offset += txResponse.data.transactions.length;
+        if (txResponse.data.transactions.length === 0) break;
+      }
 
-        const accountId = matchedAccounts?.[0]?.id;
+      // Guardar transacciones
+      for (const tx of allTxs) {
+        const accountId = accountIdMap[tx.account_id];
         if (!accountId) continue;
 
         await supabase.from('transactions').upsert({
@@ -151,29 +150,55 @@ export default async function handler(req, res) {
           method: 'auto',
           plaid_transaction_id: tx.transaction_id
         }, { onConflict: 'plaid_transaction_id' });
+
+        transactionsImported++;
       }
-      transactionsImported = txResponse.data.transactions.length;
     } catch (txErr) {
       const code = txErr.response?.data?.error_code;
-      // PRODUCT_NOT_READY es normal: Plaid aún no terminó de sincronizar.
-      // Las transacciones llegarán por webhook después. No es un fallo.
       if (code === 'PRODUCT_NOT_READY') {
-        console.log('Transactions still syncing — webhook will deliver them.');
         transactionsPending = true;
       } else {
         console.error('Transactions fetch failed:', txErr.response?.data || txErr.message);
-        // No abortamos — las cuentas ya se guardaron. Avisamos al cliente.
         transactionsPending = true;
+      }
+    }
+
+    // === 6. Detectar pagos recurrentes (suscripciones / mensualidades / deudas) ===
+    stage = 'detect-recurring';
+    let recurringDetected = 0;
+    if (allTxs.length > 0) {
+      try {
+        const recurring = detectRecurring(allTxs);
+
+        for (const r of recurring) {
+          // Insertar como gasto fijo con metadata
+          const { error: feErr } = await supabase.from('fixed_expenses').upsert({
+            user_id: userId,
+            name: r.merchant,
+            amount: r.avg_amount,
+            due_day: r.day_of_month,
+            category: r.category,
+            icon: r.icon,
+            shared: false,
+            plaid_signature: r.signature  // identifica el patrón único
+          }, { onConflict: 'user_id,plaid_signature' });
+
+          if (!feErr) recurringDetected++;
+        }
+      } catch (e) {
+        console.warn('Recurring detection failed:', e.message);
       }
     }
 
     res.json({
       success: true,
-      accountsLinked: accounts.length,
+      accountsLinked: plaidAccounts.length,
       transactionsImported,
       transactionsPending,
+      recurringDetected,
       institution: institutionName,
-      itemId
+      itemId,
+      historyDays: HISTORY_DAYS
     });
   } catch (err) {
     const plaidErr = err.response?.data;
@@ -186,6 +211,80 @@ export default async function handler(req, res) {
       env: process.env.PLAID_ENV
     });
   }
+}
+
+/**
+ * Detecta patrones recurrentes en transacciones:
+ *  - Suscripciones (Netflix, Spotify, etc.)
+ *  - Mensualidades (gym, seguros)
+ *  - Pagos automáticos (luz, agua, internet)
+ *  - Deudas (préstamos, pagos a tarjeta)
+ */
+function detectRecurring(txs) {
+  const byMerchant = {};
+  txs.filter(t => t.amount > 0) // outflows positivos en Plaid (signo invertido)
+    .forEach(t => {
+      const key = (t.merchant_name || t.name || '').toLowerCase().trim();
+      if (!key) return;
+      if (!byMerchant[key]) byMerchant[key] = [];
+      byMerchant[key].push({
+        amount: t.amount,
+        date: new Date(t.date),
+        category: t.personal_finance_category?.primary || t.category?.[0],
+        original: t
+      });
+    });
+
+  const recurring = [];
+  for (const [key, list] of Object.entries(byMerchant)) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => b.date - a.date);
+
+    // Ver gaps entre transacciones consecutivas
+    const gaps = [];
+    for (let i = 0; i < list.length - 1; i++) {
+      gaps.push((list[i].date - list[i + 1].date) / (1000 * 60 * 60 * 24));
+    }
+    const avgGap = gaps.reduce((s, x) => s + x, 0) / gaps.length;
+    let cadence = null;
+    if (avgGap >= 6 && avgGap <= 9) cadence = 'weekly';
+    else if (avgGap >= 12 && avgGap <= 16) cadence = 'biweekly';
+    else if (avgGap >= 25 && avgGap <= 35) cadence = 'monthly';
+    else continue; // no recurrente
+
+    // Verificar consistencia de monto (±15%)
+    const avg = list.reduce((s, t) => s + t.amount, 0) / list.length;
+    const consistent = list.every(t => Math.abs(t.amount - avg) / avg <= 0.15);
+    if (!consistent) continue;
+
+    const cat = mapPlaidCategory(list[0].category);
+    const icon = pickIcon(cat, list[0].original.merchant_name || list[0].original.name);
+    const merchantName = list[0].original.merchant_name || list[0].original.name;
+
+    recurring.push({
+      merchant: merchantName,
+      avg_amount: +avg.toFixed(2),
+      cadence,
+      day_of_month: Math.min(28, list[0].date.getDate()),
+      category: cat,
+      icon,
+      occurrences: list.length,
+      signature: `recurring:${key}:${cadence}`
+    });
+  }
+  return recurring;
+}
+
+function pickIcon(cat, name = '') {
+  const n = name.toLowerCase();
+  if (n.includes('netflix')) return '🎬';
+  if (n.includes('spotify') || n.includes('apple music')) return '🎵';
+  if (n.includes('amazon') || n.includes('prime')) return '📦';
+  if (n.includes('gym') || n.includes('fitness') || n.includes('planet')) return '🏋️';
+  if (cat === 'servicios') return '⚡';
+  if (cat === 'hogar') return '🏠';
+  if (cat === 'transporte') return '🚗';
+  return '🔁';
 }
 
 function mapPlaidCategory(plaidCat) {
@@ -202,6 +301,8 @@ function mapPlaidCategory(plaidCat) {
     'PERSONAL_CARE': 'personal',
     'TRANSFER': 'transferencia',
     'INCOME': 'ingreso',
+    'LOAN_PAYMENTS': 'deuda',
+    'BANK_FEES': 'comisiones'
   };
   return map[plaidCat] || 'otros';
 }

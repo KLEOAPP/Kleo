@@ -297,6 +297,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({
+      error: 'Kleo AI no configurado',
+      detail: 'Falta ANTHROPIC_API_KEY en las variables de entorno de Vercel.'
+    });
+  }
+
   try {
     const { transactions = [], accounts = [], goals = [], fixedExpenses = [], type } = req.body;
 
@@ -331,7 +338,14 @@ ${JSON.stringify(profile, null, 2)}`;
     });
 
     const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
+    if (!response.ok || data.error) {
+      console.error('Anthropic error:', data);
+      return res.status(500).json({
+        error: data.error?.message || `Anthropic returned ${response.status}`,
+        error_type: data.error?.type,
+        status: response.status
+      });
+    }
 
     const text = data.content?.[0]?.text || '';
     let clean = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();

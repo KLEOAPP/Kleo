@@ -9,10 +9,12 @@ export default function KleoAi({ transactions, accounts, goals, fixedExpenses, o
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [errorDetail, setErrorDetail] = useState(null);
 
   const fetchAnalysis = async () => {
     setLoading(true);
     setError(false);
+    setErrorDetail(null);
     try {
       const res = await fetch('/api/ai/insights', {
         method: 'POST',
@@ -23,9 +25,11 @@ export default function KleoAi({ transactions, accounts, goals, fixedExpenses, o
       if (data.result && typeof data.result === 'object') {
         setAnalysis(data.result);
       } else {
+        setErrorDetail(data);
         setError(true);
       }
-    } catch {
+    } catch (err) {
+      setErrorDetail({ error: err.message });
       setError(true);
     }
     setLoading(false);
@@ -100,9 +104,33 @@ export default function KleoAi({ transactions, accounts, goals, fixedExpenses, o
 
         {/* Error */}
         {error && !loading && (
-          <div className="card" style={{ background: 'var(--bg-elev)', border: 'none', textAlign: 'center', padding: 24 }}>
-            <p style={{ fontSize: 14, color: 'var(--text-mute)', marginBottom: 8 }}>{s.aiCouldNotLoad}</p>
-            <button onClick={fetchAnalysis} style={{ fontSize: 13, color: 'var(--blue)', fontWeight: 700 }}>
+          <div className="card" style={{ background: 'var(--bg-elev)', border: 'none', padding: 18 }}>
+            <p style={{ fontSize: 14, color: 'var(--text-mute)', marginBottom: 12, textAlign: 'center', fontWeight: 600 }}>
+              {s.aiCouldNotLoad}
+            </p>
+            {errorDetail && (
+              <div style={{
+                background: 'rgba(255, 77, 109, 0.10)',
+                border: '1px solid rgba(255, 77, 109, 0.3)',
+                padding: 12,
+                borderRadius: 10,
+                fontSize: 11,
+                lineHeight: 1.5,
+                color: 'var(--text-mute)',
+                fontFamily: 'monospace',
+                wordBreak: 'break-word',
+                marginBottom: 12
+              }}>
+                {errorDetail.status && <div><strong>Status:</strong> {errorDetail.status}</div>}
+                {errorDetail.error_type && <div><strong>Type:</strong> {errorDetail.error_type}</div>}
+                <div><strong>Error:</strong> {errorDetail.error || 'Sin detalles'}</div>
+                {errorDetail.detail && <div style={{ marginTop: 4 }}>{errorDetail.detail}</div>}
+              </div>
+            )}
+            <button onClick={fetchAnalysis} style={{
+              width: '100%', fontSize: 13, color: '#fff', fontWeight: 700,
+              padding: 10, borderRadius: 10, background: 'var(--brand-grad)'
+            }}>
               {s.retry}
             </button>
           </div>
