@@ -15,21 +15,40 @@ export default function KleoAi({ transactions, accounts, goals, fixedExpenses, o
     setLoading(true);
     setError(false);
     setErrorDetail(null);
+
+    // Timeout de 60 segundos para no quedarse colgado para siempre
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
     try {
       const res = await fetch('/api/ai/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions, accounts, goals, fixedExpenses, type: 'advisor' })
+        body: JSON.stringify({ transactions, accounts, goals, fixedExpenses, type: 'advisor' }),
+        signal: controller.signal
       });
-      const data = await res.json();
-      if (data.result && typeof data.result === 'object') {
-        setAnalysis(data.result);
-      } else {
-        setErrorDetail(data);
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErrorDetail({ ...data, status: res.status });
         setError(true);
+      } else {
+        const data = await res.json();
+        if (data.result && typeof data.result === 'object') {
+          setAnalysis(data.result);
+        } else {
+          setErrorDetail(data);
+          setError(true);
+        }
       }
     } catch (err) {
-      setErrorDetail({ error: err.message });
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') {
+        setErrorDetail({ error: 'El análisis tardó más de 60 segundos. Intenta de nuevo.' });
+      } else {
+        setErrorDetail({ error: err.message });
+      }
       setError(true);
     }
     setLoading(false);

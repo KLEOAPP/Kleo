@@ -122,8 +122,23 @@ export default async function handler(req, res) {
       let offset = 0;
       const pageSize = 500;
 
+      // Helper con reintentos para PRODUCT_NOT_READY
+      const fetchTxsWithRetry = async (opts, attempt = 0) => {
+        try {
+          return await plaid.transactionsGet(opts);
+        } catch (e) {
+          const code = e.response?.data?.error_code;
+          if (code === 'PRODUCT_NOT_READY' && attempt < 4) {
+            // Espera 5s, 10s, 15s, 20s y reintenta
+            await new Promise(r => setTimeout(r, (attempt + 1) * 5000));
+            return fetchTxsWithRetry(opts, attempt + 1);
+          }
+          throw e;
+        }
+      };
+
       while (total === null || offset < total) {
-        const txResponse = await plaid.transactionsGet({
+        const txResponse = await fetchTxsWithRetry({
           access_token: accessToken,
           start_date: startDate,
           end_date: endDate,
@@ -135,17 +150,50 @@ export default async function handler(req, res) {
         if (txResponse.data.transactions.length === 0) break;
       }
 
+      // Mapa de plaid_account_id → tipo de cuenta (para identificar cargos a credit cards)
+      const accountTypeByPlaidId = {};
+      plaidAccounts.forEach(a => {
+        accountTypeByPlaidId[a.account_id] =
+          a.type === 'credit' ? 'credit' :
+          a.subtype === 'savings' ? 'savings' : 'checking';
+      });
+
       // Guardar transacciones
       for (const tx of allTxs) {
         const accountId = accountIdMap[tx.account_id];
         if (!accountId) continue;
+
+        const acctType = accountTypeByPlaidId[tx.account_id];
+        const primary = tx.personal_finance_category?.primary || tx.category?.[0];
+        const detailed = tx.personal_finance_category?.detailed;
+
+        let category = mapPlaidCategory(primary);
+
+        // ===== Clasificación inteligente para evitar contar transferencias como ingreso =====
+        // 1) Pago a tarjeta de crédito (LOAN_PAYMENTS_CREDIT_CARD_PAYMENT, etc.)
+        if (detailed?.includes('CREDIT_CARD_PAYMENT') ||
+            detailed?.includes('TRANSFER_IN') ||
+            detailed?.includes('TRANSFER_OUT') ||
+            primary === 'TRANSFER_IN' || primary === 'TRANSFER_OUT') {
+          category = 'transferencia';
+        }
+        // 2) Si es cuenta de crédito y la transacción es negativa en Plaid (= pago recibido),
+        //    NO es ingreso — es una transferencia desde checking
+        if (acctType === 'credit' && tx.amount < 0) {
+          category = 'transferencia';
+        }
+        // 3) Outflow de checking que va a una cuenta de crédito propia tampoco es gasto real
+        const isPaymentOut = primary === 'LOAN_PAYMENTS' || detailed?.includes('CREDIT_CARD_PAYMENT');
+        if (acctType !== 'credit' && isPaymentOut && tx.amount > 0) {
+          category = 'transferencia';
+        }
 
         await supabase.from('transactions').upsert({
           user_id: userId,
           account_id: accountId,
           amount: -tx.amount,
           merchant: tx.merchant_name || tx.name,
-          category: mapPlaidCategory(tx.personal_finance_category?.primary || tx.category?.[0]),
+          category,
           date: tx.date,
           method: 'auto',
           plaid_transaction_id: tx.transaction_id
@@ -180,7 +228,8 @@ export default async function handler(req, res) {
             category: r.category,
             icon: r.icon,
             shared: false,
-            plaid_signature: r.signature  // identifica el patrón único
+            is_active: true,
+            plaid_signature: r.signature
           }, { onConflict: 'user_id,plaid_signature' });
 
           if (!feErr) recurringDetected++;
