@@ -91,6 +91,7 @@ export default function ConnectBank({ userId, onConnected, onClose }) {
   const handleSuccess = async (publicToken) => {
     setStatus('linking');
     setLoading(true);
+    setErrorDetail(null);
     try {
       const res = await fetch('/api/plaid/exchange-token', {
         method: 'POST',
@@ -103,10 +104,12 @@ export default function ConnectBank({ userId, onConnected, onClose }) {
         setResult(data);
         if (onConnected) onConnected();
       } else {
+        setErrorDetail(data);
         setStatus('error');
       }
     } catch (err) {
       console.error(err);
+      setErrorDetail({ error: err.message });
       setStatus('error');
     }
     setLoading(false);
