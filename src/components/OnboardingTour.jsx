@@ -18,12 +18,13 @@ import { Icon } from './icons.jsx';
  * `steps` = [{ target: 'hero', title, body, ...}]
  *   Si target es null → popover centrado (intro/outro).
  */
-export default function OnboardingTour({ steps, onComplete, onSkip }) {
+export default function OnboardingTour({ steps, onComplete, onSkip, navigate }) {
   const [stepIdx, setStepIdx] = useState(0);
   const [rect, setRect] = useState(null);
   const step = steps[stepIdx];
   const isLast = stepIdx === steps.length - 1;
   const measureTimerRef = useRef(null);
+  const lastNavRef = useRef(undefined);
 
   const measure = useCallback(() => {
     if (!step?.target) {
@@ -46,18 +47,36 @@ export default function OnboardingTour({ steps, onComplete, onSkip }) {
   // Auto-scroll y medición al cambiar de paso
   useEffect(() => {
     clearTimeout(measureTimerRef.current);
+
+    // Navegar a la sección correspondiente antes de medir
+    let didNavigate = false;
+    if (navigate && step && 'navigateTo' in step && step.navigateTo !== lastNavRef.current) {
+      navigate(step.navigateTo);
+      lastNavRef.current = step.navigateTo;
+      didNavigate = true;
+    }
+
     if (!step?.target) {
       setRect(null);
+      // Aún así esperamos un poco si hubo navegación, para que monte el contenido
+      if (didNavigate) {
+        measureTimerRef.current = setTimeout(() => setRect(null), 350);
+      }
       return;
     }
-    const el = document.querySelector(`[data-tour="${step.target}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    }
-    // Esperar a que el scroll termine
-    measureTimerRef.current = setTimeout(measure, 450);
+
+    // Si navegamos, esperamos más tiempo a que el componente nuevo monte
+    const initialWait = didNavigate ? 500 : 50;
+    measureTimerRef.current = setTimeout(() => {
+      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      }
+      measureTimerRef.current = setTimeout(measure, 450);
+    }, initialWait);
+
     return () => clearTimeout(measureTimerRef.current);
-  }, [stepIdx, measure]);
+  }, [stepIdx, measure, navigate, step]);
 
   // Re-mide en resize y scroll
   useEffect(() => {

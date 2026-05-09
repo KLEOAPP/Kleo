@@ -104,7 +104,7 @@ export default function Calendar({ accounts, fixedExpenses, transactions, goals 
         )}
 
         {/* ===== Calendario principal ===== */}
-        <div className="card mb-16" style={{ padding: 16, borderRadius: 22 }}>
+        <div data-tour="calMonth" className="card mb-16" style={{ padding: 16, borderRadius: 22 }}>
           <div className="spread mb-16">
             <button onClick={() => move(-1)} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="back" size={14} />

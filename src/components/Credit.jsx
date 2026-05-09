@@ -223,7 +223,7 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
       )}
 
       {/* ===== Plan de Acción · Por Tarjeta ===== */}
-      <div className="section-header">
+      <div data-tour="creditPlan" className="section-header">
         <span>{s.actionPlan}</span>
       </div>
       <div className="col gap-12 mb-20">
@@ -233,7 +233,7 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
       </div>
 
       {/* ===== Calculadora rediseñada — paso a paso ===== */}
-      <div className="section-header">
+      <div data-tour="creditCalc" className="section-header">
         <span>{s.extraPayCalc}</span>
       </div>
 
@@ -550,7 +550,7 @@ export default function Credit({ accounts, fixedExpenses = [], onBack, onHome })
       )}
 
       {/* ===== Factores FICO ===== */}
-      <div className="section-header">
+      <div data-tour="creditFactors" className="section-header">
         <span>{s.factorsTitle}</span>
       </div>
       <p className="tiny mb-8" style={{ lineHeight: 1.5 }}>{s.factorsDesc}</p>

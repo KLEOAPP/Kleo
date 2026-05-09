@@ -114,6 +114,7 @@ export default function Goals({
       <div className="spread" style={{ padding: '12px 0' }}>
         <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>{s.yourSavingsGoals}</span>
         <button
+          data-tour="goalsCreate"
           style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setShowCreate(true)}
         >
@@ -121,7 +122,7 @@ export default function Goals({
         </button>
       </div>
 
-      <div className="card mb-20" style={{
+      <div data-tour="goalsHero" className="card mb-20" style={{
         background: 'linear-gradient(135deg, rgba(0,229,176,0.08), rgba(0,132,255,0.08))',
         borderColor: 'rgba(0,229,176,0.2)'
       }}>

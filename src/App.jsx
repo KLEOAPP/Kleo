@@ -702,7 +702,22 @@ function AppInner() {
       {showTutorial && (
         <OnboardingTour
           steps={TOUR_STEPS}
+          navigate={(target) => {
+            // target = null -> dashboard, 'credit'/'calendar'/etc -> sección,
+            // 'tab:goals'/'tab:accounts' -> tab
+            if (target === null || target === undefined) {
+              setSection(null);
+              setTab('dashboard');
+            } else if (typeof target === 'string' && target.startsWith('tab:')) {
+              setSection(null);
+              setTab(target.slice(4));
+            } else {
+              setSection(target);
+            }
+          }}
           onComplete={() => {
+            setSection(null);
+            setTab('dashboard');
             setShowTutorial(false);
             // Después del tour, abrir directamente Plaid Link
             setTimeout(() => setShowConnectBank(true), 400);
@@ -777,6 +792,7 @@ function AppInner() {
 // ════════════════════════════════════════════════════════════
 const TOUR_STEPS = [
   {
+    navigateTo: null,
     target: null,
     tag: 'Bienvenido',
     emoji: '👋',
@@ -849,7 +865,71 @@ const TOUR_STEPS = [
     title: 'Menú "Más"',
     body: 'Aquí están todas las secciones, idioma (ES/EN), tema claro/oscuro, notificaciones y configuración del asesor. También puedes volver a ver este tutorial.'
   },
+  // ─── Sección CRÉDITO ───
   {
+    navigateTo: 'credit',
+    target: 'creditPlan',
+    tag: 'Crédito',
+    emoji: '💳',
+    title: 'Plan de acción por tarjeta',
+    body: 'Por cada tarjeta que conectes te calculo el plan exacto: cuánto pagar, cuándo pagarlo (antes del cierre, no del due date) y cuándo NO usarla.',
+    tip: 'El secreto: el banco reporta al buró el balance al cierre del ciclo. Pagar 2-3 días antes del cierre baja la utilización reportada.'
+  },
+  {
+    navigateTo: 'credit',
+    target: 'creditCalc',
+    tag: 'Calculadora',
+    emoji: '🧮',
+    title: 'Calculadora de pago extra',
+    body: 'Mueve el deslizador y ves al instante cuánto te ahorras en intereses y meses si pagas más del mínimo. 3 pasos simples.',
+    tip: 'Estrategia avalanche: aplica el extra a la tarjeta con APR más alto. Te ahorra más intereses que distribuirlo.'
+  },
+  {
+    navigateTo: 'credit',
+    target: 'creditFactors',
+    tag: 'FICO',
+    emoji: '📊',
+    title: 'Factores que afectan tu score',
+    body: 'Los 5 factores del FICO con su peso en puntos: Pago 35% (~192 pts), Util 30% (~165), Edad 15% (~83), Mezcla 10% (~55), Nuevo 10% (~55).',
+    tip: 'Toca cada factor para ver tips específicos para mejorarlo.'
+  },
+
+  // ─── Sección CALENDARIO ───
+  {
+    navigateTo: 'calendar',
+    target: 'calMonth',
+    tag: 'Calendario',
+    emoji: '🗓',
+    title: 'Calendario inteligente',
+    body: 'Auto-poblado con tus pagos fijos, suscripciones, cierres de ciclo y aportes a metas. Cada día muestra el logo del evento dominante.',
+    tip: 'Marco pagado automáticamente cuando detecto la transacción. Tú no tienes que tocar nada.'
+  },
+
+  // ─── Sección METAS ───
+  {
+    navigateTo: 'tab:goals',
+    target: 'goalsCreate',
+    tag: 'Metas',
+    emoji: '🎯',
+    title: 'Crear una meta',
+    body: 'Toca el + para crear una meta (viaje, casa, fondo de emergencia). Vincula la cuenta donde guardas el dinero y los depósitos suman solos.',
+    tip: 'Te recomiendo abrir una cuenta separada para metas. BPPR, Oriental y FirstBank tienen cuentas virtuales gratis.'
+  },
+
+  // ─── Sección KLEO AI ───
+  {
+    navigateTo: 'kleoai',
+    target: 'aiAnalyze',
+    tag: 'Asesor 24/7',
+    emoji: '🤖',
+    title: 'Tu asesor financiero',
+    body: 'Toca este botón cuando quieras un análisis completo: disponible esta semana, riesgos detectados, acciones recomendadas con pasos numerados, plan puente con tarjeta si te falta efectivo.',
+    tip: 'Mientras más data tenga (más meses conectados), más afinadas las recomendaciones.'
+  },
+
+  // ─── OUTRO ───
+  {
+    navigateTo: null,
     target: null,
     tag: 'Listo',
     emoji: '🚀',

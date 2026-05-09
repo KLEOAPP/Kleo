@@ -109,6 +109,7 @@ export default function KleoAi({ transactions, accounts, goals, fixedExpenses, o
 
         {/* Botón generar/actualizar */}
         <button
+          data-tour="aiAnalyze"
           onClick={fetchAnalysis}
           disabled={loading}
           className="btn-primary mb-20"
