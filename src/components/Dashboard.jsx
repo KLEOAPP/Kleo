@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import BankLogo from './BankLogo.jsx';
 import { fmtMoney, fmtMoneyShort, daysUntil, nextPaymentDate } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
 import { buildMonthEvents } from '../utils/calendarEvents.js';
+import {
+  getBudget, FREQUENCIES, disponibleByPeriod, daysUntilNextPaycheck,
+  budgetAmounts, ALLOCATION_LABELS
+} from '../lib/budget.js';
+import BudgetSetup from './BudgetSetup.jsx';
 
 export default function Dashboard({
   user, accounts, transactions, fixedExpenses, goals, household,
@@ -14,6 +19,9 @@ export default function Dashboard({
   const { strings: s } = useI18n();
   const [showHowCalc, setShowHowCalc] = useState(false);
   const [showPlanOverlay, setShowPlanOverlay] = useState(false);
+  const [showBudgetSetup, setShowBudgetSetup] = useState(false);
+  const [budget, setBudget] = useState(() => getBudget());
+  const [budgetPeriod, setBudgetPeriod] = useState('week'); // day | week | period | month
 
   /* ---------------- Derived data ---------------- */
   const patrimony = useMemo(() => {
@@ -316,86 +324,155 @@ export default function Dashboard({
           {s.hello.replace('{name}', user.name.split(' ')[0])} 👋
         </h2>
 
-        {/* ============ HERO: DISPONIBLE ESTA SEMANA ============ */}
-        <div className="card mb-16" style={{
-          background: 'linear-gradient(135deg, rgba(0, 229, 176, 0.10), rgba(168, 85, 247, 0.08))',
-          border: '1px solid rgba(0, 229, 176, 0.25)',
-          padding: 18,
-          borderRadius: 22,
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          {/* Glow decorativo */}
+        {/* ============ HERO: DISPONIBLE (con budget + selector de periodo) ============ */}
+        {(() => {
+          const hasBudget = !!budget;
+          const periodAmount = hasBudget ? disponibleByPeriod(budget, budgetPeriod) : null;
+          const daysToCheck = hasBudget ? daysUntilNextPaycheck(budget) : null;
+          const cycleDays = budget ? FREQUENCIES.find(f => f.id === budget.pay_frequency)?.days || 14 : 14;
+          const periodLabel =
+            budgetPeriod === 'day' ? 'al día' :
+            budgetPeriod === 'week' ? 'a la semana' :
+            budgetPeriod === 'period' ? `por ${FREQUENCIES.find(f => f.id === budget?.pay_frequency)?.label.toLowerCase() || 'ciclo'}` :
+            'al mes';
+          return (
+            <div className="card mb-16" style={{
+              background: hasBudget
+                ? 'linear-gradient(135deg, rgba(0, 229, 176, 0.10), rgba(168, 85, 247, 0.08))'
+                : 'linear-gradient(135deg, rgba(168, 85, 247, 0.10), rgba(255, 149, 0, 0.06))',
+              border: hasBudget ? '1px solid rgba(0, 229, 176, 0.25)' : '1px solid rgba(168, 85, 247, 0.25)',
+              padding: 18, borderRadius: 22,
+              position: 'relative', overflow: 'hidden'
+            }}>
           <div style={{
             position: 'absolute',
             top: -40, right: -40,
             width: 140, height: 140,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0, 229, 176, 0.35), transparent 70%)',
+            background: hasBudget
+              ? 'radial-gradient(circle, rgba(0, 229, 176, 0.35), transparent 70%)'
+              : 'radial-gradient(circle, rgba(168, 85, 247, 0.35), transparent 70%)',
             pointerEvents: 'none'
           }} />
 
           <div className="row gap-6 mb-4" style={{ alignItems: 'center', position: 'relative' }}>
             <span style={{ fontSize: 13, color: 'var(--text-mute)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              💰 {s.availableThisWeek}
+              💰 Disponible
             </span>
+            {hasBudget && (
+              <span style={{ fontSize: 11, color: 'var(--text-mute)', fontWeight: 600 }}>
+                · {periodLabel}
+              </span>
+            )}
           </div>
 
-          <h1 style={{
-            fontSize: 42,
-            fontWeight: 800,
-            letterSpacing: '-0.03em',
-            marginTop: 4,
-            marginBottom: 8,
-            position: 'relative',
-            background: hasAccounts ? 'linear-gradient(135deg, #00E5B0, #A855F7)' : 'transparent',
-            WebkitBackgroundClip: hasAccounts ? 'text' : 'unset',
-            WebkitTextFillColor: hasAccounts ? 'transparent' : 'var(--text-mute)',
-            backgroundClip: hasAccounts ? 'text' : 'unset'
-          }}>
-            {hasAccounts ? fmtMoney(availableThisWeek) : '—'}
-          </h1>
+          {hasBudget ? (
+            <>
+              <h1 style={{
+                fontSize: 42, fontWeight: 800, letterSpacing: '-0.03em',
+                marginTop: 4, marginBottom: 8, position: 'relative',
+                background: 'linear-gradient(135deg, #00E5B0, #A855F7)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
+              }}>
+                {fmtMoney(periodAmount || 0)}
+              </h1>
 
-          <p className="tiny" style={{ fontSize: 12, lineHeight: 1.45, marginBottom: 12, position: 'relative' }}>
-            {hasAccounts
-              ? s.availableSubtext
-              : 'Conecta tu banco para ver cuánto puedes gastar libremente esta semana.'}
-          </p>
+              {/* Selector de periodo */}
+              <div style={{
+                display: 'flex', gap: 4, marginBottom: 10,
+                padding: 3, borderRadius: 10, background: 'var(--bg-elev)',
+                position: 'relative'
+              }}>
+                {[
+                  { k: 'day',    label: 'Día' },
+                  { k: 'week',   label: 'Semana' },
+                  { k: 'period', label: FREQUENCIES.find(f => f.id === budget.pay_frequency)?.label.toLowerCase() || 'ciclo' },
+                  { k: 'month',  label: 'Mes' }
+                ].map(opt => {
+                  const active = budgetPeriod === opt.k;
+                  return (
+                    <button
+                      key={opt.k}
+                      onClick={() => setBudgetPeriod(opt.k)}
+                      style={{
+                        flex: 1, padding: '6px 4px', borderRadius: 8,
+                        background: active ? 'var(--brand-grad)' : 'transparent',
+                        color: active ? '#fff' : 'var(--text-mute)',
+                        fontSize: 11, fontWeight: 700, border: 'none',
+                        textTransform: 'capitalize',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
 
-          {/* Pill de seguridad — solo cuando hay cuentas conectadas */}
-          {hasAccounts && (
-            <div className="row gap-6" style={{
-              background: 'rgba(0, 229, 176, 0.18)',
-              border: '1px solid rgba(0, 229, 176, 0.35)',
-              padding: '6px 12px',
-              borderRadius: 999,
-              alignItems: 'center',
-              display: 'inline-flex',
-              position: 'relative'
-            }}>
-              <Icon name="shield" size={12} color="#00E5B0" />
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#00E5B0' }}>
-                {s.safeForXDays.replace('{n}', daysSafe)}
-              </span>
-            </div>
+              {/* Pills informativas */}
+              <div className="row gap-6" style={{ flexWrap: 'wrap', position: 'relative' }}>
+                <div className="row gap-4" style={{
+                  background: 'rgba(0, 229, 176, 0.18)', border: '1px solid rgba(0, 229, 176, 0.35)',
+                  padding: '5px 10px', borderRadius: 999, alignItems: 'center'
+                }}>
+                  <Icon name="shield" size={11} color="#00E5B0" />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#00E5B0' }}>
+                    Para gastar libremente
+                  </span>
+                </div>
+                {daysToCheck !== null && daysToCheck > 0 && (
+                  <div className="row gap-4" style={{
+                    background: 'rgba(168, 85, 247, 0.18)', border: '1px solid rgba(168, 85, 247, 0.35)',
+                    padding: '5px 10px', borderRadius: 999, alignItems: 'center'
+                  }}>
+                    <span style={{ fontSize: 11 }}>📅</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#A855F7' }}>
+                      Cheque en {daysToCheck}d
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="row gap-12 mt-10" style={{ position: 'relative' }}>
+                <button onClick={() => setShowHowCalc(true)} className="tiny"
+                  style={{ color: '#A855F7', fontWeight: 700, fontSize: 11, textDecoration: 'underline' }}>
+                  ¿Cómo se calcula?
+                </button>
+                <button onClick={() => setShowBudgetSetup(true)} className="tiny"
+                  style={{ color: 'var(--text-mute)', fontWeight: 700, fontSize: 11 }}>
+                  ✏ Editar presupuesto
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 style={{
+                fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em',
+                marginTop: 4, marginBottom: 8, position: 'relative'
+              }}>
+                Configura tu presupuesto
+              </h1>
+              <p className="tiny" style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 14, position: 'relative' }}>
+                Dime cada cuánto cobras y cómo distribuir tu dinero. Te muestro cuánto puedes gastar sin descuadrarte — al día, a la semana o por ciclo.
+              </p>
+              <button
+                onClick={() => setShowBudgetSetup(true)}
+                className="row gap-6"
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  background: 'var(--brand-grad)', color: '#fff', fontWeight: 800, fontSize: 14,
+                  justifyContent: 'center', boxShadow: '0 4px 16px rgba(168, 85, 247, 0.4)',
+                  position: 'relative'
+                }}
+              >
+                <Icon name="sparkle" size={16} color="#fff" />
+                <span>Empezar mi presupuesto</span>
+              </button>
+            </>
           )}
-
-          <button
-            onClick={() => setShowHowCalc(true)}
-            className="tiny"
-            style={{
-              display: 'block',
-              marginTop: 12,
-              color: '#A855F7',
-              fontWeight: 700,
-              fontSize: 12,
-              textDecoration: 'underline',
-              position: 'relative'
-            }}
-          >
-            {s.howCalculated}
-          </button>
         </div>
+          );
+        })()}
 
         {/* ============ CONNECT BANK ============ */}
         {onConnectBank && (
@@ -670,6 +747,21 @@ export default function Dashboard({
       {/* Overlay: ¿Cómo se calcula? */}
       {showHowCalc && (
         <HowCalcOverlay s={s} onClose={() => setShowHowCalc(false)} />
+      )}
+
+      {/* Modal: configurar presupuesto */}
+      {showBudgetSetup && (
+        <BudgetSetup
+          transactions={transactions}
+          existing={budget}
+          onSave={(b) => {
+            // Guardar en localStorage vía lib/budget.js
+            try { localStorage.setItem('kleo_budget', JSON.stringify(b)); } catch {}
+            setBudget(b);
+            setShowBudgetSetup(false);
+          }}
+          onClose={() => setShowBudgetSetup(false)}
+        />
       )}
     </div>
   );
