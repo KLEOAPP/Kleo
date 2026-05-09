@@ -58,26 +58,51 @@ export default function OnboardingTour({ steps, onComplete, onSkip, navigate }) 
 
     if (!step?.target) {
       setRect(null);
-      // Aún así esperamos un poco si hubo navegación, para que monte el contenido
-      if (didNavigate) {
-        measureTimerRef.current = setTimeout(() => setRect(null), 350);
-      }
       return;
     }
 
-    // Espera más corta pero suficiente para que monte el nuevo contenido
-    const initialWait = didNavigate ? 220 : 0;
-    measureTimerRef.current = setTimeout(() => {
-      const el = document.querySelector(`[data-tour="${step.target}"]`);
-      if (el) {
-        // Scroll instantáneo (no smooth) — más fluido entre pasos
-        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
-      }
-      // Pequeña pausa para que el browser haga reflow después del scroll
-      measureTimerRef.current = setTimeout(measure, 120);
-    }, initialWait);
+    // Polling: buscar el target hasta que aparezca en el DOM (máx 800ms).
+    // Después scroll → esperar a que el browser repinte → medir → re-medir.
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = didNavigate ? 16 : 4; // 16×50ms = 800ms / 4×50ms = 200ms
+    const pollInterval = 50;
 
-    return () => clearTimeout(measureTimerRef.current);
+    const tryMeasure = () => {
+      if (cancelled) return;
+      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      if (!el) {
+        attempts++;
+        if (attempts < maxAttempts) {
+          measureTimerRef.current = setTimeout(tryMeasure, pollInterval);
+        }
+        return;
+      }
+
+      // Encontrado: scrollIntoView + doble rAF para asegurar layout estable
+      el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          measure();
+          // Re-medición un poco después por si hubo layout shift tardío
+          // (ej: imágenes que cargan, animaciones que terminan)
+          measureTimerRef.current = setTimeout(() => {
+            if (!cancelled) measure();
+          }, 200);
+        });
+      });
+    };
+
+    // Si navegamos, esperamos un mini-tick a que React monte el componente
+    measureTimerRef.current = setTimeout(tryMeasure, didNavigate ? 80 : 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(measureTimerRef.current);
+    };
   }, [stepIdx, measure, navigate, step]);
 
   // Re-mide en resize y scroll
