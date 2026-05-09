@@ -168,21 +168,40 @@ export default async function handler(req, res) {
         const detailed = tx.personal_finance_category?.detailed;
 
         let category = mapPlaidCategory(primary);
+        const merchantLow = (tx.merchant_name || tx.name || '').toLowerCase();
+
+        // Patrones de merchant que SIEMPRE son pagos a tarjeta (no importa el banco)
+        const isCardPaymentByName =
+          merchantLow.includes('payment thank you') ||
+          merchantLow.includes('mobile payment') ||
+          merchantLow.includes('online payment') ||
+          merchantLow.includes('autopay') ||
+          merchantLow.includes('pymt') ||
+          merchantLow.includes('credit card payment') ||
+          merchantLow.includes('cc payment') ||
+          merchantLow.includes('discover payment') ||
+          merchantLow.includes('chase payment') ||
+          merchantLow.includes('amex payment') ||
+          merchantLow.includes('capital one payment') ||
+          merchantLow.includes('citi payment') ||
+          merchantLow.includes('bofa payment') ||
+          merchantLow.includes('bank of america payment') ||
+          merchantLow.includes('synchrony payment') ||
+          merchantLow.includes('thank you');
 
         // ===== Clasificación inteligente para evitar contar transferencias como ingreso =====
-        // 1) Pago a tarjeta de crédito (LOAN_PAYMENTS_CREDIT_CARD_PAYMENT, etc.)
-        if (detailed?.includes('CREDIT_CARD_PAYMENT') ||
+        if (isCardPaymentByName ||
+            detailed?.includes('CREDIT_CARD_PAYMENT') ||
             detailed?.includes('TRANSFER_IN') ||
             detailed?.includes('TRANSFER_OUT') ||
             primary === 'TRANSFER_IN' || primary === 'TRANSFER_OUT') {
           category = 'transferencia';
         }
-        // 2) Si es cuenta de crédito y la transacción es negativa en Plaid (= pago recibido),
-        //    NO es ingreso — es una transferencia desde checking
+        // Cuenta de crédito + Plaid amount negativo = pago recibido = transferencia
         if (acctType === 'credit' && tx.amount < 0) {
           category = 'transferencia';
         }
-        // 3) Outflow de checking que va a una cuenta de crédito propia tampoco es gasto real
+        // Salida de checking marcada como LOAN_PAYMENTS = pago a tarjeta = transferencia
         const isPaymentOut = primary === 'LOAN_PAYMENTS' || detailed?.includes('CREDIT_CARD_PAYMENT');
         if (acctType !== 'credit' && isPaymentOut && tx.amount > 0) {
           category = 'transferencia';

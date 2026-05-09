@@ -27,8 +27,9 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [transactions, filterAccount, filterCategory, search]);
 
-  const totalSpent = filtered.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const totalIncome = filtered.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  // Las transferencias NO cuentan como ingreso/gasto real
+  const totalSpent = filtered.filter(t => t.amount < 0 && t.category !== 'transferencia').reduce((s, t) => s + Math.abs(t.amount), 0);
+  const totalIncome = filtered.filter(t => t.amount > 0 && t.category !== 'transferencia').reduce((s, t) => s + t.amount, 0);
 
   // Agrupar por fecha
   const grouped = useMemo(() => {
@@ -149,7 +150,11 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
               <div className="ios-list">
                 {txs.map(t => {
                   const acc = accountById[t.accountId];
+                  const isTransfer = t.category === 'transferencia';
                   const isIncome = t.amount > 0;
+                  // Las transferencias se muestran neutrales (gris, sin signo)
+                  const amountColor = isTransfer ? 'var(--text-mute)' : isIncome ? 'var(--green)' : 'var(--text)';
+                  const sign = isTransfer ? '' : isIncome ? '+' : '−';
                   return (
                     <div key={t.id} className="ios-list-item">
                       <MerchantIcon merchant={t.merchant} category={t.category} size={40} />
@@ -171,11 +176,23 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
                               ••{acc.last4}
                             </span>
                           )}
+                          {isTransfer && (
+                            <span style={{
+                              fontSize: 10, fontWeight: 700,
+                              background: 'rgba(168, 85, 247, 0.15)',
+                              color: 'var(--purple)',
+                              padding: '1px 6px',
+                              borderRadius: 4,
+                              letterSpacing: '0.03em'
+                            }}>
+                              ↔ TRANSFERENCIA
+                            </span>
+                          )}
                           <span className="tiny">{fmtTime(t.date)}</span>
                         </div>
                       </div>
-                      <span style={{ fontWeight: 600, fontSize: 15, color: isIncome ? 'var(--green)' : 'var(--text)' }}>
-                        {isIncome ? '+' : '−'}{fmtMoney(Math.abs(t.amount))}
+                      <span style={{ fontWeight: 600, fontSize: 15, color: amountColor }}>
+                        {sign}{fmtMoney(Math.abs(t.amount))}
                       </span>
                     </div>
                   );
