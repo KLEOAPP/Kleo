@@ -65,14 +65,16 @@ export default function OnboardingTour({ steps, onComplete, onSkip, navigate }) 
       return;
     }
 
-    // Si navegamos, esperamos más tiempo a que el componente nuevo monte
-    const initialWait = didNavigate ? 500 : 50;
+    // Espera más corta pero suficiente para que monte el nuevo contenido
+    const initialWait = didNavigate ? 220 : 0;
     measureTimerRef.current = setTimeout(() => {
       const el = document.querySelector(`[data-tour="${step.target}"]`);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        // Scroll instantáneo (no smooth) — más fluido entre pasos
+        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
       }
-      measureTimerRef.current = setTimeout(measure, 450);
+      // Pequeña pausa para que el browser haga reflow después del scroll
+      measureTimerRef.current = setTimeout(measure, 120);
     }, initialWait);
 
     return () => clearTimeout(measureTimerRef.current);

@@ -802,11 +802,11 @@ const TOUR_STEPS = [
   // ─── DASHBOARD ───
   { navigateTo: null, target: 'hero', tag: 'Disponible', emoji: '💰',
     title: 'Disponible esta semana',
-    body: 'El número más importante de tu día. Cuánto puedes gastar libremente. Cambia entre Día / Semana / Ciclo / Mes.' },
+    body: 'El número más importante de tu día. Cuánto puedes gastar libremente.' },
 
   { navigateTo: null, target: 'connectBank', tag: 'Conectar', emoji: '🏦',
     title: 'Conectar banco',
-    body: 'Aquí conectas tus cuentas con Plaid. Bajamos 6 meses de historial automático para que el análisis sea preciso.' },
+    body: 'Aquí conectas tus cuentas con Plaid. Por esto analizamos los últimos 6 meses de historial automático para que el análisis sea preciso.' },
 
   { navigateTo: null, target: 'resumenHeader', tag: 'Tu Resumen', emoji: '📌',
     title: 'Tu Resumen',
@@ -814,7 +814,7 @@ const TOUR_STEPS = [
 
   { navigateTo: null, target: 'action', tag: 'Acción', emoji: '✨',
     title: 'Acción recomendada hoy',
-    body: 'Cada día te muestro UNA cosa que debes hacer. La más importante. Toca "Seguir plan" para ver el por qué, con qué pagar y los pasos.' },
+    body: 'Cada día te muestro UNA cosa que debes hacer. Toca "Seguir plan" para ver qué hacer y cómo hacerlo.' },
 
   { navigateTo: null, target: 'week', tag: 'Semana', emoji: '📅',
     title: 'Esta semana',
@@ -842,7 +842,7 @@ const TOUR_STEPS = [
     body: 'Plan de pago detallado por cada tarjeta + calculadora de pago extra + factores que afectan tu score.' },
   { navigateTo: 'credit', target: 'creditPlan', tag: 'Crédito · Plan', emoji: '💳',
     title: 'Plan por tarjeta',
-    body: 'Por cada tarjeta te calculo: cuánto pagar, cuándo (2-3 días antes del cierre), y cuándo NO usarla.',
+    body: 'Por cada tarjeta te calculo: cuánto pagar, cuándo, y cuándo NO usarla.',
     tip: 'El banco reporta al buró el balance al CIERRE del ciclo, no al due date. Por eso el timing importa.' },
 
   // ─── TILE CUENTAS + ENTRA ───
@@ -860,12 +860,12 @@ const TOUR_STEPS = [
   { navigateTo: 'tab:goals', target: 'goalsCreate', tag: 'Crear meta', emoji: '➕',
     title: 'Crea tu primera meta',
     body: 'Toca el + para escoger tipo (emergencia / viaje / casa / etc.), monto, fecha límite y cuenta vinculada.',
-    tip: 'BPPR, Oriental y FirstBank ofrecen cuentas virtuales gratis. Te recomiendo abrir una solo para metas.' },
+    tip: 'Se recomienda tener 1 cuenta por cada meta para tener mejor visibilidad del progreso.' },
 
   // ─── TILE PRESUPUESTO + ENTRA ───
   { navigateTo: null, target: 'tile-budget', tag: 'Presupuesto', emoji: '💰',
     title: 'Sección Presupuesto',
-    body: 'Aquí gestionas gastos compartidos con tu pareja o compañero de cuarto. Configurable, equitativo, automático.' },
+    body: 'Aquí ves la tabla de tus gastos mensuales. Puede ser individual o en pareja.' },
   { navigateTo: 'budget', target: 'budgetTabs', tag: 'Presupuesto', emoji: '🏠',
     title: 'Resumen / Tabla / Liquidación',
     body: '3 vistas: resumen del mes, tabla por categoría, y liquidación (cuánto te debe tu pareja al final del mes).' },
