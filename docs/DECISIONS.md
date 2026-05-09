@@ -3,6 +3,51 @@
 > Cada vez que tomamos una decisión importante, agregar una entrada aquí.
 > Formato: `## YYYY-MM-DD · Título corto` + qué + por qué.
 
+## 2026-05-09 · Onboarding del asesor (4 pasos) tras conectar primer banco
+
+**Qué:** Cuando el usuario conecta su primer banco, después de cerrar la
+pantalla de "¡Conectado!" se abre automáticamente `AdvisorOnboarding.jsx`
+con 4 pasos:
+1. **APRs faltantes** — pide el APR de cada tarjeta que Plaid no devolvió
+   (ej: muchas instituciones de PR no exponen APR vía Plaid). Input manual
+   con explicación de dónde encontrarlo. Opción "lo hago después".
+2. **Utilización meta** — usuario escoge entre 5/10/15/20/25/30% con tarjeta
+   de pros/cons por cada uno. 5% marcado como recomendado.
+3. **Plan financiero existente** — "¿Tienes un plan?" Sí/No.
+   - Sí: textarea para describirlo (mínimo 10 chars). Kleo lo respeta y optimiza.
+   - No: Kleo le crea uno desde el backtest de 6 meses.
+4. **Resumen + activar** — confirma config y activa el asesor.
+
+**Por qué:** El usuario pidió que el asesor se sienta como un wealth advisor
+que conoce al cliente desde el día 1. El onboarding captura las 3 cosas
+clave (APR, utilización meta, plan existente) que la AI necesita para dar
+recomendaciones específicas en vez de genéricas.
+
+**Detalles:**
+- Storage: `localStorage.kleo_advisor_profile` con `{ target_utilization,
+  has_existing_plan, existing_plan_description, manual_aprs }`
+- `getAdvisorProfile()` y `setManualApr()` en `lib/advisorProfile.js`
+- El endpoint `/api/ai/insights` ahora recibe `advisorProfile` + `budget` y
+  los inyecta al perfil. La AI puede leer `advisor_preferences.target_utilization_pct`
+  y respetarlo en sus recomendaciones de pago.
+- `cards_missing_apr` en el perfil le permite a la AI emitir
+  `missing_data_requests` para que el usuario complete los datos faltantes.
+
+## 2026-05-09 · Spec de notificaciones completo
+
+**Qué:** Documentado en `KLEO_NOTIFICATIONS_SPEC.md` el sistema de 12 tipos
+de notificación con triggers exactos, copy en español PR, quiet hours
+(21:00 - 7:00), máximo 3 push por día, anti-spam (no repetir mismo tipo
+en 24h por evento), y preferencias por tipo.
+
+**Por qué:** El usuario describió el comportamiento esperado: recordatorios
+2 días antes del cycle close, día del pago, "no uses la tarjeta", "ya cerró
+el ciclo", llegada del cheque, gasto inusual, etc.
+
+**Pendiente de implementación:** la lógica del cron job tiene que leer las
+nuevas reglas; tabla `notifications_sent` para tracking; UI de prefs en
+MoreMenu.
+
 ## 2026-05-09 · Sistema de presupuesto basado en frecuencia de cobro
 
 **Qué:** Implementado wizard de 4 pasos (`BudgetSetup.jsx`) que pregunta

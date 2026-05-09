@@ -10,6 +10,8 @@ import AddExpense from './components/AddExpense.jsx';
 import Analysis from './components/Analysis.jsx';
 import Goals from './components/Goals.jsx';
 import KleoAi from './components/KleoAi.jsx';
+import AdvisorOnboarding from './components/AdvisorOnboarding.jsx';
+import { getAdvisorProfile } from './lib/advisorProfile.js';
 import Budget from './components/Budget.jsx';
 import Calendar from './components/Calendar.jsx';
 import Credit from './components/Credit.jsx';
@@ -85,6 +87,7 @@ function AppInner() {
     // Si volvemos de OAuth de Plaid, abrir la pantalla automáticamente
     return typeof window !== 'undefined' && window.location.href.includes('?oauth_state_id=');
   });
+  const [showAdvisorOnboarding, setShowAdvisorOnboarding] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingNotification, setPendingNotification] = useState(null);
@@ -460,6 +463,13 @@ function AppInner() {
     }
     setShowConnectBank(false);
     showToast('¡Banco conectado!');
+
+    // Si es la primera vez que conecta y aún no completó el onboarding del
+    // asesor, lanzarlo automáticamente
+    const advisorProfile = getAdvisorProfile();
+    if (!advisorProfile?.onboarding_completed) {
+      setTimeout(() => setShowAdvisorOnboarding(true), 800);
+    }
   };
 
   const handleConfirmShared = (pendingId, isShared) => {
@@ -675,6 +685,18 @@ function AppInner() {
             onMenu={() => setShowMenu(true)}
           />
         </>
+      )}
+
+      {showAdvisorOnboarding && (
+        <AdvisorOnboarding
+          accounts={accounts}
+          profile={getAdvisorProfile()}
+          onSave={() => {
+            setShowAdvisorOnboarding(false);
+            showToast('Asesor activado · 6 meses analizándose');
+          }}
+          onClose={() => setShowAdvisorOnboarding(false)}
+        />
       )}
 
       {showMenu && (

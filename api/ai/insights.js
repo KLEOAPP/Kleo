@@ -280,13 +280,14 @@ const FEW_SHOT_ASSISTANT = `{
 /**
  * Construye el perfil financiero detallado a partir de los datos del usuario.
  */
-function buildFinancialProfile({ transactions = [], accounts = [], fixedExpenses = [], goals = [] }) {
+function buildFinancialProfile({ transactions = [], accounts = [], fixedExpenses = [], goals = [], advisorProfile = null, budget = null }) {
   const today = new Date();
   const todayISO = today.toISOString().slice(0, 10);
 
   // ===== Cash =====
   const checking = accounts.filter(a => a.type === 'checking').reduce((s, a) => s + a.balance, 0);
   const savings = accounts.filter(a => a.type === 'savings').reduce((s, a) => s + a.balance, 0);
+  const manualAprs = advisorProfile?.manual_aprs || {};
   const cards = accounts.filter(a => a.type === 'credit').map(c => ({
     id: c.id,
     institution: c.institution || c.name,
@@ -295,10 +296,18 @@ function buildFinancialProfile({ transactions = [], accounts = [], fixedExpenses
     limit: c.limit || 0,
     available_credit: Math.max(0, (c.limit || 0) - Math.abs(c.balance)),
     utilization_pct: c.limit > 0 ? +(Math.abs(c.balance) / c.limit * 100).toFixed(1) : 0,
-    apr: c.apr || null,
+    apr: c.apr || manualAprs[c.id] || null,
+    apr_source: c.apr ? 'plaid' : (manualAprs[c.id] ? 'user_input' : 'unknown'),
     min_payment: c.minPayment || null,
     payment_due_day: c.paymentDueDay || null,
     cycle_close_day: c.cycleCloseDay || null
+  }));
+
+  // Tarjetas que aún no tienen APR — la AI debe pedir que se ingrese
+  const cards_missing_apr = cards.filter(c => !c.apr).map(c => ({
+    id: c.id,
+    institution: c.institution,
+    last4: c.last4
   }));
 
   // ===== Income detection =====
@@ -474,6 +483,13 @@ function buildFinancialProfile({ transactions = [], accounts = [], fixedExpenses
     upcoming_bills_30d: upcoming.slice(0, 14),
     recurring_subscriptions: subscriptions,
     overdraft_risk: overdraft_risk_accounts,
+    cards_missing_apr,
+    advisor_preferences: advisorProfile ? {
+      target_utilization_pct: advisorProfile.target_utilization || 5,
+      has_existing_plan: advisorProfile.has_existing_plan || false,
+      existing_plan_description: advisorProfile.existing_plan_description || null
+    } : null,
+    user_budget: budget || null,
     goals: goals.map(g => ({
       name: g.name,
       target: g.target,
@@ -548,13 +564,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { transactions = [], accounts = [], goals = [], fixedExpenses = [], type } = req.body;
+    const { transactions = [], accounts = [], goals = [], fixedExpenses = [], type,
+      advisorProfile = null, budget = null } = req.body;
 
     if (type === 'spending' || type === 'goal') {
       return await runLegacy(req, res, type, { transactions, accounts, goals, fixedExpenses });
     }
 
-    const profile = buildFinancialProfile({ transactions, accounts, fixedExpenses, goals });
+    const profile = buildFinancialProfile({ transactions, accounts, fixedExpenses, goals, advisorProfile, budget });
     const userMessage = `Analiza este perfil y genera el plan estratégico (responde SOLO con JSON):
 
 ${JSON.stringify(profile, null, 2)}`;

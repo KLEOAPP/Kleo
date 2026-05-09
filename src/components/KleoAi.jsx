@@ -3,6 +3,8 @@ import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { fmtMoney } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
+import { getAdvisorProfile } from '../lib/advisorProfile.js';
+import { getBudget } from '../lib/budget.js';
 
 export default function KleoAi({ transactions, accounts, goals, fixedExpenses, onHome, onMenu }) {
   const { strings: s, lang } = useI18n();
@@ -24,7 +26,12 @@ export default function KleoAi({ transactions, accounts, goals, fixedExpenses, o
       const res = await fetch('/api/ai/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions, accounts, goals, fixedExpenses, type: 'advisor' }),
+        body: JSON.stringify({
+          transactions, accounts, goals, fixedExpenses,
+          advisorProfile: getAdvisorProfile(),
+          budget: getBudget(),
+          type: 'advisor'
+        }),
         signal: controller.signal
       });
       clearTimeout(timeout);
