@@ -269,9 +269,42 @@ export default async function handler(req, res) {
  *  - Pagos automáticos (luz, agua, internet)
  *  - Deudas (préstamos, pagos a tarjeta)
  */
+/**
+ * Detecta SOLO pagos recurrentes verdaderos. Filtra agresivamente para evitar
+ * falsos positivos como McDonald's (que puede tener visitas semanales pero
+ * NO es una membresía).
+ */
 function detectRecurring(txs) {
+  // Categorías que NO son membresías/pagos fijos aunque tengan patrón
+  const EXCLUDED_CATEGORIES = new Set([
+    'FOOD_AND_DRINK', 'GROCERIES', 'RESTAURANTS',
+    'TRANSPORTATION_GAS', 'GENERAL_MERCHANDISE',
+    'TRAVEL', 'PERSONAL_CARE'
+  ]);
+
+  // Merchants que claramente NO son membresías
+  const EXCLUDED_MERCHANTS = [
+    'mcdonald', 'burger', 'wendy', 'starbucks', 'dunkin', 'kfc', 'taco',
+    'pizza', 'subway', 'chipotle', 'panera', 'walmart', 'target', 'costco',
+    'amazon.com', 'amazon mktp', 'shell', 'mobil', 'texaco', 'puma', 'gulf',
+    'ecomaxx', 'econo', 'pueblo', 'wendys', 'denny'
+  ];
+
+  // Sí queremos detectar si el merchant contiene estos keywords (alta confianza)
+  const SUBSCRIPTION_KEYWORDS = [
+    'netflix', 'spotify', 'apple', 'hulu', 'disney', 'hbo', 'youtube premium',
+    'amazon prime', 'prime video', 'paramount', 'peacock', 'crunchyroll',
+    'icloud', 'dropbox', 'google one', 'microsoft', 'adobe', 'canva',
+    'gym', 'fitness', 'planet fitness', 'crunch', 'la fitness', 'orangetheory',
+    'aflac', 'metlife', 'progressive', 'geico', 'state farm', 'allstate',
+    'verizon', 't-mobile', 'at&t', 'claro', 'liberty', 'sprint',
+    'autoridad', 'aaa', 'aee', 'puerto rico telephone',
+    'mortgage', 'rent', 'insurance', 'subscription', 'monthly',
+    'membership', 'premium'
+  ];
+
   const byMerchant = {};
-  txs.filter(t => t.amount > 0) // outflows positivos en Plaid (signo invertido)
+  txs.filter(t => t.amount > 0) // outflows
     .forEach(t => {
       const key = (t.merchant_name || t.name || '').toLowerCase().trim();
       if (!key) return;
@@ -286,28 +319,46 @@ function detectRecurring(txs) {
 
   const recurring = [];
   for (const [key, list] of Object.entries(byMerchant)) {
+    // Filtros tempranos
+    if (EXCLUDED_MERCHANTS.some(m => key.includes(m))) continue;
     if (list.length < 2) continue;
-    list.sort((a, b) => b.date - a.date);
 
-    // Ver gaps entre transacciones consecutivas
+    list.sort((a, b) => b.date - a.date);
+    const cat = list[0].category;
+    if (EXCLUDED_CATEGORIES.has(cat)) continue;
+
+    // Si NO contiene keyword de suscripción, requiere al menos 3 ocurrencias
+    // para considerarlo recurrente (ser más conservador)
+    const hasSubKeyword = SUBSCRIPTION_KEYWORDS.some(kw => key.includes(kw));
+    const minOccurrences = hasSubKeyword ? 2 : 3;
+    if (list.length < minOccurrences) continue;
+
+    // Cadencia estricta — solo mensual (sub real) o quincenal (raro pero válido)
     const gaps = [];
     for (let i = 0; i < list.length - 1; i++) {
       gaps.push((list[i].date - list[i + 1].date) / (1000 * 60 * 60 * 24));
     }
     const avgGap = gaps.reduce((s, x) => s + x, 0) / gaps.length;
+
     let cadence = null;
-    if (avgGap >= 6 && avgGap <= 9) cadence = 'weekly';
-    else if (avgGap >= 12 && avgGap <= 16) cadence = 'biweekly';
-    else if (avgGap >= 25 && avgGap <= 35) cadence = 'monthly';
-    else continue; // no recurrente
+    // Solo mensual (28-32 días) — descartamos semanal/biweekly que casi nunca
+    // son membresías reales
+    if (avgGap >= 28 && avgGap <= 32) cadence = 'monthly';
+    else if (avgGap >= 14 && avgGap <= 16 && hasSubKeyword) cadence = 'biweekly';
+    else continue;
 
-    // Verificar consistencia de monto (±15%)
+    // Consistencia de monto SUPER estricta para recurrentes (±5%)
     const avg = list.reduce((s, t) => s + t.amount, 0) / list.length;
-    const consistent = list.every(t => Math.abs(t.amount - avg) / avg <= 0.15);
-    if (!consistent) continue;
+    const stdDev = Math.sqrt(list.reduce((s, t) => s + Math.pow(t.amount - avg, 2), 0) / list.length);
+    const cv = avg > 0 ? stdDev / avg : 1;
+    if (cv > 0.05 && !hasSubKeyword) continue; // sin keyword: súper estrictos
+    if (cv > 0.15) continue; // con keyword: tolerancia 15%
 
-    const cat = mapPlaidCategory(list[0].category);
-    const icon = pickIcon(cat, list[0].original.merchant_name || list[0].original.name);
+    // Mínimo $5 — micro-pagos no son membresías
+    if (avg < 5) continue;
+
+    const mappedCat = mapPlaidCategory(cat);
+    const icon = pickIcon(mappedCat, list[0].original.merchant_name || list[0].original.name);
     const merchantName = list[0].original.merchant_name || list[0].original.name;
 
     recurring.push({
@@ -315,7 +366,7 @@ function detectRecurring(txs) {
       avg_amount: +avg.toFixed(2),
       cadence,
       day_of_month: Math.min(28, list[0].date.getDate()),
-      category: cat,
+      category: mappedCat,
       icon,
       occurrences: list.length,
       signature: `recurring:${key}:${cadence}`

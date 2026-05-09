@@ -520,10 +520,6 @@ ${JSON.stringify(profile, null, 2)}`;
         max_tokens: 2400,
         system: SYSTEM_PROMPT,
         messages: [
-          // Few-shot example: muestra al modelo el patrón exacto de input → output
-          { role: 'user', content: FEW_SHOT_USER },
-          { role: 'assistant', content: FEW_SHOT_ASSISTANT },
-          // El input real
           { role: 'user', content: userMessage }
         ]
       })
@@ -546,7 +542,12 @@ ${JSON.stringify(profile, null, 2)}`;
     try { parsed = JSON.parse(clean); } catch {}
 
     if (!parsed || typeof parsed !== 'object') {
-      return res.json({ result: clean, profile });
+      // El modelo devolvió texto en vez de JSON — error explícito al cliente
+      return res.status(500).json({
+        error: 'La AI no devolvió JSON válido',
+        detail: clean.slice(0, 500),
+        hint: 'Reintenta en unos segundos.'
+      });
     }
 
     res.json({ result: parsed, profile });

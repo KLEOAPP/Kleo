@@ -142,8 +142,9 @@ export default function KleoAi({ transactions, accounts, goals, fixedExpenses, o
               }}>
                 {errorDetail.status && <div><strong>Status:</strong> {errorDetail.status}</div>}
                 {errorDetail.error_type && <div><strong>Type:</strong> {errorDetail.error_type}</div>}
-                <div><strong>Error:</strong> {errorDetail.error || 'Sin detalles'}</div>
-                {errorDetail.detail && <div style={{ marginTop: 4 }}>{errorDetail.detail}</div>}
+                <div><strong>Error:</strong> {errorDetail.error || JSON.stringify(errorDetail).slice(0, 200) || 'Sin detalles'}</div>
+                {errorDetail.detail && <div style={{ marginTop: 4 }}><strong>Detalle:</strong> {errorDetail.detail}</div>}
+                {errorDetail.hint && <div style={{ marginTop: 4 }}>💡 {errorDetail.hint}</div>}
               </div>
             )}
             <button onClick={fetchAnalysis} style={{
