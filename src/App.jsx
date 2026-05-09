@@ -11,7 +11,7 @@ import Analysis from './components/Analysis.jsx';
 import Goals from './components/Goals.jsx';
 import KleoAi from './components/KleoAi.jsx';
 import AdvisorOnboarding from './components/AdvisorOnboarding.jsx';
-import OnboardingTutorial from './components/OnboardingTutorial.jsx';
+import OnboardingTour from './components/OnboardingTour.jsx';
 import { getAdvisorProfile } from './lib/advisorProfile.js';
 import Budget from './components/Budget.jsx';
 import Calendar from './components/Calendar.jsx';
@@ -700,11 +700,12 @@ function AppInner() {
       )}
 
       {showTutorial && (
-        <OnboardingTutorial
+        <OnboardingTour
+          steps={TOUR_STEPS}
           onComplete={() => {
             setShowTutorial(false);
-            // Después del tutorial, abrir directamente Plaid Link
-            setTimeout(() => setShowConnectBank(true), 300);
+            // Después del tour, abrir directamente Plaid Link
+            setTimeout(() => setShowConnectBank(true), 400);
           }}
         />
       )}
@@ -770,3 +771,90 @@ function AppInner() {
     </div>
   );
 }
+
+// ════════════════════════════════════════════════════════════
+// Pasos del tour interactivo (popover + spotlight)
+// ════════════════════════════════════════════════════════════
+const TOUR_STEPS = [
+  {
+    target: null,
+    tag: 'Bienvenido',
+    emoji: '👋',
+    title: 'Hola, soy Kleo',
+    body: 'Tu asesor financiero personal. Te voy a mostrar cada parte de la app en 30 segundos. Sigue las flechas — solo puedes avanzar usando los botones.',
+    tip: 'Cada paso te muestra dónde tocar. El resto de la pantalla queda bloqueado para que no te pierdas.'
+  },
+  {
+    target: 'hero',
+    tag: 'Disponible',
+    emoji: '💰',
+    title: 'Disponible esta semana',
+    body: 'El número más importante de tu día. Calcula cuánto puedes gastar libremente sin descuadrar pagos ni metas. Cambia entre Día / Semana / Ciclo / Mes.',
+    tip: 'Por ahora dice "Configura tu presupuesto" porque aún no tienes data. Cuando conectes tu banco se llena solo.'
+  },
+  {
+    target: 'action',
+    tag: 'Acción del día',
+    emoji: '✨',
+    title: 'Acción recomendada hoy',
+    body: 'Cada día te muestro UNA cosa que debes hacer. La más importante. El botón "Seguir plan" abre el por qué, con qué pagar y los pasos exactos.'
+  },
+  {
+    target: 'week',
+    tag: 'Tu semana',
+    emoji: '📅',
+    title: 'Esta semana',
+    body: 'Resumen de los próximos 7 días: cuántos pagos vencen, suscripciones que se cobran, cierres de ciclo. Toca "Ver calendario" para ver el detalle.'
+  },
+  {
+    target: 'risk',
+    tag: 'Clima financiero',
+    emoji: '⛅',
+    title: 'Riesgo de la semana',
+    body: 'Tu "clima financiero" — Bajo ☀️, Medio ⛅ o Alto ⛈. Te lee la semana en 2 segundos. Toca "Ver riesgos" para abrir Kleo AI con la solución.'
+  },
+  {
+    target: 'score',
+    tag: 'Kleo Score',
+    emoji: '🤖',
+    title: 'Tu Kleo Score',
+    body: 'Estimación de tu FICO Score. Va de 300 a 850. Fórmula: Pago 35% · Utilización 30% · Antigüedad 15% · Mezcla 10% · Nuevo 10%.',
+    tip: 'Para subir el score: paga a tiempo SIEMPRE y mantén utilización bajo 10%.'
+  },
+  {
+    target: 'aiTips',
+    tag: 'Asesor 24/7',
+    emoji: '💡',
+    title: 'Consejos de Kleo IA',
+    body: 'Toca aquí para abrir tu asesor. Te genero un plan completo: disponible, riesgos, acciones recomendadas con pasos numerados, plan puente con tarjeta cuando aplique.'
+  },
+  {
+    target: 'sections',
+    tag: 'Secciones',
+    emoji: '📂',
+    title: 'Acceso a todas las secciones',
+    body: 'Cada tile te lleva a su sección: Crédito (calculadora y plan por tarjeta), Cuentas, Metas, Calendario, Análisis, Transacciones, Reportes y Presupuesto.'
+  },
+  {
+    target: 'fab',
+    tag: 'Acción rápida',
+    emoji: '➕',
+    title: 'Agregar gasto manual',
+    body: 'El botón + es para registrar un gasto manual rápido (efectivo, ATH Móvil, foto del recibo). Casi nunca lo vas a necesitar — Kleo detecta tus gastos solo.'
+  },
+  {
+    target: 'menu',
+    tag: 'Más opciones',
+    emoji: '⋯',
+    title: 'Menú "Más"',
+    body: 'Aquí están todas las secciones, idioma (ES/EN), tema claro/oscuro, notificaciones y configuración del asesor. También puedes volver a ver este tutorial.'
+  },
+  {
+    target: null,
+    tag: 'Listo',
+    emoji: '🚀',
+    title: 'Listo para conectar tu banco',
+    body: 'Ahora vamos a conectar tus cuentas para que pueda analizar tus últimos 6 meses y activar TODO esto con tu data real.',
+    tip: 'Usamos Plaid — la misma tecnología de Venmo y Robinhood. Solo lectura. Kleo nunca puede mover tu dinero.'
+  }
+];

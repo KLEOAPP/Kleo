@@ -3,6 +3,43 @@
 > Cada vez que tomamos una decisión importante, agregar una entrada aquí.
 > Formato: `## YYYY-MM-DD · Título corto` + qué + por qué.
 
+## 2026-05-09 · Tour interactivo (popover + spotlight) reemplaza el tutorial de slides
+
+**Qué:** Reemplazado `OnboardingTutorial.jsx` (slides full-screen) por
+`OnboardingTour.jsx` — un tour con spotlight que ilumina UN elemento real
+de la app a la vez y muestra un popover flotante explicándolo. El resto de
+la pantalla queda bloqueado: el usuario solo puede avanzar con los botones
+del popover.
+
+**Por qué:** El usuario pidió formato popover que diga "dónde tocar" cada
+sección y que no permita interactuar con otros lados. Un slide-deck no
+cumple eso — un coachmark sí.
+
+**Implementación:**
+- Overlay fullscreen con `pointer-events: auto` que captura todos los clicks
+- SVG `<mask>` con un rectángulo negro recortado en el bounding rect del
+  target → spotlight transparente
+- Anillo morado pulsante alrededor del target (`box-shadow` + `keyframes`)
+- Popover flotante posicionado encima/debajo del target según haya espacio,
+  con flecha apuntando
+- Auto-scroll del target al centro de pantalla al cambiar de paso
+- Re-medición en `resize` y `scroll` para mantener el spotlight alineado
+- `document.body.style.overflow = 'hidden'` mientras el tour está activo
+
+**Targets marcados con `data-tour`:**
+- `hero` — card "Disponible esta semana"
+- `action` `week` `risk` — los 3 cards de Resumen (fila 1)
+- `score` `aiTips` — Kleo Score y Consejos de IA (fila 2)
+- `sections` — grid de 8 tiles abajo
+- `navHome` `fab` `menu` — los 3 botones del bottom nav
+
+**11 pasos:** Bienvenida (centrado) → Hero → Acción → Esta semana → Riesgo →
+Score → AI Tips → Secciones → FAB → Menú → "Listo para conectar banco"
+(centrado). Al final abre Plaid Link automáticamente.
+
+`OnboardingTutorial.jsx` queda en el repo pero ya no se usa — se puede
+remover en una pasada de cleanup.
+
 ## 2026-05-09 · Tutorial obligatorio + spec del onboarding completo
 
 **Qué:** Construido `OnboardingTutorial.jsx` con 16 slides que cubren toda la

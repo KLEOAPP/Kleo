@@ -336,7 +336,7 @@ export default function Dashboard({
             budgetPeriod === 'period' ? `por ${FREQUENCIES.find(f => f.id === budget?.pay_frequency)?.label.toLowerCase() || 'ciclo'}` :
             'al mes';
           return (
-            <div className="card mb-16" style={{
+            <div data-tour="hero" className="card mb-16" style={{
               background: hasBudget
                 ? 'linear-gradient(135deg, rgba(0, 229, 176, 0.10), rgba(168, 85, 247, 0.08))'
                 : 'linear-gradient(135deg, rgba(168, 85, 247, 0.10), rgba(255, 149, 0, 0.06))',
@@ -514,6 +514,7 @@ export default function Dashboard({
 
         {/* ============ FILA 1 · 3 TARJETAS VERTICALES (caben en pantalla) ============ */}
         <div
+          data-tour="resumenRow"
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr 1fr',
@@ -522,7 +523,7 @@ export default function Dashboard({
           }}
         >
           {/* Card 1 — Acción recomendada hoy */}
-          <VerticalCard
+          <div data-tour="action"><VerticalCard
             iconSlot={<span style={{ fontSize: 22 }}>✨</span>}
             tinyLabel={s.todayAction}
             background={todayAction
@@ -550,10 +551,10 @@ export default function Dashboard({
                 boxShadow: '0 3px 10px rgba(168, 85, 247, 0.35)'
               }
             } : null}
-          />
+          /></div>
 
           {/* Card 2 — Esta semana */}
-          <VerticalCard
+          <div data-tour="week"><VerticalCard
             iconSlot={<span style={{ fontSize: 22 }}>📅</span>}
             tinyLabel={s.weekTitle}
             body={
@@ -578,10 +579,10 @@ export default function Dashboard({
                 border: '1px solid var(--border)'
               }
             }}
-          />
+          /></div>
 
           {/* Card 3 — Riesgo de la semana */}
-          <VerticalCard
+          <div data-tour="risk"><VerticalCard
             iconSlot={
               <span style={{ fontSize: 22 }}>
                 {riskInfo.level === 'low' ? '☀️' : riskInfo.level === 'medium' ? '⛅' : '⛈'}
@@ -620,11 +621,11 @@ export default function Dashboard({
                 border: `1px solid ${riskInfo.color}55`
               }
             }}
-          />
+          /></div>
         </div>
 
         {/* ============ FILA 2 · KLEO SCORE + CONSEJOS DE KLEO IA ============ */}
-        <div style={{
+        <div data-tour="summaryRow" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 12,
@@ -632,6 +633,7 @@ export default function Dashboard({
         }}>
           {/* Resumen 1 — Kleo Score */}
           <button
+            data-tour="score"
             onClick={() => onOpenSection('credit')}
             className="card pressable"
             style={{
@@ -676,6 +678,7 @@ export default function Dashboard({
 
           {/* Resumen 2 — Consejos de Kleo IA */}
           <button
+            data-tour="aiTips"
             onClick={() => onOpenKleoAi ? onOpenKleoAi() : onSwitchTab('kleoai')}
             className="card pressable"
             style={{
@@ -721,7 +724,7 @@ export default function Dashboard({
         <div className="section-header" style={{ marginTop: 8 }}>
           <span>{s.sections}</span>
         </div>
-        <div style={{
+        <div data-tour="sections" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 12
