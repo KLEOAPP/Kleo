@@ -170,42 +170,50 @@ export default async function handler(req, res) {
         let category = mapPlaidCategory(primary);
         const merchantLow = (tx.merchant_name || tx.name || '').toLowerCase();
 
-        // Patrones de merchant que SIEMPRE son pagos a tarjeta (no importa el banco)
+        // Patrones que CLARAMENTE son pagos a tarjeta (entre cuentas propias)
         const isCardPaymentByName =
           merchantLow.includes('payment thank you') ||
+          merchantLow.includes('payment - thank') ||
+          merchantLow.includes('- thank you') ||
           merchantLow.includes('mobile payment') ||
           merchantLow.includes('online payment') ||
+          merchantLow.includes('internet payment') ||
           merchantLow.includes('autopay') ||
-          merchantLow.includes('pymt') ||
+          /\bpymt\b/.test(merchantLow) ||
           merchantLow.includes('credit card payment') ||
           merchantLow.includes('cc payment') ||
-          merchantLow.includes('discover payment') ||
-          merchantLow.includes('chase payment') ||
-          merchantLow.includes('amex payment') ||
-          merchantLow.includes('capital one payment') ||
-          merchantLow.includes('citi payment') ||
-          merchantLow.includes('bofa payment') ||
-          merchantLow.includes('bank of america payment') ||
-          merchantLow.includes('synchrony payment') ||
-          merchantLow.includes('thank you');
+          /eft pmt/.test(merchantLow) ||
+          /e-payment/.test(merchantLow);
 
-        // ===== Clasificación inteligente para evitar contar transferencias como ingreso =====
-        if (isCardPaymentByName ||
-            detailed?.includes('CREDIT_CARD_PAYMENT') ||
-            detailed?.includes('TRANSFER_IN') ||
-            detailed?.includes('TRANSFER_OUT') ||
-            primary === 'TRANSFER_IN' || primary === 'TRANSFER_OUT') {
+        // Patrones que CLARAMENTE son nómina o depósitos directos (NO transferencia)
+        const isPayrollOrDeposit =
+          merchantLow.includes('payroll') ||
+          merchantLow.includes('eft deposit') ||
+          merchantLow.includes('direct dep') ||
+          merchantLow.includes('direct deposit') ||
+          merchantLow.includes('nomina') ||
+          merchantLow.includes('salary') ||
+          merchantLow.includes('ssa treas') ||
+          merchantLow.includes('irs treas');
+
+        // Reglas de clasificación quirúrgicas:
+        if (isPayrollOrDeposit && tx.amount < 0) {
+          // En Plaid amount<0 = entrada de dinero. Es nómina, NO transferencia
+          category = 'ingreso';
+        } else if (isCardPaymentByName) {
+          // Pago a tarjeta detectado por nombre — siempre transferencia
+          category = 'transferencia';
+        } else if (
+          detailed?.includes('CREDIT_CARD_PAYMENT') ||
+          detailed?.includes('TRANSFER_IN') ||
+          detailed?.includes('TRANSFER_OUT') ||
+          primary === 'TRANSFER_IN' || primary === 'TRANSFER_OUT'
+        ) {
           category = 'transferencia';
         }
-        // Cuenta de crédito + Plaid amount negativo = pago recibido = transferencia
-        if (acctType === 'credit' && tx.amount < 0) {
-          category = 'transferencia';
-        }
-        // Salida de checking marcada como LOAN_PAYMENTS = pago a tarjeta = transferencia
-        const isPaymentOut = primary === 'LOAN_PAYMENTS' || detailed?.includes('CREDIT_CARD_PAYMENT');
-        if (acctType !== 'credit' && isPaymentOut && tx.amount > 0) {
-          category = 'transferencia';
-        }
+        // NOTA: ya NO marcamos automáticamente "credit account + amount<0" como transferencia.
+        // Eso convertía reembolsos (Amazon refund, Infusion refund, etc.) en transferencias.
+        // Ahora solo lo es si el nombre lo indica claramente.
 
         await supabase.from('transactions').upsert({
           user_id: userId,
