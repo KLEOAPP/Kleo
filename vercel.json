@@ -6,15 +6,15 @@
   "crons": [
     {
       "path": "/api/push/check-payments",
-      "schedule": "0 12 * * *"
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/push/weekly-summary",
+      "schedule": "0 13 * * 1"
     },
     {
       "path": "/api/push/ai-tips",
-      "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/push/ai-tips",
-      "schedule": "0 22 * * *"
+      "schedule": "0 17 * * *"
     }
   ]
 }

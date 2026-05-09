@@ -11,6 +11,7 @@ import Analysis from './components/Analysis.jsx';
 import Goals from './components/Goals.jsx';
 import KleoAi from './components/KleoAi.jsx';
 import AdvisorOnboarding from './components/AdvisorOnboarding.jsx';
+import OnboardingTutorial from './components/OnboardingTutorial.jsx';
 import { getAdvisorProfile } from './lib/advisorProfile.js';
 import Budget from './components/Budget.jsx';
 import Calendar from './components/Calendar.jsx';
@@ -88,6 +89,17 @@ function AppInner() {
     return typeof window !== 'undefined' && window.location.href.includes('?oauth_state_id=');
   });
   const [showAdvisorOnboarding, setShowAdvisorOnboarding] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Tutorial obligatorio la primera vez que el usuario llega a AUTHENTICATED
+  useEffect(() => {
+    if (stage !== STAGE.AUTHENTICATED) return;
+    let done = false;
+    try { done = localStorage.getItem('kleo_tutorial_completed') === 'true'; } catch {}
+    if (!done) {
+      setShowTutorial(true);
+    }
+  }, [stage]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingNotification, setPendingNotification] = useState(null);
@@ -687,6 +699,16 @@ function AppInner() {
         </>
       )}
 
+      {showTutorial && (
+        <OnboardingTutorial
+          onComplete={() => {
+            setShowTutorial(false);
+            // Después del tutorial, abrir directamente Plaid Link
+            setTimeout(() => setShowConnectBank(true), 300);
+          }}
+        />
+      )}
+
       {showAdvisorOnboarding && (
         <AdvisorOnboarding
           accounts={accounts}
@@ -702,6 +724,10 @@ function AppInner() {
       {showMenu && (
         <MoreMenu
           user={user}
+          onShowTutorial={() => {
+            try { localStorage.removeItem('kleo_tutorial_completed'); } catch {}
+            setShowTutorial(true);
+          }}
           onClose={() => setShowMenu(false)}
           onNavigate={(id) => {
             setShowMenu(false);

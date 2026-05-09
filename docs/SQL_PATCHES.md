@@ -3,6 +3,90 @@
 > Historial de migraciones manuales en Supabase. Cuando la spec cambie y
 > haya que arreglar data existente, agregar la migración aquí con fecha.
 
+## 2026-05-09 · Tablas para sistema de notificaciones + advisor profile
+
+```sql
+-- ════════════════════════════════════════════════════════════
+-- notifications_sent: anti-spam tracking
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS notifications_sent (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  type text NOT NULL,             -- ej 'cycle_close_2d', 'payment_due_today'
+  ref_id text NOT NULL DEFAULT '', -- id del recurso (card_id, bill_id, etc.)
+  sent_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_sent_lookup
+  ON notifications_sent (user_id, type, ref_id, sent_at DESC);
+
+ALTER TABLE notifications_sent ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access notifs" ON notifications_sent;
+CREATE POLICY "Service role full access notifs" ON notifications_sent
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- ════════════════════════════════════════════════════════════
+-- user_notification_prefs: toggles por tipo
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS user_notification_prefs (
+  user_id uuid PRIMARY KEY,
+  cycle_close_reminder    boolean DEFAULT true,
+  payment_due_reminder    boolean DEFAULT true,
+  do_not_use_reminder     boolean DEFAULT true,
+  cycle_closed_notice     boolean DEFAULT true,
+  fixed_expense_reminder  boolean DEFAULT true,
+  overdraft_alert         boolean DEFAULT true,
+  paycheck_arrival        boolean DEFAULT true,
+  goal_milestone          boolean DEFAULT true,
+  weekly_summary          boolean DEFAULT true,
+  unusual_spending        boolean DEFAULT false,  -- opt-in
+  daily_ai_tip            boolean DEFAULT false,  -- opt-in
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE user_notification_prefs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users see own prefs" ON user_notification_prefs;
+CREATE POLICY "Users see own prefs" ON user_notification_prefs
+  FOR ALL USING (auth.uid() = user_id);
+
+-- ════════════════════════════════════════════════════════════
+-- user_advisor_profile: target_utilization, plan, manual APRs
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS user_advisor_profile (
+  user_id uuid PRIMARY KEY,
+  onboarding_completed boolean DEFAULT false,
+  target_utilization int DEFAULT 5,
+  has_existing_plan boolean,
+  existing_plan_description text,
+  manual_aprs jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE user_advisor_profile ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users see own advisor profile" ON user_advisor_profile;
+CREATE POLICY "Users see own advisor profile" ON user_advisor_profile
+  FOR ALL USING (auth.uid() = user_id);
+
+-- ════════════════════════════════════════════════════════════
+-- user_budgets: presupuesto del usuario (frecuencia + alocación)
+-- ════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS user_budgets (
+  user_id uuid PRIMARY KEY,
+  pay_frequency text,           -- 'weekly' | 'biweekly' | 'semimonthly' | 'monthly'
+  paycheck_amount numeric,
+  next_paycheck_date date,
+  allocation jsonb DEFAULT '{"essentials":50,"savings":20,"plans":10,"personal":20}'::jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE user_budgets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users see own budget" ON user_budgets;
+CREATE POLICY "Users see own budget" ON user_budgets
+  FOR ALL USING (auth.uid() = user_id);
+```
+
 ## 2026-05-09 · Plaid integration migrations
 
 ```sql

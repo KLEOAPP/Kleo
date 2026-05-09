@@ -3,6 +3,37 @@
 > Cada vez que tomamos una decisión importante, agregar una entrada aquí.
 > Formato: `## YYYY-MM-DD · Título corto` + qué + por qué.
 
+## 2026-05-09 · Tutorial obligatorio + spec del onboarding completo
+
+**Qué:** Construido `OnboardingTutorial.jsx` con 16 slides que cubren toda la
+app con datos de ejemplo. Se dispara automáticamente la primera vez que el
+usuario llega a `STAGE.AUTHENTICATED` cuando
+`localStorage.kleo_tutorial_completed !== 'true'`. Después del último slide,
+abre directamente `ConnectBank` para que conecte sus cuentas reales.
+
+Slides cubren: Bienvenida · Disponible esta semana · Acción del día · Esta
+semana · Riesgo · Kleo Score con fórmula FICO · Cuentas · Crédito (APR,
+utilización, calculadora) · Calendario inteligente · Metas · Presupuesto ·
+Transacciones · Análisis y Reportes · Kleo AI · Notificaciones · Conectar banco.
+
+**Por qué:** El usuario pidió un "tutorial obligatorio con datos de ejemplo"
+que cubra cada aspecto de la app antes de conectar cuentas reales, para que
+entienda qué va a ver y cómo interactuar con todo. Sin esto el usuario llega
+al dashboard frío sin saber qué significa cada bloque.
+
+**Re-ver:** opción "📖 Ver tutorial otra vez" en MoreMenu que limpia el flag
+y vuelve a disparar el tutorial.
+
+**Spec completo en `docs/ONBOARDING_SPEC.md`** que documenta las 3 fases del
+flujo completo:
+1. Tutorial obligatorio (esta sesión, ✅ implementado)
+2. Conectar cuentas Plaid (ya existía)
+3. AdvisorOnboarding extendido (próxima sesión): confirmar cuentas detectadas,
+   APRs faltantes (existe), utilización meta (existe), confirmar gastos fijos
+   detectados, crear tabla de gastos, gastos en pareja toggle, plan financiero
+   existente (existe), metas y ahorros activos con vinculación a cuenta y
+   recomendación de cuenta virtual de banco local, resumen y activar.
+
 ## 2026-05-09 · Onboarding del asesor (4 pasos) tras conectar primer banco
 
 **Qué:** Cuando el usuario conecta su primer banco, después de cerrar la

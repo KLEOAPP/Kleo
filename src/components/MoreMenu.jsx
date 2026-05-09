@@ -3,7 +3,7 @@ import { Icon } from './icons.jsx';
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed as checkSubscribed } from '../lib/push.js';
 import { useI18n } from '../i18n/index.jsx';
 
-export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeedback, user }) {
+export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeedback, user, onShowTutorial }) {
   const { strings: s, lang, setLang } = useI18n();
   const [theme, setTheme] = useState(() => localStorage.getItem('kleo_theme') || 'light');
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -307,6 +307,37 @@ export default function MoreMenu({ onNavigate, onClose, onLogout, onHome, onFeed
               <span style={{ flex: 1, fontSize: 15, fontWeight: 500 }}>{s.logout}</span>
             </button>
           </div>
+
+          {/* Ver tutorial otra vez */}
+          {onShowTutorial && (
+            <button
+              onClick={() => { onClose(); onShowTutorial(); }}
+              className="pressable"
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                borderRadius: 14,
+                background: 'var(--bg-elev)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                marginBottom: 8
+              }}
+            >
+              <span style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: 'rgba(168, 85, 247, 0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18
+              }}>📖</span>
+              <div className="col gap-2" style={{ flex: 1, textAlign: 'left' }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Ver tutorial otra vez</span>
+                <span className="tiny">Recorrido de 16 pasos por toda la app</span>
+              </div>
+              <Icon name="back" size={14} color="var(--text-mute)" stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
+            </button>
+          )}
 
           {/* Feedback */}
           <button
