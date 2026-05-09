@@ -198,8 +198,16 @@ Estructura exacta:
   ]
 }
 
-Reglas:
-- Máximo 4 elementos por array (no abrumes al usuario)
+Reglas DE BREVEDAD (CRÍTICAS para no truncar la respuesta):
+- weekly_available_explanation: máximo 1 oración (≤25 palabras)
+- risks_detected.description: máximo 1 oración (≤20 palabras)
+- risks_detected.recommendation: máximo 1 oración (≤15 palabras)
+- recommended_actions.title: ≤10 palabras
+- recommended_actions.reasoning: ≤25 palabras
+- recommended_actions.steps: máximo 4 pasos, cada uno ≤15 palabras
+- credit_card_bridge_plan.plan_summary: ≤25 palabras
+- spending_patterns.text: ≤25 palabras
+- Máximo 3 elementos por array
 - Si un campo no aplica usa null o []
 - JAMÁS inventes valores
 - Las acciones recomendadas deben venir de los datos reales del INPUT`;
@@ -476,6 +484,49 @@ function buildFinancialProfile({ transactions = [], accounts = [], fixedExpenses
   };
 }
 
+/**
+ * Intenta reparar JSON truncado cerrando strings, arrays y objetos abiertos.
+ * No es perfecto pero rescata la mayoría de los casos cuando max_tokens corta
+ * la respuesta a la mitad.
+ */
+function repairTruncatedJson(text) {
+  if (!text) return null;
+  let s = text.trim();
+
+  // Cerrar string abierta
+  let inString = false;
+  let escapeNext = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escapeNext) { escapeNext = false; continue; }
+    if (c === '\\') { escapeNext = true; continue; }
+    if (c === '"') inString = !inString;
+  }
+  if (inString) s += '"';
+
+  // Quitar coma final si quedó suelta
+  s = s.replace(/,\s*$/, '');
+
+  // Contar brackets abiertos sin cerrar y cerrarlos
+  let openBraces = 0, openBrackets = 0;
+  inString = false; escapeNext = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escapeNext) { escapeNext = false; continue; }
+    if (c === '\\') { escapeNext = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '{') openBraces++;
+    else if (c === '}') openBraces--;
+    else if (c === '[') openBrackets++;
+    else if (c === ']') openBrackets--;
+  }
+  while (openBrackets-- > 0) s += ']';
+  while (openBraces-- > 0) s += '}';
+
+  return s;
+}
+
 function detectCardEligible(name = '', category = '') {
   const n = name.toLowerCase();
   const c = (category || '').toLowerCase();
@@ -517,7 +568,7 @@ ${JSON.stringify(profile, null, 2)}`;
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2400,
+        max_tokens: 4096,
         system: SYSTEM_PROMPT,
         messages: [
           { role: 'user', content: userMessage }
@@ -536,16 +587,27 @@ ${JSON.stringify(profile, null, 2)}`;
     }
 
     const text = data.content?.[0]?.text || '';
+    const stopReason = data.stop_reason; // 'end_turn' | 'max_tokens' | etc.
     let clean = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
     let parsed = null;
     try { parsed = JSON.parse(clean); } catch {}
 
+    // Intento de recuperación si la respuesta llegó truncada por max_tokens
+    if (!parsed) {
+      try {
+        const repaired = repairTruncatedJson(clean);
+        if (repaired) parsed = JSON.parse(repaired);
+      } catch {}
+    }
+
     if (!parsed || typeof parsed !== 'object') {
-      // El modelo devolvió texto en vez de JSON — error explícito al cliente
       return res.status(500).json({
-        error: 'La AI no devolvió JSON válido',
+        error: stopReason === 'max_tokens'
+          ? 'La AI generó una respuesta muy larga y se cortó'
+          : 'La AI no devolvió JSON válido',
         detail: clean.slice(0, 500),
+        stop_reason: stopReason,
         hint: 'Reintenta en unos segundos.'
       });
     }
