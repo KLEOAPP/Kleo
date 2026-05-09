@@ -134,7 +134,7 @@ export default function Analysis({ transactions, onHome, onMenu }) {
       </div>
 
       {/* Tabs */}
-      <div className="tabs mb-16">
+      <div data-tour="analysisTabs" className="tabs mb-16">
         <button className={`tab ${view === 'week' ? 'active' : ''}`} onClick={() => setView('week')}>{s.weeks}</button>
         <button className={`tab ${view === 'category' ? 'active' : ''}`} onClick={() => setView('category')}>{s.categories}</button>
       </div>

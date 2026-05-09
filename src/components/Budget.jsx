@@ -162,7 +162,7 @@ export default function Budget({ household, fixedExpenses, transactions, onBack,
       )}
 
       {/* Tabs */}
-      <div className="tabs mb-16">
+      <div data-tour="budgetTabs" className="tabs mb-16">
         <button className={`tab ${tab === 'mes' ? 'active' : ''}`} onClick={() => setTab('mes')}>{s.summary}</button>
         <button className={`tab ${tab === 'tabla' ? 'active' : ''}`} onClick={() => setTab('tabla')}>{s.table}</button>
         <button className={`tab ${tab === 'split' ? 'active' : ''}`} onClick={() => setTab('split')}>{s.settlement}</button>

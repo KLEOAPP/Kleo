@@ -145,7 +145,7 @@ export default function Accounts({ accounts, transactions, onHome, onMenu, onCon
       <TopBar onHome={onHome} onMenu={onMenu} title={s.personalAccounts} />
 
       <div style={{ padding: '12px 0' }}>
-        <div className="card mb-20" style={{
+        <div data-tour="accountsHero" className="card mb-20" style={{
           background: 'linear-gradient(135deg, rgba(0,181,137,0.06), rgba(0,122,255,0.06))',
           borderColor: 'transparent'
         }}>

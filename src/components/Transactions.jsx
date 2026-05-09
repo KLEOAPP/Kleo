@@ -74,6 +74,7 @@ export default function Transactions({ transactions, accounts, onBack, onHome })
         {/* Búsqueda */}
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <input
+            data-tour="txSearch"
             className="input-field"
             placeholder={s.searchMerchant}
             value={search}

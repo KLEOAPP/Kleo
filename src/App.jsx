@@ -789,8 +789,140 @@ function AppInner() {
 
 // ════════════════════════════════════════════════════════════
 // Pasos del tour interactivo (popover + spotlight)
+// Orden: dashboard completo → cada tile (highlight + entra y explica) →
+// bottom nav (Dashboard / + / Más) → outro
 // ════════════════════════════════════════════════════════════
 const TOUR_STEPS = [
+  // ─── INTRO ───
+  { navigateTo: null, target: null, tag: 'Bienvenido', emoji: '👋',
+    title: 'Hola, soy Kleo',
+    body: 'Tu asesor financiero personal. Te voy a mostrar cada parte de la app. Solo puedes avanzar con los botones del popover.',
+    tip: 'El recorrido toma ~1 minuto. Vas a entrar a cada sección para que veas qué hay adentro.' },
+
+  // ─── DASHBOARD ───
+  { navigateTo: null, target: 'hero', tag: 'Disponible', emoji: '💰',
+    title: 'Disponible esta semana',
+    body: 'El número más importante de tu día. Cuánto puedes gastar libremente. Cambia entre Día / Semana / Ciclo / Mes.' },
+
+  { navigateTo: null, target: 'connectBank', tag: 'Conectar', emoji: '🏦',
+    title: 'Conectar banco',
+    body: 'Aquí conectas tus cuentas con Plaid. Bajamos 6 meses de historial automático para que el análisis sea preciso.' },
+
+  { navigateTo: null, target: 'resumenHeader', tag: 'Tu Resumen', emoji: '📌',
+    title: 'Tu Resumen',
+    body: 'Las 5 cosas más importantes de tu salud financiera condensadas en cards: acción del día, semana, riesgo, score y consejos.' },
+
+  { navigateTo: null, target: 'action', tag: 'Acción', emoji: '✨',
+    title: 'Acción recomendada hoy',
+    body: 'Cada día te muestro UNA cosa que debes hacer. La más importante. Toca "Seguir plan" para ver el por qué, con qué pagar y los pasos.' },
+
+  { navigateTo: null, target: 'week', tag: 'Semana', emoji: '📅',
+    title: 'Esta semana',
+    body: 'Resumen de los próximos 7 días: pagos, suscripciones, cierres de ciclo. Toca "Ver calendario" para el detalle.' },
+
+  { navigateTo: null, target: 'risk', tag: 'Riesgo', emoji: '⛅',
+    title: 'Riesgo de la semana',
+    body: 'Tu clima financiero — Bajo ☀️, Medio ⛅ o Alto ⛈. "Ver riesgos" abre Kleo AI con la solución específica.' },
+
+  { navigateTo: null, target: 'score', tag: 'Score', emoji: '🤖',
+    title: 'Tu Kleo Score',
+    body: 'Estimación de tu FICO. Fórmula: Pago 35% · Util 30% · Edad 15% · Mezcla 10% · Nuevo 10%. Toca para ver el plan por tarjeta.' },
+
+  { navigateTo: null, target: 'aiTips', tag: 'Asesor IA', emoji: '💡',
+    title: 'Consejos de Kleo IA',
+    body: 'Toca aquí para abrir tu asesor 24/7. Genera plan completo: disponible, riesgos, acciones, plan puente con tarjeta.' },
+
+  { navigateTo: null, target: 'sectionsHeader', tag: 'Secciones', emoji: '📂',
+    title: 'Secciones',
+    body: 'Aquí abajo están todas las secciones. Vamos a entrar a cada una para que veas qué hace.' },
+
+  // ─── TILE CRÉDITO + ENTRA ───
+  { navigateTo: null, target: 'tile-credit', tag: 'Crédito', emoji: '💳',
+    title: 'Sección Crédito',
+    body: 'Plan de pago detallado por cada tarjeta + calculadora de pago extra + factores que afectan tu score.' },
+  { navigateTo: 'credit', target: 'creditPlan', tag: 'Crédito · Plan', emoji: '💳',
+    title: 'Plan por tarjeta',
+    body: 'Por cada tarjeta te calculo: cuánto pagar, cuándo (2-3 días antes del cierre), y cuándo NO usarla.',
+    tip: 'El banco reporta al buró el balance al CIERRE del ciclo, no al due date. Por eso el timing importa.' },
+
+  // ─── TILE CUENTAS + ENTRA ───
+  { navigateTo: null, target: 'tile-accounts', tag: 'Cuentas', emoji: '🏦',
+    title: 'Sección Cuentas',
+    body: 'Tus cuentas corrientes y de ahorros. Sin tarjetas — esas viven en Crédito.' },
+  { navigateTo: 'tab:accounts', target: 'accountsHero', tag: 'Cuentas', emoji: '🏦',
+    title: 'Total y desglose',
+    body: 'Ves tu balance total, separado entre Corriente y Ahorros. Toca cualquier cuenta para detalle, editar nombre o eliminar.' },
+
+  // ─── TILE METAS + ENTRA ───
+  { navigateTo: null, target: 'tile-goals', tag: 'Metas', emoji: '🎯',
+    title: 'Sección Metas',
+    body: 'Crear metas (viaje, casa, fondo de emergencia), vincularlas a una cuenta, y dejar que se actualicen solas.' },
+  { navigateTo: 'tab:goals', target: 'goalsCreate', tag: 'Crear meta', emoji: '➕',
+    title: 'Crea tu primera meta',
+    body: 'Toca el + para escoger tipo (emergencia / viaje / casa / etc.), monto, fecha límite y cuenta vinculada.',
+    tip: 'BPPR, Oriental y FirstBank ofrecen cuentas virtuales gratis. Te recomiendo abrir una solo para metas.' },
+
+  // ─── TILE PRESUPUESTO + ENTRA ───
+  { navigateTo: null, target: 'tile-budget', tag: 'Presupuesto', emoji: '💰',
+    title: 'Sección Presupuesto',
+    body: 'Aquí gestionas gastos compartidos con tu pareja o compañero de cuarto. Configurable, equitativo, automático.' },
+  { navigateTo: 'budget', target: 'budgetTabs', tag: 'Presupuesto', emoji: '🏠',
+    title: 'Resumen / Tabla / Liquidación',
+    body: '3 vistas: resumen del mes, tabla por categoría, y liquidación (cuánto te debe tu pareja al final del mes).' },
+
+  // ─── TILE CALENDARIO + ENTRA ───
+  { navigateTo: null, target: 'tile-calendar', tag: 'Calendario', emoji: '📅',
+    title: 'Sección Calendario',
+    body: 'Mapa visual de todos tus pagos, cierres de ciclo y aportes a metas del mes.' },
+  { navigateTo: 'calendar', target: 'calMonth', tag: 'Calendario', emoji: '🗓',
+    title: 'Calendario inteligente',
+    body: 'Cada día tiene logo del evento dominante. Auto-detecta suscripciones, cierres y aportes.',
+    tip: 'NO tienes que marcar nada como pagado — yo lo detecto cuando llega tu transacción.' },
+
+  // ─── TILE RENDIMIENTO + ENTRA ───
+  { navigateTo: null, target: 'tile-analysis', tag: 'Rendimiento', emoji: '📈',
+    title: 'Sección Rendimiento',
+    body: 'Cómo te está yendo este mes vs el pasado, donde gastas más, y recomendaciones específicas.' },
+  { navigateTo: 'analysis', target: 'analysisTabs', tag: 'Rendimiento', emoji: '📊',
+    title: 'Por semana / Por categoría',
+    body: '2 vistas: barra semanal de los últimos 30 días o donut chart con tus categorías top.' },
+
+  // ─── TILE TRANSACCIONES + ENTRA ───
+  { navigateTo: null, target: 'tile-transactions', tag: 'Transacciones', emoji: '🧾',
+    title: 'Sección Transacciones',
+    body: 'Lista completa filtrable de todo lo que pasa en tus cuentas, agrupado por día.' },
+  { navigateTo: 'transactions', target: 'txSearch', tag: 'Buscar', emoji: '🔍',
+    title: 'Búsqueda y filtros',
+    body: 'Busca por comercio, filtra por cuenta o categoría. Las transferencias salen en gris para no inflar tus totales.' },
+
+  // ─── TILE REPORTES + ENTRA ───
+  { navigateTo: null, target: 'tile-reports', tag: 'Reportes', emoji: '📊',
+    title: 'Sección Reportes',
+    body: 'Comparativas mensuales y trimestrales. Para ver tendencias y planificar.' },
+  { navigateTo: 'reports', target: 'reportsTabs', tag: 'Reportes', emoji: '📑',
+    title: 'Mensual / Trimestral',
+    body: 'Cambia entre vista mensual (últimos 6 meses) y trimestral (últimos 4 trimestres) con gráfica de tendencia.' },
+
+  // ─── BOTTOM NAV ───
+  { navigateTo: null, target: 'navHome', tag: 'Dashboard', emoji: '🏠',
+    title: 'Botón Dashboard',
+    body: 'Vuelve al inicio desde cualquier sección. Tu home base.' },
+  { navigateTo: null, target: 'fab', tag: 'Acción rápida', emoji: '➕',
+    title: 'Acción rápida (+)',
+    body: 'Para registrar un gasto manual rápido: 4 modos — automático (Plaid), ATH Móvil, foto del recibo, o manual.',
+    tip: 'Casi nunca lo necesitas. Kleo detecta tus gastos solo desde tus transacciones.' },
+  { navigateTo: null, target: 'menu', tag: 'Más', emoji: '⋯',
+    title: 'Menú "Más"',
+    body: 'Acceso a todas las secciones, idioma (ES/EN), tema claro/oscuro, notificaciones, configuración del asesor y este tutorial.' },
+
+  // ─── OUTRO ───
+  { navigateTo: null, target: null, tag: 'Listo', emoji: '🚀',
+    title: 'Listo para conectar tu banco',
+    body: 'Vamos a conectar tus cuentas para activar TODO esto con tu data real.',
+    tip: 'Plaid · solo lectura · 6 meses de historial. Kleo nunca puede mover tu dinero.' }
+];
+
+const _TOUR_STEPS_OLD = [
   {
     navigateTo: null,
     target: null,

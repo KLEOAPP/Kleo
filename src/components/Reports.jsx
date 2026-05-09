@@ -120,7 +120,7 @@ export default function Reports({ transactions, fixedExpenses, onBack, onHome })
       </div>
 
       {/* Tabs */}
-      <div className="tabs mb-20">
+      <div data-tour="reportsTabs" className="tabs mb-20">
         <button className={`tab ${period === 'month' ? 'active' : ''}`} onClick={() => setPeriod('month')}>{s.monthly}</button>
         <button className={`tab ${period === 'quarter' ? 'active' : ''}`} onClick={() => setPeriod('quarter')}>{s.quarterly}</button>
       </div>

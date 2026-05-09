@@ -477,6 +477,7 @@ export default function Dashboard({
         {/* ============ CONNECT BANK ============ */}
         {onConnectBank && (
           <button
+            data-tour="connectBank"
             onClick={onConnectBank}
             className="pressable mb-20"
             style={{
@@ -508,7 +509,7 @@ export default function Dashboard({
         )}
 
         {/* ============ TU RESUMEN — header arriba ============ */}
-        <div className="section-header" style={{ marginTop: 4, marginBottom: 12 }}>
+        <div data-tour="resumenHeader" className="section-header" style={{ marginTop: 4, marginBottom: 12 }}>
           <span>{s.yourSummary}</span>
         </div>
 
@@ -721,7 +722,7 @@ export default function Dashboard({
         </div>
 
         {/* ============ SECCIONES GRID ============ */}
-        <div className="section-header" style={{ marginTop: 8 }}>
+        <div data-tour="sectionsHeader" className="section-header" style={{ marginTop: 8 }}>
           <span>{s.sections}</span>
         </div>
         <div data-tour="sections" style={{
@@ -730,7 +731,7 @@ export default function Dashboard({
           gap: 12
         }}>
           {sectionCards.map(c => (
-            <SectionCard key={c.id} {...c} />
+            <SectionCard key={c.id} {...c} dataTour={`tile-${c.id}`} />
           ))}
         </div>
       </div>
@@ -967,9 +968,10 @@ function ScoreGauge({ score, color }) {
   );
 }
 
-function SectionCard({ emoji, title, metric, sub, gradient, onClick }) {
+function SectionCard({ emoji, title, metric, sub, gradient, onClick, dataTour }) {
   return (
     <button
+      data-tour={dataTour}
       onClick={onClick}
       className="pressable"
       style={{
