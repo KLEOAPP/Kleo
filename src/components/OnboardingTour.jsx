@@ -100,49 +100,57 @@ export default function OnboardingTour({ steps, onComplete, onSkip }) {
         e.stopPropagation();
       }}
     >
-      {/* Overlay oscuro con hueco (spotlight) */}
-      <svg
-        width="100%" height="100%"
-        style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
-      >
-        <defs>
-          <mask id="kleo-tour-mask">
-            <rect width="100%" height="100%" fill="white" />
-            {rect && (
+      {(() => {
+        // Clip del rect a viewport para que el spotlight nunca se desborde
+        const clipped = rect ? clipRectToViewport(rect) : null;
+        return (
+          <>
+            {/* Overlay oscuro con hueco (spotlight) */}
+            <svg
+              width="100%" height="100%"
+              style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+            >
+              <defs>
+                <mask id="kleo-tour-mask">
+                  <rect width="100%" height="100%" fill="white" />
+                  {clipped && (
+                    <rect
+                      x={clipped.x}
+                      y={clipped.y}
+                      width={clipped.width}
+                      height={clipped.height}
+                      rx={18} ry={18}
+                      fill="black"
+                    />
+                  )}
+                </mask>
+              </defs>
               <rect
-                x={Math.max(0, rect.left - 8)}
-                y={Math.max(0, rect.top - 8)}
-                width={rect.width + 16}
-                height={rect.height + 16}
-                rx={18} ry={18}
-                fill="black"
+                width="100%" height="100%"
+                fill="rgba(0, 0, 0, 0.82)"
+                mask="url(#kleo-tour-mask)"
+              />
+            </svg>
+
+            {/* Anillo morado pulsante alrededor del target */}
+            {clipped && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: clipped.y,
+                  left: clipped.x,
+                  width: clipped.width,
+                  height: clipped.height,
+                  borderRadius: 18,
+                  boxShadow: '0 0 0 2px #A855F7, 0 0 30px rgba(168, 85, 247, 0.7), 0 0 60px rgba(168, 85, 247, 0.4)',
+                  pointerEvents: 'none',
+                  animation: 'kleoTourPulse 2s ease-in-out infinite'
+                }}
               />
             )}
-          </mask>
-        </defs>
-        <rect
-          width="100%" height="100%"
-          fill="rgba(0, 0, 0, 0.82)"
-          mask="url(#kleo-tour-mask)"
-        />
-      </svg>
-
-      {/* Anillo morado pulsante alrededor del target */}
-      {rect && (
-        <div
-          style={{
-            position: 'absolute',
-            top: rect.top - 8,
-            left: rect.left - 8,
-            width: rect.width + 16,
-            height: rect.height + 16,
-            borderRadius: 18,
-            boxShadow: '0 0 0 2px #A855F7, 0 0 30px rgba(168, 85, 247, 0.7), 0 0 60px rgba(168, 85, 247, 0.4)',
-            pointerEvents: 'none',
-            animation: 'kleoTourPulse 2s ease-in-out infinite'
-          }}
-        />
-      )}
+          </>
+        );
+      })()}
 
       {/* Popover */}
       <div
@@ -271,10 +279,38 @@ export default function OnboardingTour({ steps, onComplete, onSkip }) {
 }
 
 /**
+ * Clip del rect del target a los límites visibles del viewport.
+ * Garantiza que el spotlight nunca se "salga" de la pantalla.
+ * Devuelve null si el rect no se intersecta con el viewport.
+ */
+function clipRectToViewport(rect) {
+  if (typeof window === 'undefined') return null;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const padding = 8;
+
+  const x = Math.max(0, rect.left - padding);
+  const y = Math.max(0, rect.top - padding);
+  const right = Math.min(vw, rect.right + padding);
+  const bottom = Math.min(vh, rect.bottom + padding);
+
+  const width = Math.max(0, right - x);
+  const height = Math.max(0, bottom - y);
+
+  if (width === 0 || height === 0) return null;
+  return { x, y, width, height };
+}
+
+/**
  * Decide dónde poner el popover según el rect del target.
- * Si rect es null → centrado.
- * Si target arriba → popover abajo (con flecha hacia arriba).
- * Si target abajo → popover arriba (con flecha hacia abajo).
+ *
+ * Estrategia:
+ *   - Sin target → centrado en pantalla.
+ *   - Target con espacio suficiente abajo → popover debajo, flecha arriba.
+ *   - Target con espacio suficiente arriba → popover encima, flecha abajo.
+ *   - Target muy grande (sections grid) o sin espacio en ningún lado →
+ *     popover anclado al fondo del viewport, sin flecha. El spotlight sigue
+ *     resaltando el área pero el popover queda fijo en una zona visible.
  */
 function computePopoverPosition(rect) {
   if (typeof window === 'undefined') return { top: 100, left: 16 };
@@ -283,24 +319,27 @@ function computePopoverPosition(rect) {
   const vh = window.innerHeight;
   const popMaxWidth = Math.min(380, vw - 32);
   const popLeft = (vw - popMaxWidth) / 2;
+  const popHeightEstimate = 280;
+  const padding = 16;
 
   if (!rect) {
+    // Centrado vertical
     return {
-      top: vh / 2 - 140,
+      top: Math.max(40, vh / 2 - popHeightEstimate / 2),
       left: popLeft,
       arrow: null
     };
   }
 
-  const padding = 16;
-  const popHeight = 240; // estimado conservador
   const spaceAbove = rect.top;
   const spaceBelow = vh - rect.bottom;
+  const fitsBelow = spaceBelow >= popHeightEstimate + padding;
+  const fitsAbove = spaceAbove >= popHeightEstimate + padding;
 
-  if (spaceBelow >= popHeight + padding || spaceBelow > spaceAbove) {
-    // Popover debajo del target
+  // Caso ideal: cabe debajo y hay más espacio abajo que arriba
+  if (fitsBelow && spaceBelow >= spaceAbove) {
     return {
-      top: rect.bottom + 16,
+      top: rect.bottom + 14,
       left: popLeft,
       arrow: {
         top: -7,
@@ -309,10 +348,12 @@ function computePopoverPosition(rect) {
         borderBottom: 'none'
       }
     };
-  } else {
-    // Popover encima del target
+  }
+
+  // Cabe arriba
+  if (fitsAbove) {
     return {
-      bottom: vh - rect.top + 16,
+      bottom: vh - rect.top + 14,
       left: popLeft,
       arrow: {
         bottom: -7,
@@ -322,4 +363,13 @@ function computePopoverPosition(rect) {
       }
     };
   }
+
+  // Ninguno cabe — target gigante (ej: grid de secciones).
+  // Anclamos el popover al fondo del viewport, encima del bottom nav,
+  // sin flecha. El anillo morado del spotlight indica el área.
+  return {
+    bottom: 96,
+    left: popLeft,
+    arrow: null
+  };
 }
