@@ -103,41 +103,6 @@ function AppInner() {
     }
   }, [stage]);
 
-  // ===== Sync automático de Plaid =====
-  // Cuando el usuario está autenticado y tiene cuentas con Plaid, sincronizamos:
-  //   - Al volver a la app desde background (visibilitychange)
-  //   - Cada 10 min mientras la app está abierta
-  // Todo silencioso, sin botones manuales — el AI mantiene la data fresca.
-  useEffect(() => {
-    if (stage !== STAGE.AUTHENTICATED || !user?.id) return;
-    const hasPlaidAccounts = accounts.some(a => a.plaid_access_token || a.plaid_account_id);
-    if (!hasPlaidAccounts) return;
-
-    let lastSync = Date.now();
-    const SYNC_INTERVAL_MS = 30 * 1000; // 30 segundos
-
-    const onVisibility = () => {
-      if (document.visibilityState !== 'visible') return;
-      // Si la app estuvo escondida >2 min, sincroniza al volver
-      if (Date.now() - lastSync > 2 * 60 * 1000) {
-        syncPlaidInBackground(user.id, 7);
-        lastSync = Date.now();
-      }
-    };
-
-    const intervalId = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        syncPlaidInBackground(user.id, 7);
-        lastSync = Date.now();
-      }
-    }, SYNC_INTERVAL_MS);
-
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [stage, user?.id, accounts.length, syncPlaidInBackground]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingNotification, setPendingNotification] = useState(null);
@@ -307,6 +272,39 @@ function AppInner() {
       console.warn('Background Plaid sync failed:', e.message);
     }
   }, []);
+
+  // ===== Sync automático de Plaid =====
+  // Cada 30s mientras la app esté visible + al volver del background.
+  // Silencioso, sin UI, sin botones — el sistema mantiene la data fresca.
+  useEffect(() => {
+    if (stage !== STAGE.AUTHENTICATED || !user?.id) return;
+    const hasPlaidAccounts = accounts.some(a => a.plaid_access_token || a.plaid_account_id);
+    if (!hasPlaidAccounts) return;
+
+    let lastSync = Date.now();
+    const SYNC_INTERVAL_MS = 30 * 1000;
+
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastSync > 2 * 60 * 1000) {
+        syncPlaidInBackground(user.id, 7);
+        lastSync = Date.now();
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        syncPlaidInBackground(user.id, 7);
+        lastSync = Date.now();
+      }
+    }, SYNC_INTERVAL_MS);
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [stage, user?.id, accounts.length, syncPlaidInBackground]);
 
   // ===== INIT =====
   useEffect(() => {
