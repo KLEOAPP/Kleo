@@ -37,6 +37,14 @@ export default async function handler(req, res) {
     if (!public_token) return res.status(400).json({ error: 'public_token faltante' });
     if (!userId) return res.status(400).json({ error: 'userId faltante' });
 
+    // === 0. Asegurar profile/perfil del usuario para no romper FK ===
+    // Si existe tabla profiles, hacemos upsert; si no existe, no pasa nada.
+    try {
+      await supabase.from('profiles').upsert({ id: userId }, { onConflict: 'id' });
+    } catch (e) {
+      // La tabla profiles puede no existir — no es crítico
+    }
+
     // === 1. Exchange ===
     stage = 'exchange';
     const exchange = await plaid.itemPublicTokenExchange({ public_token });
