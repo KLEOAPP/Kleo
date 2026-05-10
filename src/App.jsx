@@ -237,11 +237,60 @@ function AppInner() {
       setTransactions(txs);
       setFixedExpenses(fixed);
       setGoals(gls);
+
+      // Auto-sync de Plaid en background si hay cuentas conectadas
+      if (accts.some(a => a.plaid_access_token || a.plaid_account_id)) {
+        // No bloquear el UI — corre en background y refresca al terminar
+        syncPlaidInBackground(userId);
+      }
     } catch (err) {
       console.error('Supabase load error:', err);
       showToast('Error cargando datos');
     }
   }, []);
+
+  const syncPlaidInBackground = useCallback(async (userId) => {
+    try {
+      const res = await fetch('/api/plaid/sync-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, days: 14 })
+      });
+      const data = await res.json();
+      if (data.synced > 0) {
+        // Re-cargar transacciones actualizadas
+        const [accts, txs] = await Promise.all([fetchAccounts(), fetchTransactions()]);
+        setAccounts(accts);
+        setTransactions(txs);
+      }
+    } catch (e) {
+      console.warn('Background Plaid sync failed:', e.message);
+    }
+  }, []);
+
+  const handleManualRefresh = useCallback(async () => {
+    if (!user?.id) return;
+    showToast('Sincronizando con tu banco...');
+    try {
+      const res = await fetch('/api/plaid/sync-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, days: 30 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const [accts, txs, fixed, gls] = await Promise.all([
+          fetchAccounts(), fetchTransactions(), fetchFixedExpenses(), fetchGoals()
+        ]);
+        setAccounts(accts); setTransactions(txs); setFixedExpenses(fixed); setGoals(gls);
+        showToast(`✓ ${data.synced} transacciones sincronizadas`);
+      } else {
+        showToast('Error al sincronizar');
+      }
+    } catch (e) {
+      showToast('Error al sincronizar');
+    }
+  }, [user]);
 
   // ===== INIT =====
   useEffect(() => {
@@ -744,6 +793,7 @@ function AppInner() {
             try { localStorage.removeItem('kleo_tutorial_completed'); } catch {}
             setShowTutorial(true);
           }}
+          onRefresh={() => { setShowMenu(false); handleManualRefresh(); }}
           onClose={() => setShowMenu(false)}
           onNavigate={(id) => {
             setShowMenu(false);

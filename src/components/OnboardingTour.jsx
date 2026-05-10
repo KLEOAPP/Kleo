@@ -341,7 +341,11 @@ export default function OnboardingTour({ steps, onComplete, onSkip, navigate }) 
             }}
           >
             <span>{isLast ? '✨ Empezar' : 'Siguiente'}</span>
-            {!isLast && <Icon name="back" size={12} color="#fff" stroke={2.5} style={{ transform: 'rotate(180deg)' }} />}
+            {!isLast && (
+              <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}>
+                <Icon name="back" size={12} color="#fff" stroke={2.5} />
+              </span>
+            )}
           </button>
         </div>
       </div>

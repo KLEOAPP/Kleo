@@ -2,484 +2,332 @@ import { useMemo, useState } from 'react';
 import { Icon } from './icons.jsx';
 import TopBar from './TopBar.jsx';
 import { CATEGORIES } from '../data/sampleData.js';
-import { fmtMoney, fmtDate, fmtTime } from '../utils/storage.js';
+import { fmtMoney } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
 
-export default function Budget({ household, fixedExpenses, transactions, onBack, onHome, onUpdateHousehold, onConfirmShared }) {
+/**
+ * Sección Presupuesto · tabla simple de gastos mensuales fijos.
+ * Modo individual o en pareja (toggle).
+ *
+ * Cada fila muestra: icono de categoría, nombre, día del mes, monto,
+ * checkbox de "compartido" (solo en modo pareja).
+ *
+ * Los datos vienen de fixed_expenses (auto-detectados por Plaid +
+ * agregados por el usuario en el wizard de onboarding).
+ */
+export default function Budget({ household, fixedExpenses = [], onBack, onHome, onUpdateHousehold }) {
   const { strings: s } = useI18n();
-  const [tab, setTab] = useState('mes');
-  const [editingMember, setEditingMember] = useState(false);
+  const [coupleMode, setCoupleMode] = useState(!!household?.enabled);
 
-  const me = household.members.find(m => m.isMe) || household.members[0];
-  const partner = household.members.find(m => !m.isMe);
+  const total = fixedExpenses.reduce((sum, f) => sum + (f.amount || 0), 0);
+  const shared = fixedExpenses.filter(f => f.shared).reduce((sum, f) => sum + (f.amount || 0), 0);
+  const personal = total - shared;
 
-  const monthStart = useMemo(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
-  }, []);
+  const me = household?.members?.find(m => m.isMe);
+  const partner = household?.members?.find(m => !m.isMe);
+  const myRatio = me?.incomeRatio || 1;
+  const partnerRatio = partner?.incomeRatio || 0;
 
-  const monthExpenses = useMemo(() => {
-    return transactions
-      .filter(t => new Date(t.date) >= monthStart && t.amount < 0 && t.category !== 'transferencia');
-  }, [transactions, monthStart]);
+  // Mi parte de los gastos compartidos según ratio de ingreso
+  const myShareOfShared = shared * myRatio;
+  const partnerShareOfShared = shared * partnerRatio;
+  // Mi total real = personales + mi parte de los compartidos
+  const myTotal = personal + myShareOfShared;
 
-  const totalMonth = useMemo(() => {
-    const fixed = fixedExpenses.reduce((sum, f) => sum + f.amount, 0);
-    const variable = monthExpenses.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    return fixed + variable;
-  }, [fixedExpenses, monthExpenses]);
-
-  const sharedExpenses = useMemo(() => {
-    const fixed = fixedExpenses.filter(f => f.shared);
-    const variable = monthExpenses.filter(t => t.shared);
-    const fixedTotal = fixed.reduce((sum, f) => sum + f.amount, 0);
-    const variableTotal = variable.reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    return {
-      total: fixedTotal + variableTotal,
-      fixed,
-      variable,
-      myShare: (fixedTotal + variableTotal) * me.incomeRatio,
-      partnerShare: (fixedTotal + variableTotal) * (partner?.incomeRatio || 0)
-    };
-  }, [fixedExpenses, monthExpenses, me, partner]);
-
-  const myExpenses = useMemo(() => {
-    const fixed = fixedExpenses.filter(f => !f.shared).reduce((sum, f) => sum + f.amount, 0);
-    const variable = monthExpenses.filter(t => !t.shared).reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    return fixed + variable;
-  }, [fixedExpenses, monthExpenses]);
-
-  const tableData = useMemo(() => {
-    const byCat = {};
-    [...fixedExpenses.map(f => ({ ...f, isFixed: true })), ...monthExpenses.map(t => ({
-      name: t.merchant, amount: t.amount < 0 ? Math.abs(t.amount) : t.amount,
-      category: t.category, shared: t.shared, isFixed: false
-    }))].forEach(item => {
-      if (!byCat[item.category]) byCat[item.category] = { total: 0, shared: 0, mine: 0, items: [] };
-      byCat[item.category].total += item.amount;
-      if (item.shared) byCat[item.category].shared += item.amount;
-      else byCat[item.category].mine += item.amount;
-      byCat[item.category].items.push(item);
+  // Agrupar por categoría
+  const byCategory = useMemo(() => {
+    const map = {};
+    fixedExpenses.forEach(f => {
+      const cat = f.category || 'otros';
+      if (!map[cat]) map[cat] = { items: [], total: 0 };
+      map[cat].items.push(f);
+      map[cat].total += f.amount || 0;
     });
-    return Object.entries(byCat)
+    return Object.entries(map)
       .map(([cat, data]) => ({ cat, ...data, ...CATEGORIES[cat] }))
       .sort((a, b) => b.total - a.total);
-  }, [fixedExpenses, monthExpenses]);
+  }, [fixedExpenses]);
+
+  const sortedExpenses = useMemo(() =>
+    [...fixedExpenses].sort((a, b) => (a.dueDay || 0) - (b.dueDay || 0))
+  , [fixedExpenses]);
+
+  const toggleCouple = () => {
+    const newEnabled = !coupleMode;
+    setCoupleMode(newEnabled);
+    if (onUpdateHousehold) {
+      onUpdateHousehold({
+        ...household,
+        enabled: newEnabled,
+        members: newEnabled && (!household?.members || household.members.length < 2)
+          ? [
+              { id: 'me', name: 'Yo', avatar: 'YO', incomeRatio: 0.5, isMe: true },
+              { id: 'partner', name: 'Pareja', avatar: 'PA', incomeRatio: 0.5, isMe: false }
+            ]
+          : household?.members || []
+      });
+    }
+  };
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
       <TopBar onHome={onHome} onBack={onBack} title={s.budget} />
-      <div className="spread" style={{ padding: '12px 0' }}>
-        <span style={{ fontSize: 13, color: 'var(--text-mute)' }}>{s.sharedWithHome}</span>
-        <button
-          onClick={() => setEditingMember(true)}
-          style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-elev)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Icon name="edit" size={16} />
-        </button>
-      </div>
 
-      {/* Hogar Card */}
-      {household.enabled && partner && (
-        <div className="card mb-16" style={{ background: 'linear-gradient(135deg, rgba(0,229,176,0.08), rgba(0,132,255,0.08))', borderColor: 'rgba(0,229,176,0.2)' }}>
-          <div className="spread mb-12">
-            <span className="label">{s.sharedHome}</span>
-            <span className="tiny" style={{ color: 'var(--green)' }}>{s.active}</span>
-          </div>
-          <div className="row gap-16" style={{ alignItems: 'center' }}>
-            <div className="col" style={{ alignItems: 'center', gap: 6 }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: '50%',
-                background: 'var(--gradient)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#0D0D14', fontWeight: 700, fontSize: 18
-              }}>{me.avatar}</div>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{me.name}</span>
-              <span className="tiny">{(me.incomeRatio * 100).toFixed(0)}%</span>
-            </div>
-            <div style={{ flex: 1, height: 8, background: 'var(--bg-elev)', borderRadius: 4, overflow: 'hidden', display: 'flex' }}>
-              <div style={{ width: `${me.incomeRatio * 100}%`, background: 'var(--green)' }}></div>
-              <div style={{ width: `${(partner.incomeRatio) * 100}%`, background: 'var(--blue)' }}></div>
-            </div>
-            <div className="col" style={{ alignItems: 'center', gap: 6 }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #FF6B9D, #A78BFA)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontWeight: 700, fontSize: 18
-              }}>{partner.avatar}</div>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{partner.name}</span>
-              <span className="tiny">{(partner.incomeRatio * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-          <div className="tiny mt-12" style={{ textAlign: 'center', lineHeight: 1.5 }}>
-            {s.splitDesc.replace('{method}', household.splitMethod === 'income' ? s.splitProportional : s.splitEqual)}
-          </div>
-        </div>
-      )}
-
-      {/* IA Pendientes de confirmar */}
-      {household.pendingConfirmations?.length > 0 && (
-        <div className="mb-16">
-          <div className="row gap-8 mb-12">
-            <Icon name="sparkle" size={18} color="var(--green)" />
-            <h3 className="h3">{s.aiNeedConfirm}</h3>
-          </div>
-          <div className="col gap-12">
-            {household.pendingConfirmations.map(p => (
-              <div key={p.id} className="card">
-                <div className="spread mb-8">
-                  <div className="col gap-4">
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{p.merchant}</span>
-                    <span className="tiny">{p.date} · {fmtMoney(p.amount)}</span>
-                  </div>
-                  <span className="tiny" style={{ background: 'rgba(0,229,176,0.15)', color: 'var(--green)', padding: '4px 8px', borderRadius: 6, fontWeight: 600 }}>
-                    {p.suggestedShared ? s.suggestedShared : s.suggestedPersonal}
-                  </span>
-                </div>
-                <p className="tiny" style={{ marginBottom: 12, lineHeight: 1.4 }}>💭 {p.reason}</p>
-                <div className="row gap-8">
-                  <button
-                    className="btn-secondary"
-                    style={{ height: 40, fontSize: 13, flex: 1 }}
-                    onClick={() => onConfirmShared(p.id, !p.suggestedShared)}
-                  >
-                    {p.suggestedShared ? s.isPersonal : s.shareIt}
-                  </button>
-                  <button
-                    className="btn-primary"
-                    style={{ height: 40, fontSize: 13, flex: 1 }}
-                    onClick={() => onConfirmShared(p.id, p.suggestedShared)}
-                  >
-                    <Icon name="check" size={14} color="#0D0D14" />
-                    <span>{s.confirm}</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div data-tour="budgetTabs" className="tabs mb-16">
-        <button className={`tab ${tab === 'mes' ? 'active' : ''}`} onClick={() => setTab('mes')}>{s.summary}</button>
-        <button className={`tab ${tab === 'tabla' ? 'active' : ''}`} onClick={() => setTab('tabla')}>{s.table}</button>
-        <button className={`tab ${tab === 'split' ? 'active' : ''}`} onClick={() => setTab('split')}>{s.settlement}</button>
-      </div>
-
-      {tab === 'mes' && (
-        <div className="col gap-16">
-          <div className="card">
-            <span className="label">{s.totalMonth}</span>
-            <h1 className="h1 mt-4" style={{ fontSize: 36 }}>{fmtMoney(totalMonth)}</h1>
-            <div className="divider mt-12 mb-12"></div>
-            <div className="col gap-12">
-              <div className="spread">
-                <div className="row gap-8">
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--green)' }}></span>
-                  <span style={{ fontSize: 14 }}>{s.shared}</span>
-                </div>
-                <span style={{ fontWeight: 600 }}>{fmtMoney(sharedExpenses.total)}</span>
-              </div>
-              <div className="spread">
-                <div className="row gap-8">
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--blue)' }}></span>
-                  <span style={{ fontSize: 14 }}>{s.onlyMine}</span>
-                </div>
-                <span style={{ fontWeight: 600 }}>{fmtMoney(myExpenses)}</span>
-              </div>
-            </div>
-            <div className="bar-track mt-12" style={{ height: 12, display: 'flex' }}>
-              <div style={{
-                width: `${(sharedExpenses.total / totalMonth) * 100}%`,
-                background: 'var(--green)',
-                height: '100%'
-              }}></div>
-              <div style={{
-                width: `${(myExpenses / totalMonth) * 100}%`,
-                background: 'var(--blue)',
-                height: '100%'
-              }}></div>
-            </div>
-          </div>
-
-          <div className="ai-alert">
-            <div className="ai-icon">
-              <Icon name="sparkle" size={14} color="#0D0D14" />
-            </div>
-            <div className="col gap-4" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.autoDetection}</span>
-              <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 }}>{s.autoDetectionDesc}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === 'tabla' && (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1.5fr 1fr 1fr',
-            padding: '14px 16px',
-            background: 'var(--bg-elev)',
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--text-mute)',
-            textTransform: 'uppercase'
+      <div style={{ padding: '12px 0 24px' }}>
+        {/* ===== Hero · Total mensual ===== */}
+        <div className="card mb-16" style={{
+          padding: 18,
+          borderRadius: 22,
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.10), rgba(255, 149, 0, 0.06))',
+          border: '1px solid rgba(168, 85, 247, 0.25)'
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-mute)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            💰 Gastos mensuales fijos
+          </span>
+          <h1 style={{
+            fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em',
+            marginTop: 6, marginBottom: 6,
+            background: 'linear-gradient(135deg, #A855F7, #FF9500)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
           }}>
-            <span>{s.categoryLabel}</span>
-            <span style={{ textAlign: 'right' }}>{s.sharedLabel}</span>
-            <span style={{ textAlign: 'right' }}>{s.personalLabel}</span>
-          </div>
-          {tableData.map((row, i) => (
-            <div key={row.cat} style={{
-              display: 'grid',
-              gridTemplateColumns: '1.5fr 1fr 1fr',
-              padding: '14px 16px',
-              borderTop: i > 0 ? '1px solid var(--border)' : 'none',
-              alignItems: 'center'
-            }}>
-              <div className="row gap-10">
-                <span style={{ fontSize: 18 }}>{row.icon}</span>
-                <div className="col gap-2">
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{row.label}</span>
-                  <span className="tiny">{row.items.length} {s.items}</span>
-                </div>
-              </div>
-              <span style={{ textAlign: 'right', fontWeight: 600, fontSize: 14, color: row.shared > 0 ? 'var(--green)' : 'var(--text-dim)' }}>
-                {row.shared > 0 ? fmtMoney(row.shared) : '—'}
-              </span>
-              <span style={{ textAlign: 'right', fontWeight: 600, fontSize: 14, color: row.mine > 0 ? 'var(--blue)' : 'var(--text-dim)' }}>
-                {row.mine > 0 ? fmtMoney(row.mine) : '—'}
-              </span>
-            </div>
-          ))}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1.5fr 1fr 1fr',
-            padding: '14px 16px',
-            background: 'var(--bg-elev)',
-            borderTop: '1px solid var(--border)',
-            fontWeight: 700
-          }}>
-            <span>{s.total}</span>
-            <span style={{ textAlign: 'right', color: 'var(--green)' }}>{fmtMoney(sharedExpenses.total)}</span>
-            <span style={{ textAlign: 'right', color: 'var(--blue)' }}>{fmtMoney(myExpenses)}</span>
-          </div>
+            {fmtMoney(coupleMode ? myTotal : total)}
+          </h1>
+          <span className="tiny" style={{ fontSize: 12 }}>
+            {coupleMode
+              ? `Tu parte (${(myRatio * 100).toFixed(0)}% del total compartido + tus gastos personales)`
+              : `${fixedExpenses.length} ${fixedExpenses.length === 1 ? 'pago fijo' : 'pagos fijos'} detectados`}
+          </span>
         </div>
-      )}
 
-      {tab === 'split' && partner && (
-        <div className="col gap-16">
-          <div className="card">
-            <h3 className="h3 mb-16">{s.monthDivision}</h3>
-            <div className="col gap-16">
-              <div className="spread">
-                <div className="row gap-12">
-                  <div style={{
-                    width: 44, height: 44, borderRadius: '50%',
-                    background: 'var(--gradient)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#0D0D14', fontWeight: 700
-                  }}>{me.avatar}</div>
-                  <div className="col gap-4">
-                    <span style={{ fontWeight: 600 }}>{me.name}</span>
-                    <span className="tiny">{s.yourPart.replace('{pct}', (me.incomeRatio * 100).toFixed(0))}</span>
-                  </div>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: 18 }}>{fmtMoney(sharedExpenses.myShare)}</span>
-              </div>
-              <div className="divider"></div>
-              <div className="spread">
-                <div className="row gap-12">
-                  <div style={{
-                    width: 44, height: 44, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FF6B9D, #A78BFA)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontWeight: 700
-                  }}>{partner.avatar}</div>
-                  <div className="col gap-4">
-                    <span style={{ fontWeight: 600 }}>{partner.name}</span>
-                    <span className="tiny">{s.theirPart.replace('{pct}', (partner.incomeRatio * 100).toFixed(0))}</span>
-                  </div>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: 18 }}>{fmtMoney(sharedExpenses.partnerShare)}</span>
-              </div>
-            </div>
-          </div>
-
-          <button className="btn-primary">
-            <Icon name="phone" size={18} color="#0D0D14" />
-            <span>{s.collectAth.replace('{amount}', fmtMoney(sharedExpenses.partnerShare))}</span>
-          </button>
-
-          <div className="ai-alert">
-            <div className="ai-icon">
-              <Icon name="sparkle" size={14} color="#0D0D14" />
-            </div>
-            <div className="col gap-4" style={{ flex: 1 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{s.proportionalSplit}</span>
-              <span style={{ fontSize: 13, color: 'var(--text-mute)', lineHeight: 1.5 }}>
-                {s.proportionalDesc
-                  .replace('{myPct}', (me.incomeRatio * 100).toFixed(0))
-                  .replace('{name}', partner.name)
-                  .replace('{theirPct}', (partner.incomeRatio * 100).toFixed(0))}
+        {/* ===== Toggle de gastos en pareja ===== */}
+        <div className="card mb-16" style={{ padding: 14, borderRadius: 14 }}>
+          <div className="row gap-12" style={{ alignItems: 'center' }}>
+            <span style={{ fontSize: 22 }}>👥</span>
+            <div className="col gap-2" style={{ flex: 1 }}>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>Modo en pareja</span>
+              <span className="tiny" style={{ fontSize: 11 }}>
+                {coupleMode
+                  ? 'Marca cada gasto como compartido o personal'
+                  : 'Activa para dividir gastos con tu pareja'}
               </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!household.enabled && (
-        <div className="card col" style={{ alignItems: 'center', padding: 32, gap: 12 }}>
-          <span style={{ fontSize: 40 }}>👥</span>
-          <span style={{ fontWeight: 600 }}>{s.shareExpenses}</span>
-          <span className="tiny" style={{ textAlign: 'center' }}>{s.shareExpensesDesc}</span>
-          <button className="btn-primary mt-16" onClick={() => onUpdateHousehold({ ...household, enabled: true })}>
-            {s.activateShared}
-          </button>
-        </div>
-      )}
-
-      {editingMember && (
-        <EditHousehold
-          s={s}
-          household={household}
-          onSave={(h) => {
-            onUpdateHousehold(h);
-            setEditingMember(false);
-          }}
-          onClose={() => setEditingMember(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function EditHousehold({ s, household, onSave, onClose }) {
-  const [members, setMembers] = useState(household.members);
-  const [splitMethod, setSplitMethod] = useState(household.splitMethod);
-  const [enabled, setEnabled] = useState(household.enabled);
-
-  const updateRatio = (id, ratio) => {
-    const r = parseFloat(ratio);
-    if (isNaN(r)) return;
-    setMembers(prev => {
-      const me = prev.find(m => m.isMe);
-      const partner = prev.find(m => !m.isMe);
-      if (id === me.id) {
-        return [{ ...me, incomeRatio: r }, { ...partner, incomeRatio: 1 - r }];
-      }
-      return [{ ...me, incomeRatio: 1 - r }, { ...partner, incomeRatio: r }];
-    });
-  };
-
-  const splitOptions = [
-    { id: 'income', label: s.proportionalToIncome, desc: s.proportionalToIncomeDesc },
-    { id: 'equal', label: s.halfAndHalf, desc: s.halfAndHalfDesc },
-    { id: 'custom', label: s.custom, desc: s.customDesc }
-  ];
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-      zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center'
-    }} onClick={onClose}>
-      <div className="app-shell" style={{
-        background: 'var(--bg)', maxHeight: '90vh', overflowY: 'auto',
-        borderRadius: '24px 24px 0 0', padding: 20,
-        animation: 'fadeUp .3s ease'
-      }} onClick={e => e.stopPropagation()}>
-        <div style={{ width: 40, height: 4, background: 'var(--border)', borderRadius: 2, margin: '0 auto 16px' }}></div>
-        <h2 className="h2 mb-16">{s.configureHome}</h2>
-
-        <div className="card mb-16">
-          <div className="spread">
-            <div className="col gap-4">
-              <span style={{ fontWeight: 600 }}>{s.shareExpensesToggle}</span>
-              <span className="tiny">{s.shareExpensesToggleDesc}</span>
             </div>
             <button
-              onClick={() => setEnabled(!enabled)}
+              onClick={toggleCouple}
               style={{
-                width: 50, height: 30, borderRadius: 15,
-                background: enabled ? 'var(--green)' : 'var(--bg-elev)',
-                position: 'relative', transition: 'background .2s'
+                width: 48, height: 28, borderRadius: 999,
+                background: coupleMode ? 'var(--green)' : 'var(--bg-elev)',
+                border: coupleMode ? 'none' : '1px solid var(--border)',
+                position: 'relative', flexShrink: 0,
+                transition: 'background .2s'
               }}
             >
               <div style={{
-                position: 'absolute', top: 3, left: enabled ? 23 : 3,
+                position: 'absolute', top: 2, left: coupleMode ? 22 : 2,
                 width: 24, height: 24, borderRadius: '50%', background: '#fff',
                 transition: 'left .2s'
               }}></div>
             </button>
           </div>
+
+          {coupleMode && partner && (
+            <div className="row gap-8 mt-12" style={{ alignItems: 'center' }}>
+              <div className="row gap-6" style={{
+                background: 'rgba(0, 229, 176, 0.12)',
+                padding: '4px 10px', borderRadius: 999, alignItems: 'center', flex: 1, justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 700 }}>{me?.name || 'Yo'}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--green)' }}>{(myRatio * 100).toFixed(0)}%</span>
+              </div>
+              <div className="row gap-6" style={{
+                background: 'rgba(168, 85, 247, 0.12)',
+                padding: '4px 10px', borderRadius: 999, alignItems: 'center', flex: 1, justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 700 }}>{partner.name || 'Pareja'}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--purple)' }}>{(partnerRatio * 100).toFixed(0)}%</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {enabled && (
+        {/* ===== Tabla de gastos ===== */}
+        {fixedExpenses.length === 0 ? (
+          <div className="card col" style={{
+            alignItems: 'center', padding: 40, gap: 12,
+            background: 'var(--bg-card)', border: '1px dashed var(--border)'
+          }}>
+            <span style={{ fontSize: 40, opacity: 0.5 }}>📭</span>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>Sin gastos fijos</span>
+            <span className="tiny" style={{ textAlign: 'center', maxWidth: 280 }}>
+              Cuando conectes tu banco voy a detectar automáticamente tus pagos fijos: renta, luz, agua, suscripciones, etc.
+            </span>
+          </div>
+        ) : (
           <>
-            <h3 className="h3 mb-12">{s.members}</h3>
-            {members.map(m => (
-              <div key={m.id} className="card mb-12">
-                <div className="row gap-12 mb-12">
-                  <div style={{
-                    width: 44, height: 44, borderRadius: '50%',
-                    background: m.isMe ? 'var(--gradient)' : 'linear-gradient(135deg, #FF6B9D, #A78BFA)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: m.isMe ? '#0D0D14' : '#fff', fontWeight: 700
-                  }}>{m.avatar}</div>
-                  <input
-                    className="input-field"
-                    style={{ flex: 1, height: 44 }}
-                    value={m.name}
-                    onChange={e => setMembers(prev => prev.map(x => x.id === m.id ? { ...x, name: e.target.value } : x))}
-                  />
-                </div>
-                <span className="label" style={{ display: 'block', marginBottom: 6 }}>
-                  {s.incomeRatio.replace('{pct}', (m.incomeRatio * 100).toFixed(0))}
-                </span>
-                <input
-                  type="range"
-                  min="0" max="1" step="0.01"
-                  value={m.incomeRatio}
-                  onChange={e => updateRatio(m.id, e.target.value)}
-                  style={{ width: '100%', accentColor: 'var(--green)' }}
-                />
+            <div className="section-header">
+              <span>Tabla de gastos</span>
+              <span className="tiny">{fixedExpenses.length} pagos · {fmtMoney(total)}/mes</span>
+            </div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden', borderRadius: 16 }}>
+              {/* Header de tabla */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: coupleMode ? '1.6fr 0.6fr 1fr 0.7fr' : '1.8fr 0.6fr 1fr',
+                padding: '10px 14px',
+                background: 'var(--bg-elev)',
+                fontSize: 10, fontWeight: 800,
+                color: 'var(--text-mute)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                gap: 8
+              }}>
+                <span>Pago</span>
+                <span style={{ textAlign: 'center' }}>Día</span>
+                <span style={{ textAlign: 'right' }}>Monto</span>
+                {coupleMode && <span style={{ textAlign: 'center' }}>Comp.</span>}
               </div>
-            ))}
 
-            <h3 className="h3 mb-12 mt-16">{s.splitMethod}</h3>
-            <div className="col gap-8">
-              {splitOptions.map(opt => (
-                <button
-                  key={opt.id}
-                  className="row gap-12 spread"
-                  style={{
-                    padding: '14px 16px', borderRadius: 14,
-                    background: 'var(--bg-card)',
-                    border: `1px solid ${splitMethod === opt.id ? 'var(--green)' : 'var(--border)'}`,
-                    textAlign: 'left'
-                  }}
-                  onClick={() => setSplitMethod(opt.id)}
-                >
-                  <div className="col gap-4">
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{opt.label}</span>
-                    <span className="tiny">{opt.desc}</span>
+              {/* Filas */}
+              {sortedExpenses.map((f, i) => {
+                const cat = CATEGORIES[f.category] || CATEGORIES.otros;
+                return (
+                  <div
+                    key={f.id || i}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: coupleMode ? '1.6fr 0.6fr 1fr 0.7fr' : '1.8fr 0.6fr 1fr',
+                      padding: '12px 14px',
+                      borderTop: i > 0 ? '1px solid var(--border-soft)' : 'none',
+                      alignItems: 'center', gap: 8
+                    }}
+                  >
+                    <div className="row gap-8" style={{ alignItems: 'center', minWidth: 0 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: (cat?.color || '#5856D6') + '22',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 16, flexShrink: 0
+                      }}>{f.icon || cat?.icon || '🏠'}</div>
+                      <div className="col gap-1" style={{ minWidth: 0 }}>
+                        <span style={{
+                          fontSize: 13, fontWeight: 700,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                        }}>{f.name}</span>
+                        <span className="tiny" style={{ fontSize: 10, color: cat?.color }}>
+                          {cat?.label || 'Otros'}
+                        </span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-mute)', textAlign: 'center' }}>
+                      {f.dueDay || '—'}
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 800, textAlign: 'right' }}>
+                      {fmtMoney(f.amount || 0)}
+                    </span>
+                    {coupleMode && (
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <span style={{
+                          fontSize: 10, fontWeight: 800,
+                          color: f.shared ? 'var(--green)' : 'var(--text-mute)',
+                          background: f.shared ? 'rgba(0, 229, 176, 0.15)' : 'var(--bg-elev)',
+                          padding: '3px 8px', borderRadius: 999
+                        }}>
+                          {f.shared ? '✓ SÍ' : 'NO'}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  {splitMethod === opt.id && <Icon name="check" size={20} color="var(--green)" />}
-                </button>
+                );
+              })}
+
+              {/* Total */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: coupleMode ? '2.2fr 1fr 0.7fr' : '2.4fr 1fr',
+                padding: '14px 14px',
+                background: 'var(--bg-elev)',
+                borderTop: '1px solid var(--border)',
+                fontWeight: 800, gap: 8
+              }}>
+                <span style={{ fontSize: 13 }}>Total mensual</span>
+                <span style={{ fontSize: 14, textAlign: 'right' }}>{fmtMoney(total)}</span>
+                {coupleMode && (
+                  <span style={{ fontSize: 11, textAlign: 'center', color: 'var(--text-mute)' }}>
+                    {fmtMoney(shared)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Resumen por categoría */}
+            <div className="section-header" style={{ marginTop: 20 }}>
+              <span>Por categoría</span>
+            </div>
+            <div className="col gap-8">
+              {byCategory.map(c => (
+                <div key={c.cat} className="card" style={{ padding: 12, borderRadius: 12 }}>
+                  <div className="row gap-10" style={{ alignItems: 'center' }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8,
+                      background: (c.color || '#5856D6') + '22',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16
+                    }}>{c.icon || '📦'}</div>
+                    <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>{c.label || c.cat}</span>
+                      <span className="tiny" style={{ fontSize: 10 }}>{c.items.length} {c.items.length === 1 ? 'pago' : 'pagos'}</span>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: c.color }}>{fmtMoney(c.total)}</span>
+                  </div>
+                </div>
               ))}
             </div>
+
+            {/* Resumen pareja al fondo */}
+            {coupleMode && partner && (
+              <div className="card mt-16" style={{
+                padding: 14, borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(0, 229, 176, 0.10), rgba(168, 85, 247, 0.08))',
+                border: '1px solid rgba(0, 229, 176, 0.25)'
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-mute)' }}>
+                  Liquidación del mes
+                </span>
+                <div className="col gap-8 mt-8">
+                  <div className="row gap-8" style={{ alignItems: 'center' }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: 'var(--green)', color: '#0D0D14',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 800, fontSize: 12
+                    }}>{me?.avatar || 'YO'}</div>
+                    <div className="col gap-2" style={{ flex: 1 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{me?.name || 'Yo'}</span>
+                      <span className="tiny" style={{ fontSize: 10 }}>Tu parte de los compartidos</span>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)' }}>
+                      {fmtMoney(myShareOfShared)}
+                    </span>
+                  </div>
+                  <div className="row gap-8" style={{ alignItems: 'center' }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: 'var(--purple)', color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 800, fontSize: 12
+                    }}>{partner.avatar || 'PA'}</div>
+                    <div className="col gap-2" style={{ flex: 1 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{partner.name || 'Pareja'}</span>
+                      <span className="tiny" style={{ fontSize: 10 }}>Su parte de los compartidos</span>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--purple)' }}>
+                      {fmtMoney(partnerShareOfShared)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
-
-        <button
-          className="btn-primary mt-24"
-          onClick={() => onSave({ ...household, enabled, members, splitMethod })}
-        >
-          {s.save}
-        </button>
       </div>
     </div>
   );

@@ -3,6 +3,45 @@
 > Cada vez que tomamos una decisión importante, agregar una entrada aquí.
 > Formato: `## YYYY-MM-DD · Título corto` + qué + por qué.
 
+## 2026-05-10 · Sync de Plaid en background + manual + reescritura de Presupuesto
+
+**Qué:**
+- `loadSupabaseData` ahora dispara `/api/plaid/sync-transactions` en
+  background si el usuario tiene cuentas con `plaid_access_token`. No
+  bloquea el UI; cuando termina re-carga las transacciones del Supabase.
+- Nuevo botón "🔄 Refrescar datos" en MoreMenu que dispara sync manual
+  de los últimos 30 días con toast de progreso.
+- `sync-transactions.js` reescrito con las mismas reglas de
+  clasificación quirúrgicas que `exchange-token.js` (payroll → ingreso,
+  card payment patterns → transferencia, etc). También refresca
+  `credit_limit` además del balance.
+- Sección Presupuesto reescrita desde cero: ahora es solo una tabla
+  simple de gastos mensuales fijos con toggle "Modo en pareja". Cuando
+  está en modo pareja, cada fila muestra ✓ SÍ / NO si es compartido y
+  el hero arriba muestra "tu parte" según ratio de ingreso. Se mantiene
+  el resumen por categoría y la liquidación del mes (cuánto te debe la
+  pareja). Eliminado el wizard interno de "Resumen / Tabla / Liquidación
+  / IA Necesito que confirmes" — ahora todo está en una vista.
+
+**Por qué:**
+- El usuario reportó que las compras nuevas no aparecían en la app —
+  causa: sin webhook ni sync en frío, las transacciones solo bajaban
+  al hacer link inicial.
+- Pidió que la sección Presupuesto sea solo una tabla de gastos
+  mensuales (individual o en pareja). Lo que había era demasiado
+  complejo (3 tabs, hogar compartido obligatorio, IA confirmando, etc.).
+
+## 2026-05-10 · Tour fixes — flecha "Siguiente >" + remeasure continuo
+
+**Qué:**
+- Flecha del botón "Siguiente" del tour ahora apunta a la derecha. La
+  causa era que `<Icon style={{ transform }}>` no propagaba el style al
+  SVG interno. Solución: envolver Icon en `<span>` con la rotación.
+- Loop de medición continua del rect del target hasta que se estabilice
+  (mismo valor 4 frames seguidos) o pasen 800ms. Esto resuelve el
+  problema de spotlights desalineados cuando hay animaciones de entrada
+  o layout shift.
+
 ## 2026-05-09 · Tour interactivo (popover + spotlight) reemplaza el tutorial de slides
 
 **Qué:** Reemplazado `OnboardingTutorial.jsx` (slides full-screen) por

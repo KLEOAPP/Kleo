@@ -24,11 +24,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId } = req.body;
+    const { userId, days = 30 } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId required' });
 
     const { data: accounts } = await supabase
       .from('accounts')
-      .select('id, plaid_account_id, plaid_access_token')
+      .select('id, type, plaid_account_id, plaid_access_token')
       .eq('user_id', userId)
       .not('plaid_access_token', 'is', null);
 
@@ -37,51 +38,114 @@ export default async function handler(req, res) {
     }
 
     const now = new Date();
-    const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-    const startDate = sevenDaysAgo.toISOString().split('T')[0];
+    const startDate = new Date(now - days * 86400000).toISOString().split('T')[0];
     const endDate = now.toISOString().split('T')[0];
 
     let totalSynced = 0;
+    let balanceUpdates = 0;
     const tokens = [...new Set(accounts.map(a => a.plaid_access_token))];
 
     for (const accessToken of tokens) {
-      const balResponse = await plaid.accountsGet({ access_token: accessToken });
-      for (const bal of balResponse.data.accounts) {
-        const matched = accounts.find(a => a.plaid_account_id === bal.account_id);
-        if (matched) {
-          const isCredit = bal.type === 'credit';
-          await supabase.from('accounts').update({
-            balance: bal.balances.current * (isCredit ? -1 : 1)
-          }).eq('id', matched.id);
+      // 1. Refresh balances
+      try {
+        const balResponse = await plaid.accountsGet({ access_token: accessToken });
+        for (const bal of balResponse.data.accounts) {
+          const matched = accounts.find(a => a.plaid_account_id === bal.account_id);
+          if (matched) {
+            const isCredit = bal.type === 'credit';
+            await supabase.from('accounts').update({
+              balance: (bal.balances.current || 0) * (isCredit ? -1 : 1),
+              credit_limit: bal.balances.limit || null
+            }).eq('id', matched.id);
+            balanceUpdates++;
+          }
         }
+      } catch (e) {
+        console.warn('Balance refresh failed:', e.response?.data || e.message);
       }
 
-      const txResponse = await plaid.transactionsGet({
-        access_token: accessToken,
-        start_date: startDate,
-        end_date: endDate,
-        options: { count: 100 }
-      });
+      // 2. Pull transactions
+      try {
+        const txResponse = await plaid.transactionsGet({
+          access_token: accessToken,
+          start_date: startDate,
+          end_date: endDate,
+          options: { count: 500 }
+        });
 
-      for (const tx of txResponse.data.transactions) {
-        const matched = accounts.find(a => a.plaid_account_id === tx.account_id);
+        for (const tx of txResponse.data.transactions) {
+          const matched = accounts.find(a => a.plaid_account_id === tx.account_id);
+          if (!matched) continue;
 
-        await supabase.from('transactions').upsert({
-          user_id: userId,
-          account_id: matched?.id,
-          amount: -tx.amount,
-          merchant: tx.merchant_name || tx.name,
-          category: mapCategory(tx.personal_finance_category?.primary || tx.category?.[0]),
-          date: tx.date,
-          method: 'auto',
-          plaid_transaction_id: tx.transaction_id
-        }, { onConflict: 'plaid_transaction_id' });
+          const acctType = matched.type;
+          const primary = tx.personal_finance_category?.primary;
+          const detailed = tx.personal_finance_category?.detailed;
+          const merchantLow = (tx.merchant_name || tx.name || '').toLowerCase();
 
-        totalSynced++;
+          let category = mapCategory(primary);
+
+          // Reglas de clasificación quirúrgicas (ver CLASSIFICATION_RULES.md)
+          const isCardPayment =
+            merchantLow.includes('payment thank you') ||
+            merchantLow.includes('payment - thank') ||
+            merchantLow.includes('- thank you') ||
+            merchantLow.includes('mobile payment') ||
+            merchantLow.includes('online payment') ||
+            merchantLow.includes('internet payment') ||
+            merchantLow.includes('autopay') ||
+            /\bpymt\b/.test(merchantLow) ||
+            merchantLow.includes('credit card payment') ||
+            merchantLow.includes('cc payment') ||
+            /eft pmt/.test(merchantLow) ||
+            /e-payment/.test(merchantLow);
+
+          const isPayroll =
+            merchantLow.includes('payroll') ||
+            merchantLow.includes('eft deposit') ||
+            merchantLow.includes('direct dep') ||
+            merchantLow.includes('direct deposit') ||
+            merchantLow.includes('nomina') ||
+            merchantLow.includes('salary') ||
+            merchantLow.includes('ssa treas') ||
+            merchantLow.includes('irs treas');
+
+          if (isPayroll && tx.amount < 0) {
+            category = 'ingreso';
+          } else if (isCardPayment) {
+            category = 'transferencia';
+          } else if (
+            detailed?.includes('CREDIT_CARD_PAYMENT') ||
+            detailed?.includes('TRANSFER_IN') ||
+            detailed?.includes('TRANSFER_OUT') ||
+            primary === 'TRANSFER_IN' || primary === 'TRANSFER_OUT'
+          ) {
+            category = 'transferencia';
+          }
+
+          await supabase.from('transactions').upsert({
+            user_id: userId,
+            account_id: matched.id,
+            amount: -tx.amount,
+            merchant: tx.merchant_name || tx.name,
+            category,
+            date: tx.date,
+            method: 'auto',
+            plaid_transaction_id: tx.transaction_id
+          }, { onConflict: 'plaid_transaction_id' });
+
+          totalSynced++;
+        }
+      } catch (e) {
+        console.warn('Transactions fetch failed:', e.response?.data || e.message);
       }
     }
 
-    res.json({ synced: totalSynced });
+    res.json({
+      synced: totalSynced,
+      balanceUpdates,
+      from: startDate,
+      to: endDate
+    });
   } catch (err) {
     console.error('Sync error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Error syncing transactions' });
