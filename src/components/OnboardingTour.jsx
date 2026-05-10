@@ -61,49 +61,85 @@ export default function OnboardingTour({ steps, onComplete, onSkip, navigate }) 
       return;
     }
 
-    // Polling: buscar el target hasta que aparezca en el DOM (máx 800ms).
-    // Después scroll → esperar a que el browser repinte → medir → re-medir.
+    // Estrategia robusta:
+    // 1) Polling para encontrar el elemento en el DOM (max 800ms)
+    // 2) scrollIntoView para llevarlo al centro
+    // 3) Loop de animationFrames midiendo continuamente hasta que el rect
+    //    se estabilice (mismo valor 4 frames seguidos) o pasen 800ms
     let cancelled = false;
     let attempts = 0;
-    const maxAttempts = didNavigate ? 16 : 4; // 16×50ms = 800ms / 4×50ms = 200ms
-    const pollInterval = 50;
+    const maxFindAttempts = didNavigate ? 20 : 6;
+    const pollInterval = 40;
+    let rafId = null;
 
-    const tryMeasure = () => {
+    const startContinuousMeasure = (el) => {
+      const startTime = performance.now();
+      const maxDuration = 800; // ms
+      let lastSerialized = null;
+      let stableFrames = 0;
+      const stableThreshold = 4;
+
+      const tick = () => {
+        if (cancelled) return;
+        const r = el.getBoundingClientRect();
+        const serialized = `${r.top|0}|${r.left|0}|${r.width|0}|${r.height|0}`;
+
+        if (serialized === lastSerialized) {
+          stableFrames++;
+        } else {
+          stableFrames = 0;
+          lastSerialized = serialized;
+          // Actualizamos el rect en cada cambio para que el spotlight siga
+          // el target durante cualquier animación de entrada
+          setRect({
+            top: r.top, left: r.left, width: r.width, height: r.height,
+            bottom: r.bottom, right: r.right
+          });
+        }
+
+        const elapsed = performance.now() - startTime;
+        if (stableFrames >= stableThreshold || elapsed >= maxDuration) {
+          // Estable o timeout — última medición y paramos
+          const final = el.getBoundingClientRect();
+          setRect({
+            top: final.top, left: final.left, width: final.width, height: final.height,
+            bottom: final.bottom, right: final.right
+          });
+          return;
+        }
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const tryFind = () => {
       if (cancelled) return;
       const el = document.querySelector(`[data-tour="${step.target}"]`);
       if (!el) {
         attempts++;
-        if (attempts < maxAttempts) {
-          measureTimerRef.current = setTimeout(tryMeasure, pollInterval);
+        if (attempts < maxFindAttempts) {
+          measureTimerRef.current = setTimeout(tryFind, pollInterval);
         }
         return;
       }
 
-      // Encontrado: scrollIntoView + doble rAF para asegurar layout estable
+      // Scroll al centro y empezar el loop de medición continua
       el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
-
+      // Esperar 1 frame para que el scroll commit antes de empezar el loop
       requestAnimationFrame(() => {
-        if (cancelled) return;
-        requestAnimationFrame(() => {
-          if (cancelled) return;
-          measure();
-          // Re-medición un poco después por si hubo layout shift tardío
-          // (ej: imágenes que cargan, animaciones que terminan)
-          measureTimerRef.current = setTimeout(() => {
-            if (!cancelled) measure();
-          }, 200);
-        });
+        if (!cancelled) startContinuousMeasure(el);
       });
     };
 
     // Si navegamos, esperamos un mini-tick a que React monte el componente
-    measureTimerRef.current = setTimeout(tryMeasure, didNavigate ? 80 : 0);
+    measureTimerRef.current = setTimeout(tryFind, didNavigate ? 60 : 0);
 
     return () => {
       cancelled = true;
       clearTimeout(measureTimerRef.current);
+      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [stepIdx, measure, navigate, step]);
+  }, [stepIdx, navigate, step]);
 
   // Re-mide en resize y scroll
   useEffect(() => {
