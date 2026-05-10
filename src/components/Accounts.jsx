@@ -7,12 +7,35 @@ import { CATEGORIES } from '../data/sampleData.js';
 import { fmtMoney, relativeDate, fmtTime } from '../utils/storage.js';
 import { useI18n } from '../i18n/index.jsx';
 
-export default function Accounts({ accounts, transactions, onHome, onMenu, onConnectBank }) {
+export default function Accounts({ accounts, transactions, onHome, onMenu, onConnectBank, onRenameAccount, onDeleteAccount }) {
   const { strings: s } = useI18n();
   const [selected, setSelected] = useState(null);
+  const [editing, setEditing] = useState(null); // { id, currentName }
+  const [editName, setEditName] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(null); // account object
 
   // Solo cuentas personales — sin crédito (las tarjetas tienen su propia sección)
   const personalAccounts = useMemo(() => accounts.filter(a => a.type !== 'credit'), [accounts]);
+
+  const startRename = (acct) => {
+    setEditing({ id: acct.id, currentName: acct.name });
+    setEditName(acct.name || '');
+  };
+  const saveRename = async () => {
+    if (!editing || !editName.trim()) return;
+    await onRenameAccount?.(editing.id, editName.trim());
+    setEditing(null);
+    setEditName('');
+  };
+  const cancelRename = () => { setEditing(null); setEditName(''); };
+
+  const askDelete = (acct) => setConfirmingDelete(acct);
+  const confirmDelete = async () => {
+    if (!confirmingDelete) return;
+    await onDeleteAccount?.(confirmingDelete.id);
+    if (selected === confirmingDelete.id) setSelected(null);
+    setConfirmingDelete(null);
+  };
 
   const txByAccount = useMemo(() => {
     const map = {};
@@ -109,6 +132,35 @@ export default function Accounts({ accounts, transactions, onHome, onMenu, onCon
             </div>
           </div>
 
+          {/* Acciones de la cuenta */}
+          <div className="row gap-8 mb-16">
+            <button
+              onClick={() => startRename(acc)}
+              className="row gap-6"
+              style={{
+                flex: 1, padding: '12px 14px', borderRadius: 12,
+                background: 'var(--bg-elev)', border: '1px solid var(--border)',
+                fontWeight: 700, fontSize: 13, justifyContent: 'center'
+              }}
+            >
+              <Icon name="edit" size={14} />
+              <span>Editar nombre</span>
+            </button>
+            <button
+              onClick={() => askDelete(acc)}
+              className="row gap-6"
+              style={{
+                flex: 1, padding: '12px 14px', borderRadius: 12,
+                background: 'rgba(255, 77, 109, 0.10)', border: '1px solid rgba(255, 77, 109, 0.3)',
+                color: 'var(--danger)',
+                fontWeight: 700, fontSize: 13, justifyContent: 'center'
+              }}
+            >
+              <Icon name="x" size={14} color="var(--danger)" stroke={2.5} />
+              <span>Desconectar</span>
+            </button>
+          </div>
+
           <div className="section-header">
             <span>{s.transactions} · {txs.length}</span>
           </div>
@@ -135,6 +187,23 @@ export default function Accounts({ accounts, transactions, onHome, onMenu, onCon
             })}
           </div>
         </div>
+
+        {editing && (
+          <RenameModal
+            currentName={editing.currentName}
+            value={editName}
+            onChange={setEditName}
+            onSave={saveRename}
+            onCancel={cancelRename}
+          />
+        )}
+        {confirmingDelete && (
+          <DeleteConfirmModal
+            account={confirmingDelete}
+            onConfirm={confirmDelete}
+            onCancel={() => setConfirmingDelete(null)}
+          />
+        )}
       </div>
     );
   }
@@ -236,6 +305,151 @@ export default function Accounts({ accounts, transactions, onHome, onMenu, onCon
         <p className="tiny mt-16" style={{ textAlign: 'center', lineHeight: 1.5 }}>
           {s.lookingForCards}
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Modal: Renombrar cuenta
+// ════════════════════════════════════════════════════════════
+function RenameModal({ currentName, value, onChange, onSave, onCancel }) {
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+        zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        backdropFilter: 'blur(6px)'
+      }}
+      onClick={onCancel}
+    >
+      <div
+        className="app-shell"
+        style={{
+          background: 'var(--bg)', borderRadius: '24px 24px 0 0',
+          padding: 20, paddingBottom: 28, animation: 'fadeUp .25s ease',
+          border: '1px solid var(--border)'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ width: 36, height: 5, background: 'var(--border)', borderRadius: 3, margin: '0 auto 16px' }} />
+        <h2 className="h2 mb-12">Editar nombre</h2>
+        <p className="tiny mb-16">Ponle el nombre que prefieras a tu cuenta.</p>
+
+        <div className="col gap-6 mb-16">
+          <span className="label" style={{ fontSize: 11 }}>Nombre</span>
+          <input
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={currentName}
+            autoFocus
+            className="input-field"
+            style={{ height: 48, fontSize: 15 }}
+          />
+        </div>
+
+        <div className="row gap-8">
+          <button
+            onClick={onCancel}
+            style={{ flex: 1, padding: 14, borderRadius: 12, background: 'var(--bg-elev)', fontWeight: 700 }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onSave}
+            disabled={!value.trim()}
+            className="btn-primary"
+            style={{ flex: 1, background: 'var(--brand-grad)', fontWeight: 800 }}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Modal: Confirmar eliminar / desconectar cuenta
+// ════════════════════════════════════════════════════════════
+function DeleteConfirmModal({ account, onConfirm, onCancel }) {
+  const [busy, setBusy] = useState(false);
+  const handleConfirm = async () => {
+    setBusy(true);
+    try { await onConfirm(); } finally { setBusy(false); }
+  };
+  const isPlaid = !!account?.plaid_access_token;
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+        zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        backdropFilter: 'blur(6px)'
+      }}
+      onClick={busy ? undefined : onCancel}
+    >
+      <div
+        className="app-shell"
+        style={{
+          background: 'var(--bg)', borderRadius: '24px 24px 0 0',
+          padding: 20, paddingBottom: 28, animation: 'fadeUp .25s ease',
+          border: '1px solid var(--border)'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ width: 36, height: 5, background: 'var(--border)', borderRadius: 3, margin: '0 auto 16px' }} />
+
+        <div className="row gap-12 mb-12" style={{ alignItems: 'center' }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12,
+            background: 'rgba(255, 77, 109, 0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <Icon name="x" size={22} color="var(--danger)" stroke={3} />
+          </div>
+          <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 800 }}>¿Desconectar cuenta?</h2>
+            <span className="tiny">{account.name} ••{account.last4}</span>
+          </div>
+        </div>
+
+        <div className="card mb-16" style={{
+          padding: 12, borderRadius: 12,
+          background: 'rgba(255, 77, 109, 0.08)',
+          border: '1px solid rgba(255, 77, 109, 0.25)'
+        }}>
+          <p style={{ fontSize: 12, lineHeight: 1.5 }}>
+            Se borrarán todas las transacciones de esta cuenta de Kleo
+            {isPlaid ? ' y se revocará el acceso de Plaid' : ''}. Esta acción no se puede deshacer.
+          </p>
+          {isPlaid && (
+            <p className="tiny mt-8" style={{ fontSize: 11 }}>
+              💡 Puedes volver a conectar la cuenta cuando quieras.
+            </p>
+          )}
+        </div>
+
+        <div className="row gap-8">
+          <button
+            onClick={onCancel}
+            disabled={busy}
+            style={{ flex: 1, padding: 14, borderRadius: 12, background: 'var(--bg-elev)', fontWeight: 700 }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={busy}
+            style={{
+              flex: 1, padding: 14, borderRadius: 12,
+              background: 'var(--danger)', color: '#fff', fontWeight: 800,
+              opacity: busy ? 0.6 : 1
+            }}
+          >
+            {busy ? 'Desconectando...' : 'Sí, desconectar'}
+          </button>
+        </div>
       </div>
     </div>
   );

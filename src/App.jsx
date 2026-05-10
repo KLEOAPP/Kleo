@@ -42,6 +42,8 @@ import {
   fetchGoals,
   createTransaction as dbCreateTransaction,
   updateAccountBalance as dbUpdateAccountBalance,
+  updateAccount as dbUpdateAccount,
+  unlinkAccount as dbUnlinkAccount,
   createGoal as dbCreateGoal,
   updateGoalAmount as dbUpdateGoalAmount,
   seedDemoData,
@@ -112,7 +114,7 @@ function AppInner() {
     if (!hasPlaidAccounts) return;
 
     let lastSync = Date.now();
-    const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 min
+    const SYNC_INTERVAL_MS = 30 * 1000; // 30 segundos
 
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return;
@@ -734,6 +736,38 @@ function AppInner() {
                   onHome={goHome}
                   onMenu={() => setShowMenu(true)}
                   onConnectBank={() => setShowConnectBank(true)}
+                  onRenameAccount={async (id, newName) => {
+                    if (useSupabase) {
+                      try {
+                        await dbUpdateAccount(id, { name: newName, label: newName });
+                        const a = await fetchAccounts();
+                        setAccounts(a);
+                      } catch (e) {
+                        console.error('Rename error:', e);
+                        showToast('Error al renombrar');
+                      }
+                    } else {
+                      setAccounts(prev => prev.map(x => x.id === id ? { ...x, name: newName, label: newName } : x));
+                    }
+                    showToast('Nombre actualizado');
+                  }}
+                  onDeleteAccount={async (id) => {
+                    if (useSupabase) {
+                      try {
+                        await dbUnlinkAccount(id, user.id);
+                        const [a, t] = await Promise.all([fetchAccounts(), fetchTransactions()]);
+                        setAccounts(a); setTransactions(t);
+                      } catch (e) {
+                        console.error('Delete error:', e);
+                        showToast('Error al desconectar');
+                        return;
+                      }
+                    } else {
+                      setAccounts(prev => prev.filter(x => x.id !== id));
+                      setTransactions(prev => prev.filter(t => t.accountId !== id));
+                    }
+                    showToast('Cuenta desconectada');
+                  }}
                 />
               )}
               {tab === 'goals' && (

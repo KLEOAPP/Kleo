@@ -39,6 +39,68 @@ export async function updateAccountBalance(accountId, newBalance) {
   if (error) throw error;
 }
 
+export async function updateAccount(accountId, updates) {
+  const allowed = {};
+  if ('name' in updates) allowed.name = updates.name;
+  if ('label' in updates) allowed.label = updates.label;
+  if ('institution' in updates) allowed.institution = updates.institution;
+  if ('color' in updates) allowed.color = updates.color;
+  const { error, data } = await supabase
+    .from('accounts')
+    .update(allowed)
+    .eq('id', accountId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteAccount(accountId) {
+  // Borra transacciones asociadas primero
+  await supabase.from('transactions').delete().eq('account_id', accountId);
+  const { error } = await supabase.from('accounts').delete().eq('id', accountId);
+  if (error) throw error;
+}
+
+/**
+ * Desvincula Plaid Item asociado a una cuenta y borra la cuenta.
+ * Si hay otras cuentas con el mismo access_token, deja el item activo
+ * y solo borra esta cuenta.
+ */
+export async function unlinkAccount(accountId, userId) {
+  const { data: acct } = await supabase
+    .from('accounts')
+    .select('plaid_access_token')
+    .eq('id', accountId)
+    .single();
+
+  const accessToken = acct?.plaid_access_token;
+
+  if (accessToken) {
+    // ¿Hay otras cuentas usando el mismo token? Si no, revocar el item en Plaid
+    const { data: others } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('plaid_access_token', accessToken)
+      .neq('id', accountId);
+
+    if (!others?.length) {
+      try {
+        await fetch('/api/plaid/remove-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken })
+        });
+      } catch (e) {
+        console.warn('Plaid remove-item failed:', e);
+      }
+    }
+  }
+
+  await deleteAccount(accountId);
+}
+
 // =========================================================
 // TRANSACCIONES
 // =========================================================
