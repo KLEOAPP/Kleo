@@ -100,6 +100,42 @@ function AppInner() {
       setShowTutorial(true);
     }
   }, [stage]);
+
+  // ===== Sync automático de Plaid =====
+  // Cuando el usuario está autenticado y tiene cuentas con Plaid, sincronizamos:
+  //   - Al volver a la app desde background (visibilitychange)
+  //   - Cada 10 min mientras la app está abierta
+  // Todo silencioso, sin botones manuales — el AI mantiene la data fresca.
+  useEffect(() => {
+    if (stage !== STAGE.AUTHENTICATED || !user?.id) return;
+    const hasPlaidAccounts = accounts.some(a => a.plaid_access_token || a.plaid_account_id);
+    if (!hasPlaidAccounts) return;
+
+    let lastSync = Date.now();
+    const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 min
+
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      // Si la app estuvo escondida >2 min, sincroniza al volver
+      if (Date.now() - lastSync > 2 * 60 * 1000) {
+        syncPlaidInBackground(user.id, 7);
+        lastSync = Date.now();
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        syncPlaidInBackground(user.id, 7);
+        lastSync = Date.now();
+      }
+    }, SYNC_INTERVAL_MS);
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [stage, user?.id, accounts.length, syncPlaidInBackground]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingNotification, setPendingNotification] = useState(null);
@@ -249,16 +285,18 @@ function AppInner() {
     }
   }, []);
 
-  const syncPlaidInBackground = useCallback(async (userId) => {
+  // Sync automático en background. NO bloquea UI ni notifica al usuario;
+  // solo actualiza accounts + transactions silenciosamente.
+  const syncPlaidInBackground = useCallback(async (userId, days = 14) => {
+    if (!userId) return;
     try {
       const res = await fetch('/api/plaid/sync-transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, days: 14 })
+        body: JSON.stringify({ userId, days })
       });
       const data = await res.json();
-      if (data.synced > 0) {
-        // Re-cargar transacciones actualizadas
+      if (data.synced > 0 || data.balanceUpdates > 0) {
         const [accts, txs] = await Promise.all([fetchAccounts(), fetchTransactions()]);
         setAccounts(accts);
         setTransactions(txs);
@@ -267,30 +305,6 @@ function AppInner() {
       console.warn('Background Plaid sync failed:', e.message);
     }
   }, []);
-
-  const handleManualRefresh = useCallback(async () => {
-    if (!user?.id) return;
-    showToast('Sincronizando con tu banco...');
-    try {
-      const res = await fetch('/api/plaid/sync-transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, days: 30 })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        const [accts, txs, fixed, gls] = await Promise.all([
-          fetchAccounts(), fetchTransactions(), fetchFixedExpenses(), fetchGoals()
-        ]);
-        setAccounts(accts); setTransactions(txs); setFixedExpenses(fixed); setGoals(gls);
-        showToast(`✓ ${data.synced} transacciones sincronizadas`);
-      } else {
-        showToast('Error al sincronizar');
-      }
-    } catch (e) {
-      showToast('Error al sincronizar');
-    }
-  }, [user]);
 
   // ===== INIT =====
   useEffect(() => {
@@ -808,7 +822,6 @@ function AppInner() {
             try { localStorage.removeItem('kleo_tutorial_completed'); } catch {}
             setShowTutorial(true);
           }}
-          onRefresh={() => { setShowMenu(false); handleManualRefresh(); }}
           onClose={() => setShowMenu(false)}
           onNavigate={(id) => {
             setShowMenu(false);
