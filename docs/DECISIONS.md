@@ -3,6 +3,45 @@
 > Cada vez que tomamos una decisión importante, agregar una entrada aquí.
 > Formato: `## YYYY-MM-DD · Título corto` + qué + por qué.
 
+## 2026-05-10 · Fase 3 del onboarding · AdvisorOnboarding extendido a 9 pasos
+
+**Qué:** Reescrito `AdvisorOnboarding.jsx` para implementar la Fase 3
+completa documentada en `ONBOARDING_SPEC.md`:
+
+1. **Confirmar cuentas** — lista todas las cuentas y tarjetas detectadas
+   con su logo y balance. Botón "Falta una cuenta" abre Plaid Link otra
+   vez para conectar más bancos.
+2. **APRs faltantes** (existía, refinado UI)
+3. **Utilización meta** (existía)
+4. **Confirmar gastos detectados** — lista de `fixed_expenses`
+   auto-detectados con botones ✓/✕ por cada uno (confirmar o quitar).
+5. **Agregar gastos manuales** — formulario completo (nombre, monto,
+   día, categoría con chips). Acumula los agregados con preview antes
+   de guardar.
+6. **Modo en pareja** — toggle Solo yo / En pareja. Si activo: input
+   nombre de la persona + slider de ratio de ingreso (50/50, 60/40, etc).
+7. **Plan financiero** (existía)
+8. **Metas y ahorros** — detecta ahorros automáticos (transferencias
+   recurrentes a savings account de los últimos 6 meses) y los muestra
+   como sugerencia. Toggle "tengo metas / aún no". Si tiene: form para
+   crear meta con nombre, monto target, cuánto lleva, fecha límite,
+   cuenta vinculada (chips con logo). Si no tiene cuenta de ahorros
+   pero sí checking, muestra recomendación de cuenta virtual del banco
+   local del usuario.
+9. **Resumen + activar** — recap con icons + métricas + lo que el
+   asesor va a hacer.
+
+**Wiring:** App.jsx pasa `fixedExpenses`, `goals`, `transactions` y
+callbacks `onAddFixedExpense`, `onRemoveFixedExpense`,
+`onUpdateHousehold`, `onAddGoal`, `onConnectMoreBanks`. Cuando se
+finaliza el wizard, los gastos manuales se insertan en el state, las
+metas creadas también, y el household se actualiza si activó modo pareja.
+
+**Por qué:** El usuario pidió un flujo completo después de Plaid donde
+el asesor confirme TODO lo detectado antes de soltar al usuario en el
+dashboard real. Esto cierra el ciclo: Tutorial → Conectar → Wizard
+profundo → App lista para usar.
+
 ## 2026-05-10 · Sync de Plaid en background + manual + reescritura de Presupuesto
 
 **Qué:**

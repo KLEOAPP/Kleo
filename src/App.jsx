@@ -777,12 +777,27 @@ function AppInner() {
       {showAdvisorOnboarding && (
         <AdvisorOnboarding
           accounts={accounts}
+          fixedExpenses={fixedExpenses}
+          goals={goals}
+          transactions={transactions}
           profile={getAdvisorProfile()}
           onSave={() => {
             setShowAdvisorOnboarding(false);
             showToast('Asesor activado · 6 meses analizándose');
           }}
           onClose={() => setShowAdvisorOnboarding(false)}
+          onAddFixedExpense={(e) => {
+            setFixedExpenses(prev => [...prev, e]);
+          }}
+          onRemoveFixedExpense={(id) => {
+            setFixedExpenses(prev => prev.filter(f => f.id !== id));
+          }}
+          onUpdateHousehold={(h) => setHousehold(h)}
+          onAddGoal={(g) => setGoals(prev => [...prev, g])}
+          onConnectMoreBanks={() => {
+            setShowAdvisorOnboarding(false);
+            setShowConnectBank(true);
+          }}
         />
       )}
 
