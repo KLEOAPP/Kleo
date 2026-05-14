@@ -37,7 +37,8 @@
       "Bash(grep -n \"    </div>$\\\\|^  \\);$\\\\|^}\" src/components/Dashboard.jsx)",
       "Bash(grep -n \"^  \\);$\\\\|^    </div>$\\\\|^      </div>$\" src/components/Dashboard.jsx)",
       "Bash(xargs grep *)",
-      "Bash(grep -n \"Card 1 — Acción\\\\|Card 2 — Esta semana\\\\|Card 3 — Riesgo\\\\|/>$\" src/components/Dashboard.jsx)"
+      "Bash(grep -n \"Card 1 — Acción\\\\|Card 2 — Esta semana\\\\|Card 3 — Riesgo\\\\|/>$\" src/components/Dashboard.jsx)",
+      "Bash(grep -n \"user.name.split\\\\|s\\\\\\\\.hello\" src/components/Dashboard.jsx)"
     ]
   }
 }

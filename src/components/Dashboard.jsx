@@ -14,7 +14,8 @@ import BudgetSetup from './BudgetSetup.jsx';
 export default function Dashboard({
   user, accounts, transactions, fixedExpenses, goals, household,
   onOpenMenu, onOpenSection, onSwitchTab, onConnectBank,
-  onNotifications, unreadCount, onAddExpense, onOpenKleoAi
+  onNotifications, unreadCount, onAddExpense, onOpenKleoAi,
+  onForceSync, syncing
 }) {
   const { strings: s } = useI18n();
   const [showHowCalc, setShowHowCalc] = useState(false);
@@ -319,10 +320,34 @@ export default function Dashboard({
       />
 
       <div style={{ padding: '4px 0 24px' }}>
-        {/* Greeting */}
-        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
-          {s.hello.replace('{name}', user.name.split(' ')[0])} 👋
-        </h2>
+        {/* Greeting + force sync */}
+        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700 }}>
+            {s.hello.replace('{name}', user.name.split(' ')[0])} 👋
+          </h2>
+          {onForceSync && (
+            <button
+              onClick={onForceSync}
+              disabled={syncing}
+              aria-label="Sincronizar transacciones"
+              style={{
+                width: 38, height: 38, borderRadius: 999,
+                background: 'var(--bg-elev)',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: syncing ? 0.55 : 1,
+                fontSize: 16,
+                transition: 'transform .2s'
+              }}
+            >
+              <span style={{
+                display: 'inline-block',
+                animation: syncing ? 'kleoSpin 1s linear infinite' : 'none'
+              }}>🔄</span>
+            </button>
+          )}
+        </div>
+        <style>{`@keyframes kleoSpin { to { transform: rotate(360deg); } }`}</style>
 
         {/* ============ HERO: DISPONIBLE (con budget + selector de periodo) ============ */}
         {(() => {

@@ -282,6 +282,31 @@ function AppInner() {
     }
   }, []);
 
+  const [syncing, setSyncing] = useState(false);
+  const handleForceSync = useCallback(async () => {
+    if (!user?.id || syncing) return;
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/plaid/sync-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, days: 180 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const [a, t] = await Promise.all([fetchAccounts(), fetchTransactions()]);
+        setAccounts(a); setTransactions(t);
+        showToast(`✓ ${data.synced || 0} transacciones`);
+      } else {
+        showToast('Error: ' + (data.error || 'desconocido'));
+      }
+    } catch (e) {
+      showToast('Error al sincronizar');
+    } finally {
+      setSyncing(false);
+    }
+  }, [user, syncing]);
+
   // Auto-update webhooks una vez por sesión (silencioso).
   // Esto asegura que los Items conectados antes de que añadiéramos
   // webhooks empiecen a recibir pushes de Plaid.
@@ -807,6 +832,8 @@ function AppInner() {
                   unreadCount={unreadCount}
                   onAddExpense={() => setShowAdd(true)}
                   onOpenKleoAi={() => setSection('kleoai')}
+                  onForceSync={handleForceSync}
+                  syncing={syncing}
                 />
               )}
               {tab === 'accounts' && (
