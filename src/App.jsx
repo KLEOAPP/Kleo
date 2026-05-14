@@ -307,6 +307,57 @@ function AppInner() {
     }
   }, [user, syncing]);
 
+  const handleDiagnose = useCallback(async () => {
+    if (!user?.id) return;
+    showToast('Diagnosticando Plaid...');
+    try {
+      const res = await fetch('/api/plaid/diagnose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      const data = await res.json();
+
+      // Resumen legible
+      const lines = [];
+      if (!data.items?.length) {
+        lines.push('No hay cuentas conectadas con Plaid.');
+      } else {
+        lines.push(`Supabase tiene ${data.totals.supabase_transactions} transacciones en total.`);
+        lines.push('');
+        for (const it of data.items) {
+          lines.push(`=== ${it.institution} ===`);
+          if (it.needs_relink) {
+            lines.push(`⚠️ NECESITA RECONEXIÓN (${it.error_code})`);
+            lines.push('   Solución: ve a Cuentas, desconecta y vuelve a conectar.');
+          } else if (it.item_status?.error) {
+            lines.push(`⚠️ Error: ${JSON.stringify(it.item_status.error)}`);
+          } else {
+            lines.push(`✓ Item OK`);
+          }
+          lines.push(`Webhook URL: ${it.item_status?.webhook || '(NO CONFIGURADA)'}`);
+          lines.push(`Plaid tiene: ${it.plaid_transactions_30d ?? '?'} tx (últimos 30 días)`);
+          lines.push(`Kleo guardó: ${it.supabase_transactions_30d ?? '?'} tx`);
+          if (typeof it.gap === 'number') {
+            if (it.gap > 0) lines.push(`⚠️ FALTAN ${it.gap} TRANSACCIONES en Kleo`);
+            else if (it.gap < 0) lines.push(`📦 Tienes ${-it.gap} extra (probablemente más viejas)`);
+            else lines.push(`✓ Todo sincronizado`);
+          }
+          if (it.recent_5?.length) {
+            lines.push('Últimas 5 en Plaid:');
+            it.recent_5.forEach(t => {
+              lines.push(`  ${t.date} · $${t.amount} · ${t.merchant}`);
+            });
+          }
+          lines.push('');
+        }
+      }
+      alert(lines.join('\n'));
+    } catch (e) {
+      alert('Error al diagnosticar: ' + e.message);
+    }
+  }, [user]);
+
   // Auto-update webhooks una vez por sesión (silencioso).
   // Esto asegura que los Items conectados antes de que añadiéramos
   // webhooks empiecen a recibir pushes de Plaid.
@@ -963,6 +1014,7 @@ function AppInner() {
             try { localStorage.removeItem('kleo_tutorial_completed'); } catch {}
             setShowTutorial(true);
           }}
+          onDiagnose={() => { setShowMenu(false); handleDiagnose(); }}
           onClose={() => setShowMenu(false)}
           onNavigate={(id) => {
             setShowMenu(false);
