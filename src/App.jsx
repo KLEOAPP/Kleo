@@ -34,7 +34,7 @@ import {
 } from './data/sampleData.js';
 
 // Importar Supabase (puede fallar si no está configurado)
-import { isConfigured } from './lib/supabase.js';
+import { isConfigured, supabase } from './lib/supabase.js';
 import {
   fetchAccounts,
   fetchTransactions,
@@ -272,6 +272,60 @@ function AppInner() {
       console.warn('Background Plaid sync failed:', e.message);
     }
   }, []);
+
+  // ===== Supabase Realtime — push en vivo cuando hay cambios =====
+  // El webhook de Plaid escribe a Supabase → Supabase notifica al cliente
+  // por WebSocket. La transacción aparece en milisegundos sin polling.
+  useEffect(() => {
+    if (stage !== STAGE.AUTHENTICATED || !user?.id || !useSupabase) return;
+
+    const channel = supabase
+      .channel(`kleo-rt-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'transactions',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        const tx = payload.new;
+        // Normalizar el shape al que usa el cliente (account_id → accountId, etc)
+        const normalized = {
+          id: tx.id,
+          accountId: tx.account_id,
+          amount: tx.amount,
+          merchant: tx.merchant,
+          category: tx.category,
+          date: tx.date,
+          method: tx.method,
+          shared: tx.shared
+        };
+        setTransactions(prev => {
+          if (prev.some(t => t.id === normalized.id)) return prev;
+          return [normalized, ...prev];
+        });
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'accounts',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        const acct = payload.new;
+        setAccounts(prev => prev.map(a => a.id === acct.id ? {
+          ...a,
+          balance: acct.balance,
+          credit_limit: acct.credit_limit,
+          limit: acct.credit_limit,
+          name: acct.name,
+          institution: acct.institution
+        } : a));
+      })
+      .on('postgres_changes', {
+        event: 'DELETE', schema: 'public', table: 'transactions',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        setTransactions(prev => prev.filter(t => t.id !== payload.old.id));
+      })
+      .subscribe();
+
+    return () => { try { supabase.removeChannel(channel); } catch {} };
+  }, [stage, user?.id, useSupabase]);
 
   // ===== Sync automático de Plaid =====
   // Cada 30s mientras la app esté visible + al volver del background.

@@ -91,6 +91,7 @@ export default async function handler(req, res) {
         credit_limit: acct.balances.limit || null,
         plaid_account_id: acct.account_id,
         plaid_access_token: accessToken,
+        plaid_item_id: itemId,
         color: type === 'credit'
           ? 'linear-gradient(135deg, #FF6000 0%, #B84500 100%)'
           : type === 'savings'

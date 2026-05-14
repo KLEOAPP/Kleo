@@ -29,12 +29,15 @@ export default async function handler(req, res) {
   try {
     const { userId } = req.body;
 
+    const webhookUrl = process.env.PLAID_WEBHOOK_URL || 'https://kleopr.com/api/plaid/webhook';
+
     const baseConfig = {
       user: { client_user_id: userId || 'demo-user' },
       client_name: 'Kleo',
       products: ['transactions'],
       country_codes: ['US'],
-      language: 'es'
+      language: 'es',
+      webhook: webhookUrl
     };
 
     // redirect_uri solo si está explícitamente configurado y registrado en Plaid
