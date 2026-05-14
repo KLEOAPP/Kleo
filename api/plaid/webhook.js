@@ -9,6 +9,13 @@
 
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 import { createClient } from '@supabase/supabase-js';
+import webpush from 'web-push';
+
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT || 'mailto:riiverv.pr@gmail.com',
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+);
 
 const config = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
@@ -131,7 +138,20 @@ async function syncRecentTransactions(accessToken, userId, accounts) {
       options: { count: 500 }
     });
 
+    // Antes de upsert, verificamos cuáles son nuevas (no existen aún en Supabase)
+    // para mandar push solo de ellas y no de las que ya teníamos.
+    const txIds = txResponse.data.transactions.map(t => t.transaction_id);
+    let existingIds = new Set();
+    if (txIds.length > 0) {
+      const { data: existing } = await supabase
+        .from('transactions')
+        .select('plaid_transaction_id')
+        .in('plaid_transaction_id', txIds);
+      existingIds = new Set((existing || []).map(e => e.plaid_transaction_id));
+    }
+
     let inserted = 0;
+    const newOnes = [];
     for (const tx of txResponse.data.transactions) {
       const matched = accounts.find(a => a.plaid_account_id === tx.account_id);
       if (!matched) continue;
@@ -177,6 +197,8 @@ async function syncRecentTransactions(accessToken, userId, accounts) {
         category = 'transferencia';
       }
 
+      const isNew = !existingIds.has(tx.transaction_id);
+
       const { error } = await supabase.from('transactions').upsert({
         user_id: userId,
         account_id: matched.id,
@@ -188,11 +210,84 @@ async function syncRecentTransactions(accessToken, userId, accounts) {
         plaid_transaction_id: tx.transaction_id
       }, { onConflict: 'plaid_transaction_id' });
 
-      if (!error) inserted++;
+      if (!error) {
+        inserted++;
+        if (isNew && category !== 'transferencia') {
+          newOnes.push({
+            merchant: tx.merchant_name || tx.name,
+            amount: Math.abs(tx.amount),
+            isIncome: tx.amount < 0, // en Plaid negativo = entrada
+            date: tx.date,
+            account: matched
+          });
+        }
+      }
     }
-    console.log(`✓ Synced ${inserted} transactions for user ${userId}`);
+    console.log(`✓ Synced ${inserted} transactions (${newOnes.length} new) for user ${userId}`);
+
+    if (newOnes.length > 0) {
+      await sendTransactionPush(userId, newOnes);
+    }
   } catch (e) {
     console.warn('Transactions sync failed:', e.response?.data || e.message);
+  }
+}
+
+// ───────────────────────────────────────────────
+// Push notification cuando llegan transacciones nuevas
+// ───────────────────────────────────────────────
+async function sendTransactionPush(userId, transactions) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+
+  // Buscar subscripciones push del usuario
+  const { data: subs } = await supabase
+    .from('push_subscriptions')
+    .select('endpoint, keys_p256dh, keys_auth')
+    .eq('user_id', userId);
+
+  if (!subs?.length) {
+    console.log('No push subs for user', userId);
+    return;
+  }
+
+  // Construir mensaje
+  let title, body;
+  if (transactions.length === 1) {
+    const t = transactions[0];
+    const fmtMoney = `$${Math.abs(t.amount).toFixed(2)}`;
+    if (t.isIncome) {
+      title = `💵 +${fmtMoney}`;
+      body = `${t.merchant} · ${t.account?.institution || 'tu cuenta'}`;
+    } else {
+      title = `💳 ${fmtMoney}`;
+      body = `${t.merchant} · ${t.account?.institution || 'tu cuenta'}`;
+    }
+  } else {
+    const total = transactions.reduce((s, t) => s + Math.abs(t.amount), 0);
+    title = `🔔 ${transactions.length} transacciones nuevas`;
+    body = `$${total.toFixed(2)} en total — toca para ver`;
+  }
+
+  const payload = JSON.stringify({
+    title, body,
+    icon: '/apple-touch-icon.png',
+    badge: '/apple-touch-icon.png',
+    url: '/?section=transactions',
+    section: 'transactions',
+    tag: 'kleo-transaction'
+  });
+
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth } },
+        payload
+      );
+    } catch (err) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      }
+    }
   }
 }
 
