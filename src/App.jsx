@@ -243,8 +243,15 @@ function AppInner() {
 
       // Auto-sync de Plaid en background si hay cuentas conectadas
       if (accts.some(a => a.plaid_access_token || a.plaid_account_id)) {
-        // No bloquear el UI — corre en background y refresca al terminar
-        syncPlaidInBackground(userId);
+        // 1ra vez en la sesión: sync profundo de 90 días para llenar huecos
+        // de transacciones que no se registraron mientras la app estaba cerrada.
+        // Después solo 14 días en cada sync incremental.
+        const deepKey = `kleo_deep_sync_${userId}`;
+        const needsDeep = !sessionStorage.getItem(deepKey);
+        const days = needsDeep ? 90 : 14;
+        syncPlaidInBackground(userId, days).then(() => {
+          if (needsDeep) sessionStorage.setItem(deepKey, '1');
+        });
         // Asegurar que el webhook URL esté seteado en los Items
         updateWebhooksOnce(userId);
       }
