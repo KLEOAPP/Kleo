@@ -245,6 +245,8 @@ function AppInner() {
       if (accts.some(a => a.plaid_access_token || a.plaid_account_id)) {
         // No bloquear el UI — corre en background y refresca al terminar
         syncPlaidInBackground(userId);
+        // Asegurar que el webhook URL esté seteado en los Items
+        updateWebhooksOnce(userId);
       }
     } catch (err) {
       console.error('Supabase load error:', err);
@@ -270,6 +272,25 @@ function AppInner() {
       }
     } catch (e) {
       console.warn('Background Plaid sync failed:', e.message);
+    }
+  }, []);
+
+  // Auto-update webhooks una vez por sesión (silencioso).
+  // Esto asegura que los Items conectados antes de que añadiéramos
+  // webhooks empiecen a recibir pushes de Plaid.
+  const updateWebhooksOnce = useCallback(async (userId) => {
+    if (!userId) return;
+    try {
+      const flagKey = `kleo_webhooks_updated_${userId}`;
+      if (sessionStorage.getItem(flagKey)) return;
+      const res = await fetch('/api/plaid/update-webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (res.ok) sessionStorage.setItem(flagKey, '1');
+    } catch (e) {
+      console.warn('Auto webhook update failed:', e.message);
     }
   }, []);
 
