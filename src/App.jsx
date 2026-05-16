@@ -440,22 +440,42 @@ function AppInner() {
     if (!hasPlaidAccounts) return;
 
     let lastSync = Date.now();
-    const SYNC_INTERVAL_MS = 30 * 1000;
+    const openedAt = Date.now();
+    // Polling agresivo los primeros 5 min (cada 15s), después cada 30s
+    const FAST_INTERVAL = 15 * 1000;
+    const SLOW_INTERVAL = 30 * 1000;
+    const FAST_WINDOW = 5 * 60 * 1000;
 
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return;
-      if (Date.now() - lastSync > 2 * 60 * 1000) {
-        syncPlaidInBackground(user.id, 7);
+      // Si la app volvió del background, fuerza un sync inmediato
+      if (Date.now() - lastSync > 60 * 1000) {
+        syncPlaidInBackground(user.id, 14);
         lastSync = Date.now();
       }
     };
 
-    const intervalId = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        syncPlaidInBackground(user.id, 7);
-        lastSync = Date.now();
+    const tick = () => {
+      if (document.visibilityState !== 'visible') return;
+      syncPlaidInBackground(user.id, 7);
+      lastSync = Date.now();
+    };
+
+    // Primer sync inmediato al montar (no esperar 30s)
+    syncPlaidInBackground(user.id, 14);
+    lastSync = Date.now();
+
+    let intervalId = setInterval(() => {
+      const inFastWindow = Date.now() - openedAt < FAST_WINDOW;
+      tick();
+      // Si pasamos de fast a slow window, recreamos el interval
+      if (!inFastWindow && intervalId._isFast) {
+        clearInterval(intervalId);
+        intervalId = setInterval(tick, SLOW_INTERVAL);
+        intervalId._isFast = false;
       }
-    }, SYNC_INTERVAL_MS);
+    }, FAST_INTERVAL);
+    intervalId._isFast = true;
 
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
