@@ -15,7 +15,7 @@ export default function Dashboard({
   user, accounts, transactions, fixedExpenses, goals, household,
   onOpenMenu, onOpenSection, onSwitchTab, onConnectBank,
   onNotifications, unreadCount, onAddExpense, onOpenKleoAi,
-  onForceSync, syncing
+  banksNeedingRelink = [], onReconnectBank
 }) {
   const { strings: s } = useI18n();
   const [showHowCalc, setShowHowCalc] = useState(false);
@@ -320,34 +320,37 @@ export default function Dashboard({
       />
 
       <div style={{ padding: '4px 0 24px' }}>
-        {/* Greeting + force sync */}
-        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700 }}>
-            {s.hello.replace('{name}', user.name.split(' ')[0])} 👋
-          </h2>
-          {onForceSync && (
-            <button
-              onClick={onForceSync}
-              disabled={syncing}
-              aria-label="Sincronizar transacciones"
-              style={{
-                width: 38, height: 38, borderRadius: 999,
-                background: 'var(--bg-elev)',
-                border: '1px solid var(--border)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: syncing ? 0.55 : 1,
-                fontSize: 16,
-                transition: 'transform .2s'
-              }}
-            >
-              <span style={{
-                display: 'inline-block',
-                animation: syncing ? 'kleoSpin 1s linear infinite' : 'none'
-              }}>🔄</span>
-            </button>
-          )}
-        </div>
-        <style>{`@keyframes kleoSpin { to { transform: rotate(360deg); } }`}</style>
+        {/* Greeting */}
+        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
+          {s.hello.replace('{name}', user.name.split(' ')[0])} 👋
+        </h2>
+
+        {/* Banner suave si algún banco necesita reconexión */}
+        {banksNeedingRelink.length > 0 && (
+          <button
+            onClick={onReconnectBank}
+            style={{
+              width: '100%', padding: 12, borderRadius: 14,
+              background: 'linear-gradient(135deg, rgba(255, 149, 0, 0.15), rgba(255, 77, 109, 0.10))',
+              border: '1px solid rgba(255, 149, 0, 0.35)',
+              display: 'flex', gap: 10, alignItems: 'center',
+              marginBottom: 16, textAlign: 'left'
+            }}
+          >
+            <span style={{ fontSize: 22 }}>🔌</span>
+            <div className="col gap-2" style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FF9500' }}>
+                {banksNeedingRelink.length === 1
+                  ? `${banksNeedingRelink[0].institution} perdió conexión`
+                  : `${banksNeedingRelink.length} bancos necesitan reconexión`}
+              </span>
+              <span className="tiny" style={{ fontSize: 11, lineHeight: 1.4 }}>
+                Toca para reconectar — no recibo transacciones nuevas hasta que lo hagas.
+              </span>
+            </div>
+            <Icon name="back" size={14} color="#FF9500" stroke={2.5} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+        )}
 
         {/* ============ HERO: DISPONIBLE (con budget + selector de periodo) ============ */}
         {(() => {

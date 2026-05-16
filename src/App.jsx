@@ -282,30 +282,35 @@ function AppInner() {
     }
   }, []);
 
-  const [syncing, setSyncing] = useState(false);
-  const handleForceSync = useCallback(async () => {
-    if (!user?.id || syncing) return;
-    setSyncing(true);
+  // Bancos que necesitan reconexión (detectado por auto-recover)
+  const [banksNeedingRelink, setBanksNeedingRelink] = useState([]);
+
+  // Auto-recover: corre al abrir la app y silenciosamente sincroniza todo.
+  // Detecta items expirados y los reporta al estado para mostrar banner.
+  const autoRecover = useCallback(async (userId) => {
+    if (!userId) return;
     try {
-      const res = await fetch('/api/plaid/sync-transactions', {
+      const res = await fetch('/api/plaid/auto-recover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, days: 180 })
+        body: JSON.stringify({ userId })
       });
       const data = await res.json();
-      if (res.ok) {
+      if (!res.ok) return;
+
+      // Si insertó algo, refresca cuentas y transacciones
+      if (data.totalInserted > 0) {
         const [a, t] = await Promise.all([fetchAccounts(), fetchTransactions()]);
         setAccounts(a); setTransactions(t);
-        showToast(`✓ ${data.synced || 0} transacciones`);
-      } else {
-        showToast('Error: ' + (data.error || 'desconocido'));
       }
+
+      // Items que necesitan reconexión
+      const needsRelink = (data.items || []).filter(i => i.needs_relink);
+      setBanksNeedingRelink(needsRelink);
     } catch (e) {
-      showToast('Error al sincronizar');
-    } finally {
-      setSyncing(false);
+      console.warn('auto-recover failed:', e.message);
     }
-  }, [user, syncing]);
+  }, []);
 
   const handleDiagnose = useCallback(async () => {
     if (!user?.id) return;
@@ -461,8 +466,9 @@ function AppInner() {
       lastSync = Date.now();
     };
 
-    // Primer sync inmediato al montar (no esperar 30s)
-    syncPlaidInBackground(user.id, 14);
+    // Primer sync inmediato al montar — auto-recover es más completo
+    // (verifica items, balances, transacciones, todo en un solo call)
+    autoRecover(user.id);
     lastSync = Date.now();
 
     let intervalId = setInterval(() => {
@@ -482,7 +488,7 @@ function AppInner() {
       clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [stage, user?.id, accounts.length, syncPlaidInBackground]);
+  }, [stage, user?.id, accounts.length, syncPlaidInBackground, autoRecover]);
 
   // ===== INIT =====
   useEffect(() => {
@@ -903,8 +909,8 @@ function AppInner() {
                   unreadCount={unreadCount}
                   onAddExpense={() => setShowAdd(true)}
                   onOpenKleoAi={() => setSection('kleoai')}
-                  onForceSync={handleForceSync}
-                  syncing={syncing}
+                  banksNeedingRelink={banksNeedingRelink}
+                  onReconnectBank={() => setShowConnectBank(true)}
                 />
               )}
               {tab === 'accounts' && (
